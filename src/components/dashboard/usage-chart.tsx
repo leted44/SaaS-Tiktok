@@ -1,7 +1,7 @@
 const LABELS: Record<string, { label: string; color: string }> = {
   SCRIPT_GENERATION: { label: "Scripts", color: "#A78BFA" },
-  VOICEOVER: { label: "Voiceovers", color: "#F472B6" },
-  RENDER: { label: "Renders", color: "#FBBF24" },
+  VOICEOVER: { label: "Voix off", color: "#F472B6" },
+  RENDER: { label: "Rendus", color: "#FBBF24" },
 };
 
 export function UsageChart({ usage }: { usage: Record<string, { credits: number; count: number }> }) {

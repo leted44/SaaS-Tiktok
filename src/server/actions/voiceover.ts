@@ -28,14 +28,14 @@ export async function generateVoiceoverAction(input: unknown): Promise<ActionRes
     const script = await prisma.script.findFirstOrThrow({ where: { id: data.scriptId, projectId: data.projectId, userId: user.id } });
     const voice = getVoice(data.voiceId);
     if (voice.premium && !PLANS[user.plan].premiumVoices) {
-      throw new Error(`${voice.name} is a premium voice. Upgrade to Creator or higher to use it.`);
+      throw new Error(`${voice.name} est une voix premium. Passez au forfait Créateur ou supérieur pour l'utiliser.`);
     }
 
     const scenes = parseJson(scenesSchema, script.scenes, []);
     const segments = [script.hook, ...scenes.map((s) => s.text), script.callToAction];
     const estimatedMs = estimateSpeechMs(segments.join(" ")) / data.speed;
     const cost = voiceoverCost(estimatedMs);
-    await chargeCredits(user.id, cost, "VOICEOVER", `Voiceover (${voice.name})`, data.projectId);
+    await chargeCredits(user.id, cost, "VOICEOVER", `Voix off (${voice.name})`, data.projectId);
 
     const voiceover = await prisma.voiceover.create({
       data: { projectId: data.projectId, scriptId: data.scriptId, userId: user.id, voiceId: voice.id, status: "PROCESSING", stability: data.stability, similarity: data.similarity, speed: data.speed },
@@ -54,7 +54,7 @@ export async function generateVoiceoverAction(input: unknown): Promise<ActionRes
       return { voiceoverId: voiceover.id, audioUrl: stored.url, durationMs: result.durationMs, provider: result.provider, creditsCharged: cost };
     } catch (err) {
       await prisma.voiceover.update({ where: { id: voiceover.id }, data: { status: "FAILED", error: err instanceof Error ? err.message : String(err) } });
-      await refundCredits(user.id, cost, "Refund — voiceover failed", voiceover.id);
+      await refundCredits(user.id, cost, "Remboursement — la voix off a échoué", voiceover.id);
       throw err;
     }
   });

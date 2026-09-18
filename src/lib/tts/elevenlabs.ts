@@ -34,7 +34,7 @@ export class TTSError extends Error {
  * Uses the /with-timestamps endpoint so kinetic captions are sample-accurate.
  */
 export async function synthesizeElevenLabs(text: string, providerVoiceId: string, sceneBoundaries: number[], opts: TTSOptions = {}): Promise<TTSResult> {
-  if (!env.elevenLabsApiKey) throw new TTSError("Voiceover is not configured (ELEVENLABS_API_KEY missing).", "NOT_CONFIGURED");
+  if (!env.elevenLabsApiKey) throw new TTSError("La voix off n'est pas configurée (clé ELEVENLABS_API_KEY manquante).", "NOT_CONFIGURED");
 
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${providerVoiceId}/with-timestamps?output_format=mp3_44100_128`, {
     method: "POST",
@@ -53,8 +53,8 @@ export async function synthesizeElevenLabs(text: string, providerVoiceId: string
     }),
   });
 
-  if (res.status === 401 || res.status === 402) throw new TTSError("ElevenLabs rejected the request (quota or API key).", "QUOTA");
-  if (!res.ok) throw new TTSError(`ElevenLabs error ${res.status}: ${(await res.text()).slice(0, 300)}`, "UPSTREAM");
+  if (res.status === 401 || res.status === 402) throw new TTSError("ElevenLabs a rejeté la requête (quota ou clé API).", "QUOTA");
+  if (!res.ok) throw new TTSError(`Erreur ElevenLabs ${res.status} : ${(await res.text()).slice(0, 300)}`, "UPSTREAM");
 
   const data = (await res.json()) as ElevenLabsTimestampResponse;
   const audio = Buffer.from(data.audio_base64, "base64");

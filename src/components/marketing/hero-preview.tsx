@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Mic2, Captions, Send } from "lucide-react";
 
-const WORDS = ["STOP", "SCROLLING.", "THIS", "ONE", "HABIT", "CHANGED", "EVERYTHING."];
+const WORDS = ["ARRÊTE", "DE", "SCROLLER.", "TOUT", "VA", "CHANGER."];
 
 export function HeroPreview() {
   const [i, setI] = useState(0);
@@ -48,10 +48,10 @@ export function HeroPreview() {
       {/* floating chips */}
       <AnimatePresence>
         {[
-          { icon: Sparkles, label: "Virality 87", pos: "-left-10 top-16", delay: 0.4 },
-          { icon: Mic2, label: "Voice: Adam", pos: "-right-8 top-40", delay: 0.6 },
-          { icon: Captions, label: "Hormozi captions", pos: "-left-12 bottom-40", delay: 0.8 },
-          { icon: Send, label: "Scheduled ×3", pos: "-right-6 bottom-16", delay: 1 },
+          { icon: Sparkles, label: "Viralité 87", pos: "-left-10 top-16", delay: 0.4 },
+          { icon: Mic2, label: "Voix : Adam", pos: "-right-8 top-40", delay: 0.6 },
+          { icon: Captions, label: "Sous-titres Hormozi", pos: "-left-12 bottom-40", delay: 0.8 },
+          { icon: Send, label: "Programmé ×3", pos: "-right-6 bottom-16", delay: 1 },
         ].map((c) => (
           <motion.div
             key={c.label}

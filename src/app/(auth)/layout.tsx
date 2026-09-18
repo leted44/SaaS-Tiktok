@@ -15,11 +15,11 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
           <Logo className="text-white" />
           <div>
             <blockquote className="font-display text-3xl font-bold leading-snug">
-              “I went from one video a week to one a day. The scripts are genuinely better than mine.”
+              « Je suis passée d'une vidéo par semaine à une par jour. Les scripts sont vraiment meilleurs que les miens. »
             </blockquote>
-            <p className="mt-4 text-white/70">— Maya R., 412K followers on TikTok</p>
+            <p className="mt-4 text-white/70">— Maya R., 412K abonnés sur TikTok</p>
           </div>
-          <p className="text-xs text-white/60">Scripts · Voiceovers · Kinetic captions · Publishing</p>
+          <p className="text-xs text-white/60">Scripts · Voix off · Sous-titres dynamiques · Publication</p>
         </div>
       </div>
       <div className="flex items-center justify-center p-6">

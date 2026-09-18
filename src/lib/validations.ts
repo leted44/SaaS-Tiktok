@@ -89,9 +89,9 @@ export type WordTiming = z.infer<typeof wordTimingSchema>;
 // ───────────────────────── Forms ─────────────────────────
 
 export const registerSchema = z.object({
-  name: z.string().min(2, "Name is too short").max(60),
-  email: z.string().email("Enter a valid email"),
-  password: z.string().min(8, "Use at least 8 characters").max(128),
+  name: z.string().min(2, "Nom trop court").max(60),
+  email: z.string().email("Saisissez une adresse e-mail valide"),
+  password: z.string().min(8, "Utilisez au moins 8 caractères").max(128),
 });
 
 export const loginSchema = z.object({
@@ -101,12 +101,12 @@ export const loginSchema = z.object({
 
 export const generateScriptSchema = z.object({
   projectId: z.string().optional(),
-  topic: z.string().min(3, "Describe your topic in a few words").max(1200),
+  topic: z.string().min(3, "Décrivez votre sujet en quelques mots").max(1200),
   niche: z.string().max(80).default("general"),
   sourceUrl: z.string().url().optional().or(z.literal("")),
   tone: z.enum(["energetic", "educational", "storytelling", "controversial", "calm", "humorous"]).default("energetic"),
   targetDurationSec: z.number().int().min(15).max(180).default(45),
-  language: z.string().min(2).max(8).default("en"),
+  language: z.string().min(2).max(8).default("fr"),
   audience: z.string().max(200).optional(),
   callToActionGoal: z.enum(["follow", "comment", "share", "link", "none"]).default("follow"),
   hookStyle: z.enum(["question", "bold-claim", "curiosity-gap", "story", "statistic", "auto"]).default("auto"),

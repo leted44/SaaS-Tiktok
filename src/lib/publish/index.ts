@@ -8,7 +8,7 @@ const LOCK_TIMEOUT_MS = 10 * 60 * 1000;
 /** Publish one job immediately (used by the worker and by "post now"). */
 export async function executePublishJob(jobId: string): Promise<void> {
   const job = await prisma.publishJob.findUniqueOrThrow({ where: { id: jobId }, include: { renderJob: true, socialAccount: true, project: true } });
-  if (!job.renderJob.outputUrl) throw new Error("Render output is not available yet");
+  if (!job.renderJob.outputUrl) throw new Error("Le rendu n'est pas encore disponible");
 
   const payload: PublishPayload = {
     videoUrl: job.renderJob.outputUrl,

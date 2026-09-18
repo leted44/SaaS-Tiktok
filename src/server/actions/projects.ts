@@ -19,7 +19,7 @@ export async function createProject(input: unknown): Promise<ActionResult<{ id: 
     const limit = PLANS[dbUser.plan].maxProjects;
     if (limit > 0) {
       const count = await prisma.project.count({ where: { userId: user.id } });
-      if (count >= limit) throw new Error(`Your ${PLANS[dbUser.plan].name} plan allows ${limit} projects. Upgrade to create more.`);
+      if (count >= limit) throw new Error(`Votre forfait ${PLANS[dbUser.plan].name} autorise ${limit} projets. Passez à un forfait supérieur pour en créer davantage.`);
     }
     const workspace = await getCurrentWorkspace();
     const project = await prisma.project.create({

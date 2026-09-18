@@ -11,7 +11,7 @@ export async function registerUser(input: unknown): Promise<ActionResult<{ id: s
     const data = registerSchema.parse(input);
     const email = data.email.toLowerCase();
     const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) throw new Error("An account with this email already exists. Sign in instead.");
+    if (existing) throw new Error("Un compte existe déjà avec cet e-mail. Connectez-vous plutôt.");
     const passwordHash = await bcrypt.hash(data.password, 12);
     const user = await prisma.user.create({ data: { name: data.name, email, passwordHash } });
     await ensureUserProvisioned(user.id, data.name);
@@ -23,7 +23,7 @@ export async function registerUser(input: unknown): Promise<ActionResult<{ id: s
 export async function loginWithPassword(input: { email: string; password: string }): Promise<ActionResult<undefined>> {
   return guard(async () => {
     const res = await signIn("credentials", { email: input.email.toLowerCase(), password: input.password, redirect: false });
-    if (!res || (typeof res === "string" && res.includes("error"))) throw new Error("Invalid email or password.");
+    if (!res || (typeof res === "string" && res.includes("error"))) throw new Error("E-mail ou mot de passe invalide.");
     return undefined;
   }).catch(() => ({ ok: false as const, error: "Invalid email or password.", code: "INVALID_CREDENTIALS" }));
 }

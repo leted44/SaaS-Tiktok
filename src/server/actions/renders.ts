@@ -19,16 +19,16 @@ export async function enqueueRender(input: unknown): Promise<ActionResult<{ rend
     const script = project.activeScriptId
       ? await prisma.script.findUnique({ where: { id: project.activeScriptId } })
       : await prisma.script.findFirst({ where: { projectId: project.id }, orderBy: { version: "desc" } });
-    if (!script) throw new Error("Generate a script before rendering.");
+    if (!script) throw new Error("Générez un script avant de lancer le rendu.");
     const voiceover = await prisma.voiceover.findFirst({ where: { projectId: project.id, scriptId: script.id, status: "READY" }, orderBy: { createdAt: "desc" } });
 
     const active = await prisma.renderJob.count({ where: { projectId: project.id, status: { in: ["QUEUED", "PROCESSING"] } } });
-    if (active > 0) throw new Error("A render is already in progress for this project.");
+    if (active > 0) throw new Error("Un rendu est déjà en cours pour ce projet.");
 
     const planDef = PLANS[user.plan];
     const resolution = clampResolution(data.resolution, planDef.maxResolution);
     const cost = renderCost(user.plan, resolution);
-    await chargeCredits(user.id, cost, "RENDER", `Render ${resolution} — ${project.title}`, project.id);
+    await chargeCredits(user.id, cost, "RENDER", `Rendu ${resolution} — ${project.title}`, project.id);
 
     try {
       const props = buildShortVideoProps({ project, script, voiceover, workspace: project.workspace, resolution, watermark: planDef.watermark, absolute: true });
@@ -52,7 +52,7 @@ export async function enqueueRender(input: unknown): Promise<ActionResult<{ rend
       revalidatePath("/exports");
       return { renderJobId: job.id, creditsCharged: cost, resolution };
     } catch (err) {
-      await refundCredits(user.id, cost, "Refund — could not queue render", project.id);
+      await refundCredits(user.id, cost, "Remboursement — le rendu n'a pas pu être mis en file", project.id);
       throw err;
     }
   });
@@ -62,9 +62,9 @@ export async function cancelRender(renderJobId: string): Promise<ActionResult<un
   return guard(async () => {
     const user = await requireUser();
     const job = await prisma.renderJob.findFirstOrThrow({ where: { id: renderJobId, userId: user.id } });
-    if (job.status !== "QUEUED") throw new Error("Only queued renders can be cancelled.");
+    if (job.status !== "QUEUED") throw new Error("Seuls les rendus en attente peuvent être annulés.");
     await prisma.renderJob.update({ where: { id: job.id }, data: { status: "CANCELLED", step: "cancelled" } });
-    if (job.creditsCharged > 0) await refundCredits(user.id, job.creditsCharged, "Refund — render cancelled", job.id);
+    if (job.creditsCharged > 0) await refundCredits(user.id, job.creditsCharged, "Remboursement — rendu annulé", job.id);
     await prisma.project.update({ where: { id: job.projectId }, data: { status: "READY" } });
     revalidatePath("/exports");
     return undefined;
@@ -75,7 +75,7 @@ export async function deleteRender(renderJobId: string): Promise<ActionResult<un
   return guard(async () => {
     const user = await requireUser();
     const job = await prisma.renderJob.findFirstOrThrow({ where: { id: renderJobId, userId: user.id } });
-    if (job.status === "PROCESSING") throw new Error("Wait for the render to finish before deleting it.");
+    if (job.status === "PROCESSING") throw new Error("Attendez la fin du rendu avant de le supprimer.");
     await prisma.renderJob.delete({ where: { id: job.id } });
     revalidatePath("/exports");
     return undefined;

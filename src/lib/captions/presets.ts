@@ -30,12 +30,12 @@ const base: CaptionStyle = {
 };
 
 export const CAPTION_PRESETS: CaptionPreset[] = [
-  { id: "hormozi", name: "Hormozi", description: "Bold uppercase, yellow word highlight, thick stroke.", style: { ...base } },
-  { id: "karaoke", name: "Karaoke", description: "Words fill with color as they're spoken.", style: { ...base, preset: "karaoke", uppercase: false, fontWeight: 700, fontSize: 64, highlightColor: "#7C3AED", highlightMode: "color", strokeWidth: 4, wordsPerLine: 4, animation: "fade" } },
-  { id: "minimal", name: "Minimal", description: "Clean sans-serif, subtle shadow, no stroke.", style: { ...base, preset: "minimal", uppercase: false, fontWeight: 600, fontSize: 56, strokeWidth: 0, highlightMode: "underline", highlightColor: "#FFFFFF", wordsPerLine: 5, position: "bottom", animation: "fade" } },
-  { id: "neon", name: "Neon", description: "Glowing text with cyan highlight — great for tech & gaming.", style: { ...base, preset: "neon", fontFamily: "Space Grotesk", textColor: "#F0FDFF", highlightColor: "#22D3EE", strokeColor: "#0E7490", strokeWidth: 3, highlightMode: "scale", animation: "pop" } },
-  { id: "boxed", name: "Boxed", description: "Word-by-word highlight box, TikTok-native look.", style: { ...base, preset: "boxed", highlightMode: "box", highlightColor: "#7C3AED", strokeWidth: 0, fontSize: 68, backgroundColor: "#000000", backgroundOpacity: 0.55, animation: "slide" } },
-  { id: "editorial", name: "Editorial", description: "Serif, lower-third placement, elegant pacing.", style: { ...base, preset: "editorial", fontFamily: "Playfair Display", uppercase: false, fontWeight: 700, fontSize: 60, strokeWidth: 0, highlightMode: "color", highlightColor: "#FBBF24", position: "bottom", wordsPerLine: 5, maxLines: 2, animation: "fade" } },
+  { id: "hormozi", name: "Hormozi", description: "Majuscules grasses, mot en surbrillance jaune, contour épais.", style: { ...base } },
+  { id: "karaoke", name: "Karaoké", description: "Les mots se colorent au fur et à mesure qu'ils sont prononcés.", style: { ...base, preset: "karaoke", uppercase: false, fontWeight: 700, fontSize: 64, highlightColor: "#7C3AED", highlightMode: "color", strokeWidth: 4, wordsPerLine: 4, animation: "fade" } },
+  { id: "minimal", name: "Minimaliste", description: "Sans-serif épuré, ombre légère, sans contour.", style: { ...base, preset: "minimal", uppercase: false, fontWeight: 600, fontSize: 56, strokeWidth: 0, highlightMode: "underline", highlightColor: "#FFFFFF", wordsPerLine: 5, position: "bottom", animation: "fade" } },
+  { id: "neon", name: "Néon", description: "Texte lumineux avec surbrillance cyan — parfait pour la tech et le gaming.", style: { ...base, preset: "neon", fontFamily: "Space Grotesk", textColor: "#F0FDFF", highlightColor: "#22D3EE", strokeColor: "#0E7490", strokeWidth: 3, highlightMode: "scale", animation: "pop" } },
+  { id: "boxed", name: "Encadré", description: "Surbrillance mot par mot dans un cadre, look natif TikTok.", style: { ...base, preset: "boxed", highlightMode: "box", highlightColor: "#7C3AED", strokeWidth: 0, fontSize: 68, backgroundColor: "#000000", backgroundOpacity: 0.55, animation: "slide" } },
+  { id: "editorial", name: "Éditorial", description: "Police serif, positionné en bas, rythme élégant.", style: { ...base, preset: "editorial", fontFamily: "Playfair Display", uppercase: false, fontWeight: 700, fontSize: 60, strokeWidth: 0, highlightMode: "color", highlightColor: "#FBBF24", position: "bottom", wordsPerLine: 5, maxLines: 2, animation: "fade" } },
 ];
 
 export const CAPTION_PRESET_BY_ID = Object.fromEntries(CAPTION_PRESETS.map((p) => [p.id, p])) as Record<CaptionPresetId, CaptionPreset>;

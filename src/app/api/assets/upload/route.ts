@@ -28,8 +28,8 @@ export async function POST(req: Request) {
   const form = await req.formData();
   const file = form.get("file");
   const kind = String(form.get("kind") ?? "asset");
-  if (!(file instanceof File)) return NextResponse.json({ error: "No file provided" }, { status: 400 });
-  if (file.size > MAX_BYTES) return NextResponse.json({ error: "File exceeds 50 MB" }, { status: 413 });
+  if (!(file instanceof File)) return NextResponse.json({ error: "Aucun fichier fourni" }, { status: 400 });
+  if (file.size > MAX_BYTES) return NextResponse.json({ error: "Le fichier dépasse 50 Mo" }, { status: 413 });
   const type = kind === "logo" ? "LOGO" : ALLOWED[file.type];
   if (!type) return NextResponse.json({ error: `Unsupported file type ${file.type}` }, { status: 415 });
 

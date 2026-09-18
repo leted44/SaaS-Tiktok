@@ -9,17 +9,17 @@ const grotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-display", 
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "ClipForge — AI short-form video studio", template: "%s · ClipForge" },
-  description: "Turn any idea into viral TikToks, Reels and Shorts. AI scripts, realistic voiceovers, kinetic captions and one-click publishing.",
+  title: { default: "ClipForge — Studio vidéo IA pour formats courts", template: "%s · ClipForge" },
+  description: "Transformez n'importe quelle idée en TikTok, Reel ou Short viral. Scripts IA, voix off réalistes, sous-titres dynamiques et publication en un clic.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
-  openGraph: { title: "ClipForge", description: "AI-powered short-form video creation studio.", type: "website" },
+  openGraph: { title: "ClipForge", description: "Studio de création vidéo courte propulsé par l'IA.", type: "website" },
 };
 
 export const viewport: Viewport = { themeColor: "#0B0714", colorScheme: "dark" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`dark ${inter.variable} ${grotesk.variable} ${mono.variable}`} suppressHydrationWarning>
+    <html lang="fr" className={`dark ${inter.variable} ${grotesk.variable} ${mono.variable}`} suppressHydrationWarning>
       <body className="min-h-screen font-sans">
         <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
         <Toaster />

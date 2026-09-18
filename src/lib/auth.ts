@@ -47,7 +47,7 @@ export async function ensureUserProvisioned(userId: string, displayName: string)
   }
   const bonus = await prisma.creditTransaction.findFirst({ where: { userId, type: "SIGNUP_BONUS" } });
   if (!bonus) {
-    await grantCredits(userId, PLANS.FREE.monthlyCredits, "SIGNUP_BONUS", "Welcome credits");
+    await grantCredits(userId, PLANS.FREE.monthlyCredits, "SIGNUP_BONUS", "Crédits de bienvenue");
   }
 }
 
@@ -68,6 +68,6 @@ export async function requireDbUser() {
 export class AuthError extends Error {
   readonly code = "UNAUTHORIZED";
   constructor() {
-    super("You need to be signed in.");
+    super("Vous devez être connecté(e).");
   }
 }

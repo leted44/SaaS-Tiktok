@@ -33,26 +33,26 @@ export function NewProjectDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="gradient"><Plus /> New project</Button>
+        <Button variant="gradient"><Plus /> Nouveau projet</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New project</DialogTitle>
-          <DialogDescription>Set the basics. You can generate the script inside the studio.</DialogDescription>
+          <DialogTitle>Nouveau projet</DialogTitle>
+          <DialogDescription>Définissez les bases. Vous pourrez générer le script dans le studio.</DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="title">Title</Label>
-            <Input id="title" name="title" required placeholder="3 mistakes killing your sleep" />
+            <Label htmlFor="title">Titre</Label>
+            <Input id="title" name="title" required placeholder="3 erreurs qui ruinent votre sommeil" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="topic">Topic / brief</Label>
-            <Textarea id="topic" name="topic" placeholder="What should this video be about?" rows={3} />
+            <Label htmlFor="topic">Sujet / brief</Label>
+            <Textarea id="topic" name="topic" placeholder="De quoi devrait parler cette vidéo ?" rows={3} />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="niche">Niche</Label>
-              <Input id="niche" name="niche" placeholder="Health" />
+              <Input id="niche" name="niche" placeholder="Santé" />
             </div>
             <div className="space-y-1.5">
               <Label>Format</Label>
@@ -60,13 +60,13 @@ export function NewProjectDialog() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="VERTICAL">9:16 Vertical</SelectItem>
-                  <SelectItem value="SQUARE">1:1 Square</SelectItem>
-                  <SelectItem value="HORIZONTAL">16:9 Wide</SelectItem>
+                  <SelectItem value="SQUARE">1:1 Carré</SelectItem>
+                  <SelectItem value="HORIZONTAL">16:9 Large</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Duration</Label>
+              <Label>Durée</Label>
               <Select value={duration} onValueChange={setDuration}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -76,8 +76,8 @@ export function NewProjectDialog() {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="gradient" loading={loading}>Create project</Button>
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Annuler</Button>
+            <Button type="submit" variant="gradient" loading={loading}>Créer le projet</Button>
           </DialogFooter>
         </form>
       </DialogContent>

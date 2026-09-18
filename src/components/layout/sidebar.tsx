@@ -11,16 +11,16 @@ import { PLANS } from "@/lib/plans";
 import type { Plan } from "@prisma/client";
 
 const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/projects", label: "Projects", icon: FolderKanban },
-  { href: "/scripts", label: "Script generator", icon: Sparkles },
-  { href: "/voices", label: "Voices", icon: Mic2 },
-  { href: "/exports", label: "Exports & publishing", icon: Send },
-  { href: "/brand", label: "Brand kit", icon: Palette },
+  { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
+  { href: "/projects", label: "Projets", icon: FolderKanban },
+  { href: "/scripts", label: "Générateur de script", icon: Sparkles },
+  { href: "/voices", label: "Voix", icon: Mic2 },
+  { href: "/exports", label: "Exports & publication", icon: Send },
+  { href: "/brand", label: "Charte de marque", icon: Palette },
 ];
 const SECONDARY = [
-  { href: "/billing", label: "Billing & credits", icon: CreditCard },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/billing", label: "Facturation & crédits", icon: CreditCard },
+  { href: "/settings", label: "Paramètres", icon: Settings },
 ];
 
 interface Props {
@@ -43,7 +43,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose, plan, 
         <Logo compact={collapsed} href="/dashboard" />
         <button onClick={onMobileClose} className="rounded-md p-1 text-muted-foreground hover:bg-white/5 lg:hidden"><X className="h-4 w-4" /></button>
         {!collapsed && (
-          <button onClick={onToggle} className="hidden rounded-md p-1 text-muted-foreground hover:bg-white/5 hover:text-foreground lg:block" aria-label="Collapse sidebar">
+          <button onClick={onToggle} className="hidden rounded-md p-1 text-muted-foreground hover:bg-white/5 hover:text-foreground lg:block" aria-label="Réduire le menu">
             <ChevronLeft className="h-4 w-4" />
           </button>
         )}
@@ -51,7 +51,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose, plan, 
 
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
         <NavGroup items={NAV} pathname={pathname} collapsed={collapsed} onNavigate={onMobileClose} />
-        <NavGroup items={SECONDARY} pathname={pathname} collapsed={collapsed} onNavigate={onMobileClose} label="Account" />
+        <NavGroup items={SECONDARY} pathname={pathname} collapsed={collapsed} onNavigate={onMobileClose} label="Compte" />
       </nav>
 
       <div className="border-t border-white/[0.05] p-3">
@@ -60,12 +60,12 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose, plan, 
             <TooltipTrigger asChild>
               <Link href="/billing" className="flex h-10 items-center justify-center rounded-lg bg-white/[0.04] text-brand-300 hover:bg-white/[0.08]"><Coins className="h-4 w-4" /></Link>
             </TooltipTrigger>
-            <TooltipContent side="right">{credits} credits · {planDef.name}</TooltipContent>
+            <TooltipContent side="right">{credits} crédits · {planDef.name}</TooltipContent>
           </Tooltip>
         ) : (
           <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-medium text-muted-foreground">{planDef.name} plan</span>
+              <span className="font-medium text-muted-foreground">Forfait {planDef.name}</span>
               <span className="inline-flex items-center gap-1 font-semibold text-brand-200"><Coins className="h-3 w-3" /> {credits}</span>
             </div>
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
@@ -73,15 +73,15 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose, plan, 
             </div>
             {plan === "FREE" ? (
               <Link href="/billing" className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-brand-gradient py-1.5 text-xs font-semibold text-white shadow-glow-sm transition hover:brightness-110">
-                <Zap className="h-3 w-3" /> Upgrade
+                <Zap className="h-3 w-3" /> Passer au niveau supérieur
               </Link>
             ) : (
-              <Link href="/billing" className="mt-2 block text-center text-[11px] text-muted-foreground hover:text-foreground">Buy more credits</Link>
+              <Link href="/billing" className="mt-2 block text-center text-[11px] text-muted-foreground hover:text-foreground">Acheter des crédits</Link>
             )}
           </div>
         )}
         {collapsed && (
-          <button onClick={onToggle} className="mt-3 hidden w-full items-center justify-center rounded-md py-1 text-muted-foreground hover:bg-white/5 hover:text-foreground lg:flex" aria-label="Expand sidebar">
+          <button onClick={onToggle} className="mt-3 hidden w-full items-center justify-center rounded-md py-1 text-muted-foreground hover:bg-white/5 hover:text-foreground lg:flex" aria-label="Agrandir le menu">
             <ChevronLeft className="h-4 w-4 rotate-180" />
           </button>
         )}

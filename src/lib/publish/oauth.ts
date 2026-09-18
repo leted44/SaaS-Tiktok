@@ -82,7 +82,7 @@ export async function exchangeCode(platform: SocialPlatform, code: string, codeV
         }),
       });
       const data = await res.json();
-      if (!res.ok || data.error) throw new Error(`TikTok token exchange failed: ${data.error_description ?? data.error ?? res.status}`);
+      if (!res.ok || data.error) throw new Error(`Échec de l'échange de jeton TikTok : ${data.error_description ?? data.error ?? res.status}`);
       return { accessToken: data.access_token, refreshToken: data.refresh_token, expiresAt: new Date(Date.now() + data.expires_in * 1000), scopes: String(data.scope ?? "").split(",") };
     }
     case "YOUTUBE": {
@@ -98,7 +98,7 @@ export async function exchangeCode(platform: SocialPlatform, code: string, codeV
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(`Google token exchange failed: ${data.error_description ?? data.error ?? res.status}`);
+      if (!res.ok) throw new Error(`Échec de l'échange de jeton Google : ${data.error_description ?? data.error ?? res.status}`);
       return { accessToken: data.access_token, refreshToken: data.refresh_token, expiresAt: new Date(Date.now() + data.expires_in * 1000), scopes: String(data.scope ?? "").split(" ") };
     }
     case "INSTAGRAM": {
@@ -113,7 +113,7 @@ export async function exchangeCode(platform: SocialPlatform, code: string, codeV
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(`Instagram token exchange failed: ${data.error_message ?? res.status}`);
+      if (!res.ok) throw new Error(`Échec de l'échange de jeton Instagram : ${data.error_message ?? res.status}`);
       // Exchange the short-lived token for a 60-day token.
       const longRes = await fetch(`https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${env.social.instagram.appSecret}&access_token=${data.access_token}`);
       const long = await longRes.json();
@@ -130,20 +130,20 @@ export async function fetchProfile(platform: SocialPlatform, accessToken: string
       const res = await fetch("https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name,username", { headers: { authorization: `Bearer ${accessToken}` } });
       const data = await res.json();
       const u = data?.data?.user;
-      if (!u) throw new Error("Could not load TikTok profile");
+      if (!u) throw new Error("Impossible de charger le profil TikTok");
       return { platformUserId: u.open_id, username: u.username ?? u.display_name, displayName: u.display_name, avatarUrl: u.avatar_url };
     }
     case "YOUTUBE": {
       const res = await fetch("https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true", { headers: { authorization: `Bearer ${accessToken}` } });
       const data = await res.json();
       const ch = data?.items?.[0];
-      if (!ch) throw new Error("No YouTube channel found for this Google account");
+      if (!ch) throw new Error("Aucune chaîne YouTube trouvée pour ce compte Google");
       return { platformUserId: ch.id, username: ch.snippet.customUrl ?? ch.snippet.title, displayName: ch.snippet.title, avatarUrl: ch.snippet.thumbnails?.default?.url };
     }
     case "INSTAGRAM": {
       const res = await fetch(`https://graph.instagram.com/me?fields=id,username,name,profile_picture_url&access_token=${accessToken}`);
       const data = await res.json();
-      if (!data?.id) throw new Error("Could not load Instagram profile");
+      if (!data?.id) throw new Error("Impossible de charger le profil Instagram");
       return { platformUserId: data.id, username: data.username, displayName: data.name, avatarUrl: data.profile_picture_url };
     }
   }
@@ -187,9 +187,9 @@ export async function getValidAccessToken(accountId: string): Promise<string> {
 
   // Instagram long-lived tokens refresh with the access token itself.
   const refreshSource = account.platform === "INSTAGRAM" ? account.accessToken : account.refreshToken;
-  if (!refreshSource) throw new Error(`${account.platform} token expired. Reconnect the account.`);
+  if (!refreshSource) throw new Error(`Le jeton ${account.platform} a expiré. Reconnectez le compte.`);
   const fresh = await refreshTokens(account.platform, decrypt(refreshSource));
-  if (!fresh) throw new Error(`${account.platform} token refresh failed. Reconnect the account.`);
+  if (!fresh) throw new Error(`Le renouvellement du jeton ${account.platform} a échoué. Reconnectez le compte.`);
   await prisma.socialAccount.update({
     where: { id: accountId },
     data: { accessToken: encrypt(fresh.accessToken), refreshToken: fresh.refreshToken ? encrypt(fresh.refreshToken) : account.refreshToken, tokenExpiresAt: fresh.expiresAt ?? null },

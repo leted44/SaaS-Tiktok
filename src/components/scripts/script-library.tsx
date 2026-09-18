@@ -25,15 +25,15 @@ export function ScriptLibrary({ scripts }: { scripts: ScriptSummary[] }) {
   return (
     <div className="surface flex h-fit max-h-[calc(100vh-180px)] flex-col xl:sticky xl:top-24">
       <div className="border-b border-white/[0.05] p-4">
-        <p className="mb-3 inline-flex items-center gap-2 text-sm font-semibold"><FileText className="h-4 w-4 text-brand-300" /> Script library <span className="text-xs font-normal text-muted-foreground">({scripts.length})</span></p>
+        <p className="mb-3 inline-flex items-center gap-2 text-sm font-semibold"><FileText className="h-4 w-4 text-brand-300" /> Bibliothèque de scripts <span className="text-xs font-normal text-muted-foreground">({scripts.length})</span></p>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search scripts…" className="pl-9" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un script…" className="pl-9" />
         </div>
       </div>
       <ScrollArea className="flex-1">
         {filtered.length === 0 ? (
-          <p className="p-6 text-center text-sm text-muted-foreground">{scripts.length === 0 ? "Generated scripts appear here." : "No matches."}</p>
+          <p className="p-6 text-center text-sm text-muted-foreground">{scripts.length === 0 ? "Les scripts générés apparaissent ici." : "Aucun résultat."}</p>
         ) : (
           <ul className="divide-y divide-white/[0.05]">
             {filtered.map((s) => (

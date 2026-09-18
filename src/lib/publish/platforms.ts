@@ -15,7 +15,7 @@ export interface PublishResult {
 
 async function downloadVideo(url: string): Promise<Buffer> {
   const res = await fetch(absoluteUrl(url));
-  if (!res.ok) throw new Error(`Could not download rendered video (${res.status})`);
+  if (!res.ok) throw new Error(`Impossible de télécharger la vidéo rendue (${res.status})`);
   return Buffer.from(await res.arrayBuffer());
 }
 
@@ -48,7 +48,7 @@ export async function publishToTikTok(accessToken: string, payload: PublishPaylo
     }),
   });
   const initData = await init.json();
-  if (!init.ok || initData?.error?.code !== "ok") throw new Error(`TikTok init failed: ${initData?.error?.message ?? init.status}`);
+  if (!init.ok || initData?.error?.code !== "ok") throw new Error(`Échec de l'initialisation TikTok : ${initData?.error?.message ?? init.status}`);
 
   const { publish_id, upload_url } = initData.data;
   const upload = await fetch(upload_url, {
@@ -56,7 +56,7 @@ export async function publishToTikTok(accessToken: string, payload: PublishPaylo
     headers: { "content-type": "video/mp4", "content-range": `bytes 0-${video.length - 1}/${video.length}`, "content-length": String(video.length) },
     body: new Uint8Array(video),
   });
-  if (!upload.ok) throw new Error(`TikTok upload failed (${upload.status})`);
+  if (!upload.ok) throw new Error(`Échec de l'envoi TikTok (${upload.status})`);
 
   // Poll status until TikTok has processed the upload.
   for (let i = 0; i < 20; i++) {
@@ -72,7 +72,7 @@ export async function publishToTikTok(accessToken: string, payload: PublishPaylo
       const id = s.data.publicaly_available_post_id?.[0] ?? publish_id;
       return { externalPostId: String(id), externalUrl: null };
     }
-    if (st === "FAILED") throw new Error(`TikTok publish failed: ${s.data.fail_reason ?? "unknown"}`);
+    if (st === "FAILED") throw new Error(`Échec de la publication TikTok : ${s.data.fail_reason ?? "inconnu"}`);
   }
   return { externalPostId: publish_id, externalUrl: null };
 }
@@ -99,13 +99,13 @@ export async function publishToYouTube(accessToken: string, payload: PublishPayl
       status: { privacyStatus: privacyMap[payload.privacy], selfDeclaredMadeForKids: false },
     }),
   });
-  if (!init.ok) throw new Error(`YouTube init failed: ${(await init.text()).slice(0, 300)}`);
+  if (!init.ok) throw new Error(`Échec de l'initialisation YouTube : ${(await init.text()).slice(0, 300)}`);
   const location = init.headers.get("location");
-  if (!location) throw new Error("YouTube did not return an upload location");
+  if (!location) throw new Error("YouTube n'a pas renvoyé d'URL d'envoi");
 
   const upload = await fetch(location, { method: "PUT", headers: { "content-type": "video/mp4", "content-length": String(video.length) }, body: new Uint8Array(video) });
   const data = await upload.json();
-  if (!upload.ok || !data.id) throw new Error(`YouTube upload failed: ${data?.error?.message ?? upload.status}`);
+  if (!upload.ok || !data.id) throw new Error(`Échec de l'envoi YouTube : ${data?.error?.message ?? upload.status}`);
   return { externalPostId: data.id, externalUrl: `https://youtube.com/shorts/${data.id}` };
 }
 
@@ -126,14 +126,14 @@ export async function publishToInstagram(accessToken: string, igUserId: string, 
     }),
   });
   const container = await create.json();
-  if (!create.ok || !container.id) throw new Error(`Instagram container failed: ${container?.error?.message ?? create.status}`);
+  if (!create.ok || !container.id) throw new Error(`Échec de la création du conteneur Instagram : ${container?.error?.message ?? create.status}`);
 
   for (let i = 0; i < 30; i++) {
     await new Promise((r) => setTimeout(r, 4000));
     const st = await fetch(`https://graph.instagram.com/v21.0/${container.id}?fields=status_code,status&access_token=${accessToken}`);
     const s = await st.json();
     if (s.status_code === "FINISHED") break;
-    if (s.status_code === "ERROR") throw new Error(`Instagram processing failed: ${s.status ?? "unknown"}`);
+    if (s.status_code === "ERROR") throw new Error(`Échec du traitement Instagram : ${s.status ?? "inconnu"}`);
   }
 
   const publish = await fetch(`https://graph.instagram.com/v21.0/${igUserId}/media_publish`, {
@@ -141,7 +141,7 @@ export async function publishToInstagram(accessToken: string, igUserId: string, 
     body: new URLSearchParams({ creation_id: container.id, access_token: accessToken }),
   });
   const published = await publish.json();
-  if (!publish.ok || !published.id) throw new Error(`Instagram publish failed: ${published?.error?.message ?? publish.status}`);
+  if (!publish.ok || !published.id) throw new Error(`Échec de la publication Instagram : ${published?.error?.message ?? publish.status}`);
 
   const link = await fetch(`https://graph.instagram.com/v21.0/${published.id}?fields=permalink&access_token=${accessToken}`).then((r) => r.json()).catch(() => null);
   return { externalPostId: published.id, externalUrl: link?.permalink ?? null };

@@ -2,13 +2,13 @@ import { prisma } from "@/lib/prisma";
 import { RenderStatus, PublishStatus } from "@prisma/client";
 
 export const RENDER_STEPS = [
-  { key: "queued", label: "Waiting in queue", progress: 0 },
-  { key: "preparing", label: "Preparing assets", progress: 8 },
-  { key: "bundling", label: "Bundling composition", progress: 18 },
-  { key: "rendering", label: "Rendering frames", progress: 25 },
-  { key: "encoding", label: "Encoding MP4", progress: 88 },
-  { key: "uploading", label: "Uploading", progress: 95 },
-  { key: "done", label: "Completed", progress: 100 },
+  { key: "queued", label: "En attente dans la file", progress: 0 },
+  { key: "preparing", label: "Préparation des ressources", progress: 8 },
+  { key: "bundling", label: "Compilation de la composition", progress: 18 },
+  { key: "rendering", label: "Rendu des images", progress: 25 },
+  { key: "encoding", label: "Encodage MP4", progress: 88 },
+  { key: "uploading", label: "Téléversement", progress: 95 },
+  { key: "done", label: "Terminé", progress: 100 },
 ] as const;
 export type RenderStepKey = (typeof RENDER_STEPS)[number]["key"];
 
@@ -74,7 +74,7 @@ export async function failRenderJob(jobId: string, error: string) {
   });
   if (exhausted) {
     await prisma.project.update({ where: { id: job.projectId }, data: { status: "FAILED" } });
-    await prisma.publishJob.updateMany({ where: { renderJobId: jobId, status: PublishStatus.SCHEDULED }, data: { status: PublishStatus.FAILED, error: "Render failed" } });
+    await prisma.publishJob.updateMany({ where: { renderJobId: jobId, status: PublishStatus.SCHEDULED }, data: { status: PublishStatus.FAILED, error: "Le rendu a échoué" } });
   }
   return { job: updated, exhausted };
 }

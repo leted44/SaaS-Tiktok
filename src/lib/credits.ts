@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 export class InsufficientCreditsError extends Error {
   readonly code = "INSUFFICIENT_CREDITS";
   constructor(public required: number, public available: number) {
-    super(`This action needs ${required} credits but you have ${available}.`);
+    super(`Cette action nécessite ${required} crédits mais vous n'en avez que ${available}.`);
   }
 }
 
@@ -22,7 +22,7 @@ export async function chargeCredits(
   referenceId?: string,
   client: Tx | typeof prisma = prisma,
 ): Promise<number> {
-  if (amount <= 0) throw new Error("Charge amount must be positive");
+  if (amount <= 0) throw new Error("Le montant du débit doit être positif");
 
   const run = async (tx: Tx) => {
     const updated = await tx.user.updateMany({
@@ -52,7 +52,7 @@ export async function grantCredits(
   referenceId?: string,
   client: Tx | typeof prisma = prisma,
 ): Promise<number> {
-  if (amount <= 0) throw new Error("Grant amount must be positive");
+  if (amount <= 0) throw new Error("Le montant du crédit doit être positif");
   const run = async (tx: Tx) => {
     const user = await tx.user.update({
       where: { id: userId },
@@ -90,7 +90,7 @@ export async function resetMonthlyCredits(userId: string, monthlyCredits: number
         type: "SUBSCRIPTION_GRANT",
         amount: monthlyCredits,
         balanceAfter: user.credits,
-        description: `Monthly plan credits (${monthlyCredits})`,
+        description: `Crédits mensuels du forfait (${monthlyCredits})`,
         referenceId,
       },
     });

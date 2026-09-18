@@ -31,12 +31,12 @@ export function ProjectCard({ project }: { project: ProjectCardData }) {
   const [deleting, setDeleting] = useState(false);
 
   async function onDelete() {
-    if (!confirm(`Delete "${project.title}"? This removes scripts, voiceovers and renders.`)) return;
+    if (!confirm(`Supprimer « ${project.title} » ? Cela supprime aussi les scripts, voix off et rendus.`)) return;
     setDeleting(true);
     const res = await deleteProject(project.id);
     setDeleting(false);
     if (!res.ok) return toast.error(res.error);
-    toast.success("Project deleted");
+    toast.success("Projet supprimé");
     router.refresh();
   }
 
@@ -59,19 +59,19 @@ export function ProjectCard({ project }: { project: ProjectCardData }) {
           )}
           <div className="absolute bottom-3 left-3 right-3">
             <p className="truncate font-semibold text-white">{project.title}</p>
-            <p className="truncate text-xs text-white/70">{project.niche || project.topic || "No topic"} · {project.durationSec}s</p>
+            <p className="truncate text-xs text-white/70">{project.niche || project.topic || "Sans sujet"} · {project.durationSec}s</p>
           </div>
         </div>
       </Link>
       <div className="flex items-center justify-between px-3 py-2 text-xs text-muted-foreground">
-        <span>Edited {relativeTime(project.updatedAt)}</span>
+        <span>Modifié {relativeTime(project.updatedAt)}</span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon-sm"><MoreHorizontal /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild><Link href={`/studio/${project.id}`}>Open in studio</Link></DropdownMenuItem>
-            <DropdownMenuItem onSelect={onDelete} className="text-red-300 focus:text-red-200"><Trash2 /> Delete</DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href={`/studio/${project.id}`}>Ouvrir dans le studio</Link></DropdownMenuItem>
+            <DropdownMenuItem onSelect={onDelete} className="text-red-300 focus:text-red-200"><Trash2 /> Supprimer</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

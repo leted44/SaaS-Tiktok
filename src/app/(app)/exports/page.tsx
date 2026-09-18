@@ -6,7 +6,7 @@ import { integrations } from "@/lib/env";
 import { PLANS } from "@/lib/plans";
 import { queueStats } from "@/lib/render/queue";
 
-export const metadata: Metadata = { title: "Exports & publishing" };
+export const metadata: Metadata = { title: "Exports & publication" };
 export const dynamic = "force-dynamic";
 
 export default async function ExportsPage({ searchParams }: { searchParams: Promise<{ connected?: string; error?: string }> }) {
@@ -14,7 +14,7 @@ export default async function ExportsPage({ searchParams }: { searchParams: Prom
   const plan = PLANS[data.user.plan];
   return (
     <div className="mx-auto max-w-7xl">
-      <PageHeader title="Exports & publishing hub" description={`Render queue: ${stats.queued} waiting · ${stats.processing} rendering. Download MP4s or schedule posts across platforms.`} />
+      <PageHeader title="Centre d'exports & de publication" description={`File de rendu : ${stats.queued} en attente · ${stats.processing} en cours. Téléchargez vos MP4 ou programmez des publications sur toutes les plateformes.`} />
       <ExportsHub
         renders={data.renders.map((r) => ({ id: r.id, status: r.status, progress: r.progress, step: r.step, outputUrl: r.outputUrl, thumbnailUrl: r.thumbnailUrl, sizeBytes: r.sizeBytes, durationMs: r.durationMs, width: r.width, height: r.height, error: r.error, createdAt: r.createdAt.toISOString(), creditsCharged: r.creditsCharged, project: r.project, publishCount: r.publishJobs.length }))}
         publishJobs={data.publishJobs.map((p) => ({ id: p.id, status: p.status, platform: p.platform, scheduledAt: p.scheduledAt.toISOString(), publishedAt: p.publishedAt?.toISOString() ?? null, caption: p.caption, externalUrl: p.externalUrl, error: p.error, projectTitle: p.project.title, username: p.socialAccount.username, thumbnailUrl: p.renderJob.thumbnailUrl }))}

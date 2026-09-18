@@ -201,7 +201,7 @@ model Workspace {
   watermarkOpacity Float   @default(0.8)
   watermarkPosition String @default("bottom-right")
   defaultVoiceId   String  @default("rachel")
-  defaultLanguage  String  @default("en")
+  defaultLanguage  String  @default("fr")
   defaultAspect    AspectRatio @default(VERTICAL)
   defaultMusicId   String?
   toneOfVoice      String? @db.Text

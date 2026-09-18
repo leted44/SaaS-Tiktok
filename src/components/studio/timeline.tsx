@@ -18,12 +18,12 @@ export function Timeline({ props, playerRef, selectedScene, onSelectScene }: { p
   const total = props.durationMs;
   const nowMs = (frame / props.fps) * 1000;
   const seek = (ms: number) => playerRef.current?.seekTo(Math.round((ms / 1000) * props.fps));
-  const labels = ["Hook", ...props.scenes.slice(1, -1).map((_, i) => `Scene ${i + 1}`), "CTA"];
+  const labels = ["Hook", ...props.scenes.slice(1, -1).map((_, i) => `Scène ${i + 1}`), "CTA"];
 
   return (
     <div className="surface p-3">
       <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-        <span>Timeline</span>
+        <span>Chronologie</span>
         <span className="font-mono tabular-nums">{formatDuration(nowMs)} / {formatDuration(total)}</span>
       </div>
       <div className="relative">

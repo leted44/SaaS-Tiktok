@@ -16,7 +16,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ platform: strin
   const { platform: raw } = await ctx.params;
   const platform = PLATFORMS[raw];
   const back = (msg: string, ok = false) => NextResponse.redirect(`${env.appUrl}/exports?${ok ? "connected" : "error"}=${encodeURIComponent(msg)}`);
-  if (!platform) return back("Unknown platform");
+  if (!platform) return back("Plateforme inconnue");
 
   const session = await auth();
   if (!session?.user?.id) return NextResponse.redirect(`${env.appUrl}/sign-in`);
@@ -25,15 +25,15 @@ export async function GET(req: Request, ctx: { params: Promise<{ platform: strin
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const providerError = url.searchParams.get("error_description") ?? url.searchParams.get("error");
-  if (providerError) return back(`${raw}: ${providerError}`);
-  if (!code || !state) return back("Missing authorization code");
+  if (providerError) return back(`${raw} : ${providerError}`);
+  if (!code || !state) return back("Code d'autorisation manquant");
 
   const jar = await cookies();
   const stored = jar.get(`oauth_state_${raw}`)?.value;
   jar.delete(`oauth_state_${raw}`);
-  if (!stored) return back("Session expired, please try again");
+  if (!stored) return back("Session expirée, veuillez réessayer");
   const parsed = JSON.parse(stored) as { state: string; verifier?: string };
-  if (!safeEqual(parsed.state, state)) return back("Invalid state, please try again");
+  if (!safeEqual(parsed.state, state)) return back("État invalide, veuillez réessayer");
 
   try {
     const user = await prisma.user.findUniqueOrThrow({ where: { id: session.user.id } });
@@ -41,13 +41,13 @@ export async function GET(req: Request, ctx: { params: Promise<{ platform: strin
     const limit = PLANS[user.plan].maxSocialAccounts;
     if (limit > 0) {
       const count = await prisma.socialAccount.count({ where: { workspaceId: workspace.id } });
-      if (count >= limit) return back(`Your plan allows ${limit} connected account${limit > 1 ? "s" : ""}. Upgrade to connect more.`);
+      if (count >= limit) return back(`Votre forfait autorise ${limit} compte${limit > 1 ? "s" : ""} connecté${limit > 1 ? "s" : ""}. Passez à un forfait supérieur pour en connecter davantage.`);
     }
     const tokens = await exchangeCode(platform, code, parsed.verifier);
     const profile = await fetchProfile(platform, tokens.accessToken);
     await upsertSocialAccount(user.id, workspace.id, platform, tokens, profile);
     return back(`${raw}:${profile.username}`, true);
   } catch (err) {
-    return back(err instanceof Error ? err.message : "Connection failed");
+    return back(err instanceof Error ? err.message : "Échec de la connexion");
   }
 }

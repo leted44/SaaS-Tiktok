@@ -15,46 +15,46 @@ import { StatTile } from "@/components/dashboard/stat-tile";
 import { relativeTime, formatNumber } from "@/lib/utils";
 import { CREDIT_COSTS } from "@/lib/plans";
 
-export const metadata: Metadata = { title: "Dashboard" };
+export const metadata: Metadata = { title: "Tableau de bord" };
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const { user, workspace, projects, renders, usage, scheduled, plan, totals } = await getDashboardData();
-  const firstName = (user.name ?? "Creator").split(" ")[0];
+  const firstName = (user.name ?? "Créateur").split(" ")[0];
   const creditsPct = Math.min(100, Math.round((user.credits / Math.max(1, plan.monthlyCredits)) * 100));
   const videosLeft = Math.floor(user.credits / (CREDIT_COSTS.SCRIPT_GENERATION + CREDIT_COSTS.VOICEOVER_PER_30S * 2 + CREDIT_COSTS.RENDER_1080P));
 
   return (
     <div className="mx-auto max-w-7xl">
       <PageHeader
-        title={`Good to see you, ${firstName}.`}
-        description={`${workspace.name} · ${plan.name} plan · ${formatNumber(user.credits)} credits (~${videosLeft} more videos)`}
+        title={`Ravi de vous revoir, ${firstName}.`}
+        description={`${workspace.name} · Forfait ${plan.name} · ${formatNumber(user.credits)} crédits (~${videosLeft} vidéos restantes)`}
         actions={
-          <Button asChild variant="gradient"><Link href="/scripts"><Sparkles /> New video</Link></Button>
+          <Button asChild variant="gradient"><Link href="/scripts"><Sparkles /> Nouvelle vidéo</Link></Button>
         }
       />
 
-      {user.credits < 12 && <div className="mb-6"><UpgradePrompt title={user.credits === 0 ? "You're out of credits" : "Running low on credits"} body={`${user.credits} left. A full video costs about 15 credits.`} compact /></div>}
+      {user.credits < 12 && <div className="mb-6"><UpgradePrompt title={user.credits === 0 ? "Vous n'avez plus de crédits" : "Crédits bientôt épuisés"} body={`Il vous en reste ${user.credits}. Une vidéo complète coûte environ 15 crédits.`} compact /></div>}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatTile icon={FolderKanban} label="Projects" value={totals.projects} hint="all time" />
-        <StatTile icon={Sparkles} label="Scripts generated" value={totals.scripts} hint="all time" />
-        <StatTile icon={Film} label="Videos rendered" value={totals.renders} hint="completed" />
-        <StatTile icon={Send} label="Posts published" value={totals.published} hint="across platforms" />
+        <StatTile icon={FolderKanban} label="Projets" value={totals.projects} hint="depuis le début" />
+        <StatTile icon={Sparkles} label="Scripts générés" value={totals.scripts} hint="depuis le début" />
+        <StatTile icon={Film} label="Vidéos rendues" value={totals.renders} hint="terminées" />
+        <StatTile icon={Send} label="Publications" value={totals.published} hint="toutes plateformes" />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <div>
-              <CardTitle>Recent projects</CardTitle>
-              <CardDescription>Pick up where you left off.</CardDescription>
+              <CardTitle>Projets récents</CardTitle>
+              <CardDescription>Reprenez là où vous vous étiez arrêté.</CardDescription>
             </div>
-            <Button asChild variant="ghost" size="sm"><Link href="/projects">View all <ArrowRight /></Link></Button>
+            <Button asChild variant="ghost" size="sm"><Link href="/projects">Tout voir <ArrowRight /></Link></Button>
           </CardHeader>
           <CardContent>
             {projects.length === 0 ? (
-              <EmptyState icon={Sparkles} title="No projects yet" description="Generate your first script and we'll create the project for you." action={<Button asChild variant="gradient"><Link href="/scripts"><Plus /> Generate a script</Link></Button>} className="border-dashed py-10 shadow-none" />
+              <EmptyState icon={Sparkles} title="Aucun projet pour l'instant" description="Générez votre premier script et nous créerons le projet pour vous." action={<Button asChild variant="gradient"><Link href="/scripts"><Plus /> Générer un script</Link></Button>} className="border-dashed py-10 shadow-none" />
             ) : (
               <ul className="divide-y divide-white/[0.05]">
                 {projects.map((p) => (
@@ -65,9 +65,9 @@ export default async function DashboardPage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium group-hover:text-brand-200">{p.title}</p>
-                        <p className="truncate text-xs text-muted-foreground">{p.niche || p.topic || "No topic"} · {relativeTime(p.updatedAt)}</p>
+                        <p className="truncate text-xs text-muted-foreground">{p.niche || p.topic || "Sans sujet"} · {relativeTime(p.updatedAt)}</p>
                       </div>
-                      {p.scripts[0] && <span className="hidden text-xs text-muted-foreground sm:block">Virality <b className="text-foreground">{p.scripts[0].viralityScore}</b></span>}
+                      {p.scripts[0] && <span className="hidden text-xs text-muted-foreground sm:block">Viralité <b className="text-foreground">{p.scripts[0].viralityScore}</b></span>}
                       <StatusBadge status={p.status} />
                     </Link>
                   </li>
@@ -80,23 +80,23 @@ export default async function DashboardPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Coins className="h-4 w-4 text-brand-300" /> Credits</CardTitle>
-              <CardDescription>{user.credits} of {plan.monthlyCredits} monthly</CardDescription>
+              <CardTitle className="flex items-center gap-2"><Coins className="h-4 w-4 text-brand-300" /> Crédits</CardTitle>
+              <CardDescription>{user.credits} sur {plan.monthlyCredits} mensuels</CardDescription>
             </CardHeader>
             <CardContent>
               <Progress value={creditsPct} indicatorClassName={creditsPct < 20 ? "bg-amber-400" : "bg-brand-gradient"} />
               <UsageChart usage={usage.byType} />
-              <p className="mt-3 text-xs text-muted-foreground">{usage.totalUsed} credits used in the last 30 days.</p>
+              <p className="mt-3 text-xs text-muted-foreground">{usage.totalUsed} crédits utilisés sur les 30 derniers jours.</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Clock className="h-4 w-4 text-brand-300" /> Upcoming posts</CardTitle>
+              <CardTitle className="flex items-center gap-2"><Clock className="h-4 w-4 text-brand-300" /> Publications à venir</CardTitle>
             </CardHeader>
             <CardContent>
               {scheduled.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nothing scheduled. <Link href="/exports" className="text-foreground underline-offset-4 hover:underline">Schedule a post</Link>.</p>
+                <p className="text-sm text-muted-foreground">Rien de programmé. <Link href="/exports" className="text-foreground underline-offset-4 hover:underline">Programmer une publication</Link>.</p>
               ) : (
                 <ul className="space-y-3">
                   {scheduled.map((s) => (
@@ -104,7 +104,7 @@ export default async function DashboardPage() {
                       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.05] text-muted-foreground"><PlatformIcon platform={s.platform} /></span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{s.project.title}</p>
-                        <p className="text-xs text-muted-foreground">@{s.socialAccount.username} · {new Date(s.scheduledAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
+                        <p className="text-xs text-muted-foreground">@{s.socialAccount.username} · {new Date(s.scheduledAt).toLocaleString("fr-FR", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
                       </div>
                     </li>
                   ))}
@@ -118,14 +118,14 @@ export default async function DashboardPage() {
       <Card className="mt-6">
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <div>
-            <CardTitle>Render activity</CardTitle>
-            <CardDescription>Latest exports from the render queue.</CardDescription>
+            <CardTitle>Activité des rendus</CardTitle>
+            <CardDescription>Derniers exports de la file de rendu.</CardDescription>
           </div>
-          <Button asChild variant="ghost" size="sm"><Link href="/exports">Open exports <ArrowRight /></Link></Button>
+          <Button asChild variant="ghost" size="sm"><Link href="/exports">Ouvrir les exports <ArrowRight /></Link></Button>
         </CardHeader>
         <CardContent>
           {renders.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No renders yet.</p>
+            <p className="text-sm text-muted-foreground">Aucun rendu pour l'instant.</p>
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
               {renders.map((r) => (

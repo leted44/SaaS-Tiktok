@@ -7,20 +7,20 @@ import type { Plan } from "@prisma/client";
 let stripeClient: Stripe | null = null;
 
 export function stripe(): Stripe {
-  if (!env.stripe.secretKey) throw new Error("Stripe is not configured (STRIPE_SECRET_KEY missing).");
+  if (!env.stripe.secretKey) throw new Error("Stripe n'est pas configuré (clé STRIPE_SECRET_KEY manquante).");
   if (!stripeClient) stripeClient = new Stripe(env.stripe.secretKey, { typescript: true });
   return stripeClient;
 }
 
 export function priceIdForPlan(plan: Exclude<Plan, "FREE">, interval: BillingInterval): string {
   const id = env.stripe.prices[plan][interval];
-  if (!id) throw new Error(`No Stripe price configured for ${plan} (${interval}).`);
+  if (!id) throw new Error(`Aucun tarif Stripe configuré pour ${plan} (${interval}).`);
   return id;
 }
 
 export function priceIdForPack(packId: string): string {
   const id = env.stripe.creditPacks[packId as keyof typeof env.stripe.creditPacks];
-  if (!id) throw new Error(`No Stripe price configured for pack ${packId}.`);
+  if (!id) throw new Error(`Aucun tarif Stripe configuré pour le pack ${packId}.`);
   return id;
 }
 
@@ -71,7 +71,7 @@ export async function createSubscriptionCheckout(userId: string, plan: Exclude<P
 export async function createCreditPackCheckout(userId: string, packId: string) {
   const customer = await ensureStripeCustomer(userId);
   const pack = CREDIT_PACKS.find((p) => p.id === packId);
-  if (!pack) throw new Error("Unknown credit pack");
+  if (!pack) throw new Error("Pack de crédits inconnu");
   const session = await stripe().checkout.sessions.create({
     customer,
     mode: "payment",

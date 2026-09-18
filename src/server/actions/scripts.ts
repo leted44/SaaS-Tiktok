@@ -26,13 +26,13 @@ export async function generateScriptAction(input: unknown): Promise<ActionResult
     const workspace = await getCurrentWorkspace();
 
     // Charge first (atomic), refund if generation fails — never let a failed call eat credits.
-    const creditsLeft = await chargeCredits(user.id, CREDIT_COSTS.SCRIPT_GENERATION, "SCRIPT_GENERATION", `Script: ${data.topic.slice(0, 60)}`);
+    const creditsLeft = await chargeCredits(user.id, CREDIT_COSTS.SCRIPT_GENERATION, "SCRIPT_GENERATION", `Script : ${data.topic.slice(0, 60)}`);
 
     let result;
     try {
       result = await generateScript(data, { toneOfVoice: workspace.toneOfVoice, targetAudience: workspace.targetAudience });
     } catch (err) {
-      await refundCredits(user.id, CREDIT_COSTS.SCRIPT_GENERATION, "Refund — script generation failed");
+      await refundCredits(user.id, CREDIT_COSTS.SCRIPT_GENERATION, "Remboursement — la génération du script a échoué");
       throw err;
     }
 

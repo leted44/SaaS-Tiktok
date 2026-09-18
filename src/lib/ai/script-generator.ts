@@ -76,7 +76,7 @@ function buildUserPrompt(input: GenerateScriptInput, brand?: { toneOfVoice?: str
 
 let client: Anthropic | null = null;
 function getClient(): Anthropic {
-  if (!env.anthropicApiKey) throw new ScriptGenerationError("AI script generation is not configured (ANTHROPIC_API_KEY missing).", "NOT_CONFIGURED");
+  if (!env.anthropicApiKey) throw new ScriptGenerationError("La génération de script IA n'est pas configurée (clé ANTHROPIC_API_KEY manquante).", "NOT_CONFIGURED");
   if (!client) client = new Anthropic({ apiKey: env.anthropicApiKey, maxRetries: 2, timeout: 120_000 });
   return client;
 }
@@ -104,16 +104,16 @@ export async function generateScript(
       output_config: { format: zodOutputFormat(scriptOutputSchema), effort: "medium" },
     });
   } catch (err) {
-    if (err instanceof Anthropic.RateLimitError) throw new ScriptGenerationError("The AI is busy right now. Try again in a few seconds.", "UPSTREAM");
-    if (err instanceof Anthropic.APIError) throw new ScriptGenerationError(`AI request failed (${err.status}): ${err.message}`, "UPSTREAM");
+    if (err instanceof Anthropic.RateLimitError) throw new ScriptGenerationError("L'IA est occupée en ce moment. Réessayez dans quelques secondes.", "UPSTREAM");
+    if (err instanceof Anthropic.APIError) throw new ScriptGenerationError(`La requête IA a échoué (${err.status}) : ${err.message}`, "UPSTREAM");
     throw err;
   }
 
   if (response.stop_reason === "refusal") {
-    throw new ScriptGenerationError("The AI declined to write this script. Adjust the topic and try again.", "REFUSED");
+    throw new ScriptGenerationError("L'IA a refusé d'écrire ce script. Ajustez le sujet et réessayez.", "REFUSED");
   }
   const script = response.parsed_output;
-  if (!script) throw new ScriptGenerationError("The AI returned an unreadable script. Please retry.", "PARSE_FAILED");
+  if (!script) throw new ScriptGenerationError("L'IA a renvoyé un script illisible. Veuillez réessayer.", "PARSE_FAILED");
 
   const normalized = normalizeScript(script);
   const fullText = assembleFullText(normalized);

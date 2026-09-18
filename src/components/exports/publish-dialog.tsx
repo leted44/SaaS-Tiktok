@@ -40,7 +40,7 @@ export function PublishDialog({ render, accounts, schedulingAllowed, onClose, on
 
   async function submit() {
     if (!render) return;
-    if (!accountId) return toast.error("Connect a social account first.");
+    if (!accountId) return toast.error("Connectez d'abord un compte social.");
     setLoading(true);
     const res = await schedulePublish({
       renderJobId: render.id,
@@ -53,7 +53,7 @@ export function PublishDialog({ render, accounts, schedulingAllowed, onClose, on
     });
     setLoading(false);
     if (!res.ok) return toast.error(res.error);
-    toast.success(res.data.status === "PUBLISHED" ? "Published!" : "Post scheduled");
+    toast.success(res.data.status === "PUBLISHED" ? "Publié !" : "Publication programmée");
     onDone();
   }
 
@@ -63,11 +63,11 @@ export function PublishDialog({ render, accounts, schedulingAllowed, onClose, on
     <Dialog open={Boolean(render)} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Publish “{render?.project.title}”</DialogTitle>
-          <DialogDescription>Post now or schedule for later. Captions and hashtags adapt to each platform.</DialogDescription>
+          <DialogTitle>Publier « {render?.project.title} »</DialogTitle>
+          <DialogDescription>Publiez maintenant ou programmez pour plus tard. Légendes et hashtags s'adaptent à chaque plateforme.</DialogDescription>
         </DialogHeader>
         {accounts.length === 0 ? (
-          <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4 text-sm text-muted-foreground">No connected accounts yet. Go to the <b className="text-foreground">Accounts</b> tab to connect TikTok, Instagram or YouTube.</div>
+          <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4 text-sm text-muted-foreground">Aucun compte connecté pour l'instant. Allez dans l'onglet <b className="text-foreground">Comptes</b> pour connecter TikTok, Instagram ou YouTube.</div>
         ) : (
           <div className="space-y-4">
             <div className="space-y-2">
@@ -82,33 +82,33 @@ export function PublishDialog({ render, accounts, schedulingAllowed, onClose, on
               </div>
             </div>
             {account?.platform === "YOUTUBE" && (
-              <div className="space-y-1.5"><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value.slice(0, 100))} /></div>
+              <div className="space-y-1.5"><Label>Titre</Label><Input value={title} onChange={(e) => setTitle(e.target.value.slice(0, 100))} /></div>
             )}
-            <div className="space-y-1.5"><Label>Caption</Label><Textarea value={caption} onChange={(e) => setCaption(e.target.value.slice(0, 2200))} rows={4} /><p className="text-right text-[11px] text-muted-foreground">{caption.length}/2200</p></div>
-            <div className="space-y-1.5"><Label>Hashtags</Label><Input value={hashtags} onChange={(e) => setHashtags(e.target.value)} placeholder="fyp viral productivity" /></div>
+            <div className="space-y-1.5"><Label>Légende</Label><Textarea value={caption} onChange={(e) => setCaption(e.target.value.slice(0, 2200))} rows={4} /><p className="text-right text-[11px] text-muted-foreground">{caption.length}/2200</p></div>
+            <div className="space-y-1.5"><Label>Hashtags</Label><Input value={hashtags} onChange={(e) => setHashtags(e.target.value)} placeholder="fyp viral productivite" /></div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>Privacy</Label>
+                <Label>Confidentialité</Label>
                 <Select value={privacy} onValueChange={setPrivacy}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="public">Public</SelectItem><SelectItem value="friends">Friends / Unlisted</SelectItem><SelectItem value="private">Private</SelectItem></SelectContent>
+                  <SelectContent><SelectItem value="public">Public</SelectItem><SelectItem value="friends">Amis / Non répertorié</SelectItem><SelectItem value="private">Privé</SelectItem></SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="flex items-center justify-between">Schedule {!schedulingAllowed && <Lock className="h-3 w-3" />}</Label>
+                <Label className="flex items-center justify-between">Programmation {!schedulingAllowed && <Lock className="h-3 w-3" />}</Label>
                 <div className="flex h-10 items-center gap-3">
                   <Switch checked={schedule} onCheckedChange={setSchedule} disabled={!schedulingAllowed} />
-                  <span className="text-sm text-muted-foreground">{schedule ? "Post later" : "Post now"}</span>
+                  <span className="text-sm text-muted-foreground">{schedule ? "Publier plus tard" : "Publier maintenant"}</span>
                 </div>
-                {!schedulingAllowed && <p className="text-[11px] text-muted-foreground">Scheduling is a <Link href="/billing" className="text-foreground underline">Creator+</Link> feature.</p>}
+                {!schedulingAllowed && <p className="text-[11px] text-muted-foreground">La programmation est une fonctionnalité <Link href="/billing" className="text-foreground underline">Créateur+</Link>.</p>}
               </div>
             </div>
-            {schedule && <div className="space-y-1.5"><Label>Publish at</Label><Input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} /></div>}
+            {schedule && <div className="space-y-1.5"><Label>Publier le</Label><Input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} /></div>}
           </div>
         )}
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button variant="gradient" onClick={submit} loading={loading} disabled={accounts.length === 0}>{schedule ? <><CalendarClock /> Schedule</> : <><Send /> Publish now</>}</Button>
+          <Button variant="ghost" onClick={onClose}>Annuler</Button>
+          <Button variant="gradient" onClick={submit} loading={loading} disabled={accounts.length === 0}>{schedule ? <><CalendarClock /> Programmer</> : <><Send /> Publier maintenant</>}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

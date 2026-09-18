@@ -6,14 +6,14 @@ import { VOICES } from "@/lib/tts/voices";
 import { MUSIC_TRACKS } from "@/lib/music/library";
 import { PLANS } from "@/lib/plans";
 
-export const metadata: Metadata = { title: "Brand kit" };
+export const metadata: Metadata = { title: "Charte de marque" };
 export const dynamic = "force-dynamic";
 
 export default async function BrandPage() {
   const [workspace, user] = await Promise.all([getCurrentWorkspace(), getCurrentUser()]);
   return (
     <div className="mx-auto max-w-6xl">
-      <PageHeader title="Brand kit" description="Defaults applied to every new project: colors, fonts, caption style, voice, watermark and tone." />
+      <PageHeader title="Charte de marque" description="Réglages par défaut appliqués à chaque nouveau projet : couleurs, polices, style de sous-titres, voix, filigrane et ton." />
       <BrandKitForm
         initial={{
           name: workspace.name,

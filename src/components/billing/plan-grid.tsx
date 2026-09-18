@@ -28,7 +28,7 @@ export function PlanGrid({ currentPlan, stripeConfigured }: { currentPlan: Plan;
       <div className="mb-6 inline-flex items-center gap-1 rounded-xl border border-white/[0.06] bg-white/[0.03] p-1 text-sm">
         {(["month", "year"] as const).map((i) => (
           <button key={i} onClick={() => setInterval(i)} className={cn("rounded-lg px-4 py-1.5 font-medium transition", interval === i ? "bg-white/[0.08] text-foreground" : "text-muted-foreground")}>
-            {i === "month" ? "Monthly" : <>Yearly <span className="ml-1 text-xs text-emerald-300">−20%</span></>}
+            {i === "month" ? "Mensuel" : <>Annuel <span className="ml-1 text-xs text-emerald-300">−20%</span></>}
           </button>
         ))}
       </div>
@@ -40,24 +40,24 @@ export function PlanGrid({ currentPlan, stripeConfigured }: { currentPlan: Plan;
           const rank = PLAN_ORDER.indexOf(id) - PLAN_ORDER.indexOf(currentPlan);
           return (
             <div key={id} className={cn("surface relative flex flex-col p-6", plan.highlight && !current && "border-primary/40", current && "border-emerald-500/40")}>
-              {current ? <Badge variant="success" className="absolute -top-3 left-6">Current plan</Badge> : plan.highlight && <Badge variant="gradient" className="absolute -top-3 left-6">Most popular</Badge>}
+              {current ? <Badge variant="success" className="absolute -top-3 left-6">Forfait actuel</Badge> : plan.highlight && <Badge variant="gradient" className="absolute -top-3 left-6">Le plus populaire</Badge>}
               <h3 className="font-display text-lg font-bold">{plan.name}</h3>
               <div className="mt-3 flex items-baseline gap-1">
-                <span className="font-display text-3xl font-bold">{price === 0 ? "Free" : formatCurrency(price)}</span>
-                {price > 0 && <span className="text-xs text-muted-foreground">/mo{interval === "year" && ", billed yearly"}</span>}
+                <span className="font-display text-3xl font-bold">{price === 0 ? "Gratuit" : formatCurrency(price)}</span>
+                {price > 0 && <span className="text-xs text-muted-foreground">/mois{interval === "year" && ", facturé annuellement"}</span>}
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">{plan.monthlyCredits} credits / month</p>
+              <p className="mt-1 text-xs text-muted-foreground">{plan.monthlyCredits} crédits / mois</p>
               <ul className="mt-5 flex-1 space-y-2 text-sm">
                 {plan.features.map((f) => <li key={f} className="flex gap-2 text-muted-foreground"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />{f}</li>)}
               </ul>
               <Button className="mt-6" variant={current ? "secondary" : rank > 0 ? "gradient" : "outline"} disabled={current || id === "FREE" || !stripeConfigured} loading={loading === id} onClick={() => choose(id)}>
-                {current ? "Your plan" : id === "FREE" ? "Included" : rank > 0 ? <><Zap /> Upgrade</> : "Switch"}
+                {current ? "Votre forfait" : id === "FREE" ? "Inclus" : rank > 0 ? <><Zap /> Passer à ce forfait</> : "Changer"}
               </Button>
             </div>
           );
         })}
       </div>
-      {!stripeConfigured && <p className="mt-4 text-xs text-amber-300">Stripe keys are not configured — checkout is disabled on this deployment.</p>}
+      {!stripeConfigured && <p className="mt-4 text-xs text-amber-300">Les clés Stripe ne sont pas configurées — le paiement est désactivé sur ce déploiement.</p>}
     </div>
   );
 }

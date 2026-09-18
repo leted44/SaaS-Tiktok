@@ -21,7 +21,7 @@ export function SignInForm({ googleEnabled }: { googleEnabled: boolean }) {
     const res = await signIn("credentials", { email: String(form.get("email")).toLowerCase(), password: String(form.get("password")), redirect: false });
     setLoading(false);
     if (res?.error) {
-      toast.error("Invalid email or password.");
+      toast.error("E-mail ou mot de passe invalide.");
       return;
     }
     router.push(params.get("callbackUrl") ?? "/dashboard");
@@ -33,19 +33,19 @@ export function SignInForm({ googleEnabled }: { googleEnabled: boolean }) {
       {googleEnabled && (
         <>
           <GoogleButton />
-          <div className="flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-white/10" />or<span className="h-px flex-1 bg-white/10" /></div>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-white/10" />ou<span className="h-px flex-1 bg-white/10" /></div>
         </>
       )}
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" name="email" type="email" autoComplete="email" required placeholder="you@studio.com" />
+          <Label htmlFor="email">E-mail</Label>
+          <Input id="email" name="email" type="email" autoComplete="email" required placeholder="vous@studio.com" />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">Mot de passe</Label>
           <Input id="password" name="password" type="password" autoComplete="current-password" required placeholder="••••••••" />
         </div>
-        <Button type="submit" className="w-full" variant="gradient" loading={loading}>Sign in</Button>
+        <Button type="submit" className="w-full" variant="gradient" loading={loading}>Se connecter</Button>
       </form>
     </div>
   );

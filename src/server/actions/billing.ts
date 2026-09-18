@@ -10,7 +10,7 @@ import { guard, type ActionResult } from "@/server/action-result";
 export async function startSubscriptionCheckout(plan: "CREATOR" | "PRO" | "AGENCY", interval: BillingInterval): Promise<ActionResult<{ url: string }>> {
   return guard(async () => {
     const user = await requireUser();
-    if (!integrations.stripe()) throw new Error("Billing is not configured yet. Add your Stripe keys to enable checkout.");
+    if (!integrations.stripe()) throw new Error("La facturation n'est pas encore configurée. Ajoutez vos clés Stripe pour activer le paiement.");
     const url = await createSubscriptionCheckout(user.id, plan, interval);
     return { url };
   });
@@ -19,7 +19,7 @@ export async function startSubscriptionCheckout(plan: "CREATOR" | "PRO" | "AGENC
 export async function startCreditPackCheckout(packId: string): Promise<ActionResult<{ url: string }>> {
   return guard(async () => {
     const user = await requireUser();
-    if (!integrations.stripe()) throw new Error("Billing is not configured yet. Add your Stripe keys to enable checkout.");
+    if (!integrations.stripe()) throw new Error("La facturation n'est pas encore configurée. Ajoutez vos clés Stripe pour activer le paiement.");
     const url = await createCreditPackCheckout(user.id, packId);
     return { url };
   });

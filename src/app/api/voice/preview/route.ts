@@ -22,6 +22,6 @@ export async function POST(req: Request) {
       headers: { "content-type": result.mimeType, "x-tts-provider": result.provider, "x-duration-ms": String(result.durationMs), "cache-control": "private, max-age=3600" },
     });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Preview failed" }, { status: 502 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Échec de l'aperçu" }, { status: 502 });
   }
 }

@@ -3,7 +3,7 @@
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 
-export function GoogleButton({ label = "Continue with Google" }: { label?: string }) {
+export function GoogleButton({ label = "Continuer avec Google" }: { label?: string }) {
   return (
     <Button type="button" variant="secondary" className="w-full" onClick={() => signIn("google", { callbackUrl: "/dashboard" })}>
       <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden>

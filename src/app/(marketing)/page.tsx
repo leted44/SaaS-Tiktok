@@ -8,19 +8,19 @@ import { HeroPreview } from "@/components/marketing/hero-preview";
 import { Reveal } from "@/components/marketing/reveal";
 
 const features = [
-  { icon: Sparkles, title: "Viral script engine", body: "Type a topic or paste a URL. Get a hook, scenes, CTA and a calibrated virality score in seconds." },
-  { icon: Mic2, title: "Studio-grade voiceovers", body: "12 curated AI voices with word-level timestamps so every caption lands on the beat." },
-  { icon: Captions, title: "Kinetic captions", body: "Six caption systems — Hormozi, karaoke, neon, boxed — with word-by-word highlight and live preview." },
-  { icon: Wand2, title: "Timeline studio", body: "Rearrange scenes, drop in b-roll with Ken Burns motion, tune music ducking. Real-time Remotion preview." },
-  { icon: Send, title: "Publish everywhere", body: "One render, three platforms. Schedule TikTok, Reels and Shorts posts from a single queue." },
-  { icon: Gauge, title: "Credits, not guesswork", body: "Transparent usage per script, voice and render. Upgrade only when the numbers say so." },
+  { icon: Sparkles, title: "Générateur de script viral", body: "Tapez un sujet ou collez une URL. Obtenez un hook, des scènes, un CTA et un score de viralité calibré en quelques secondes." },
+  { icon: Mic2, title: "Voix off qualité studio", body: "12 voix IA sélectionnées avec horodatage mot par mot pour que chaque sous-titre tombe pile au bon moment." },
+  { icon: Captions, title: "Sous-titres dynamiques", body: "Six styles de sous-titres — Hormozi, karaoké, néon, encadré — avec surbrillance mot par mot et aperçu en direct." },
+  { icon: Wand2, title: "Studio de montage", body: "Réorganisez les scènes, ajoutez des images avec effet Ken Burns, réglez le mixage musical. Aperçu Remotion en temps réel." },
+  { icon: Send, title: "Publiez partout", body: "Un rendu, trois plateformes. Programmez vos publications TikTok, Reels et Shorts depuis une file unique." },
+  { icon: Gauge, title: "Des crédits, pas de devinettes", body: "Consommation transparente par script, voix et rendu. Passez au niveau supérieur seulement quand les chiffres le justifient." },
 ];
 
 const steps = [
-  { n: "01", title: "Brief", body: "Describe the video. Pick niche, tone, duration and hook style." },
-  { n: "02", title: "Script", body: "AI drafts hook, scenes and CTA with a virality breakdown. Edit anything inline." },
-  { n: "03", title: "Voice & captions", body: "Choose a voice, preview it, generate. Captions align automatically." },
-  { n: "04", title: "Render & post", body: "Render 1080p or 4K in the cloud and schedule to every platform." },
+  { n: "01", title: "Brief", body: "Décrivez la vidéo. Choisissez la niche, le ton, la durée et le style de hook." },
+  { n: "02", title: "Script", body: "L'IA rédige le hook, les scènes et le CTA avec une analyse de viralité. Modifiez tout directement." },
+  { n: "03", title: "Voix & sous-titres", body: "Choisissez une voix, prévisualisez-la, générez. Les sous-titres s'alignent automatiquement." },
+  { n: "04", title: "Rendu & publication", body: "Rendez en 1080p ou 4K dans le cloud et programmez sur toutes les plateformes." },
 ];
 
 export default function LandingPage() {
@@ -32,31 +32,31 @@ export default function LandingPage() {
           <div>
             <Reveal>
               <Badge variant="gradient" className="mb-6 px-3 py-1 text-xs normal-case tracking-normal">
-                <Zap className="h-3 w-3" /> New · Kinetic caption presets & 4K renders
+                <Zap className="h-3 w-3" /> Nouveau · Styles de sous-titres dynamiques & rendus 4K
               </Badge>
             </Reveal>
             <Reveal delay={0.05}>
               <h1 className="font-display text-5xl font-bold leading-[1.05] tracking-tight md:text-7xl">
-                Ship a viral short <span className="text-gradient">every single day.</span>
+                Publiez un short viral <span className="text-gradient">chaque jour.</span>
               </h1>
             </Reveal>
             <Reveal delay={0.1}>
               <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-                ClipForge turns one idea into a scripted, voiced, captioned and published video for TikTok, Reels and Shorts — in under five minutes, without opening an editor.
+                ClipForge transforme une idée en vidéo scriptée, doublée, sous-titrée et publiée pour TikTok, Reels et Shorts — en moins de cinq minutes, sans ouvrir de logiciel de montage.
               </p>
             </Reveal>
             <Reveal delay={0.15}>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Button asChild size="xl" variant="gradient">
                   <Link href="/sign-up">
-                    Start creating free <ArrowRight />
+                    Créer gratuitement <ArrowRight />
                   </Link>
                 </Button>
                 <Button asChild size="xl" variant="outline">
-                  <Link href="#workflow">See the workflow</Link>
+                  <Link href="#workflow">Voir le workflow</Link>
                 </Button>
               </div>
-              <p className="mt-4 text-xs text-muted-foreground">30 free credits · No card required · Cancel anytime</p>
+              <p className="mt-4 text-xs text-muted-foreground">30 crédits offerts · Sans carte bancaire · Annulable à tout moment</p>
             </Reveal>
           </div>
           <Reveal delay={0.2} className="relative">
@@ -68,8 +68,8 @@ export default function LandingPage() {
       {/* Features */}
       <section id="features" className="container py-24">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <h2 className="font-display text-3xl font-bold tracking-tight md:text-5xl">Everything between idea and upload.</h2>
-          <p className="mt-4 text-muted-foreground">One workspace replaces your script doc, TTS tool, caption app, editor and scheduler.</p>
+          <h2 className="font-display text-3xl font-bold tracking-tight md:text-5xl">Tout, entre l'idée et la publication.</h2>
+          <p className="mt-4 text-muted-foreground">Un seul espace de travail remplace votre doc de script, votre outil de synthèse vocale, votre appli de sous-titres, votre éditeur et votre planificateur.</p>
         </Reveal>
         <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {features.map((f, i) => (
@@ -91,7 +91,7 @@ export default function LandingPage() {
       <section id="workflow" className="border-y border-white/[0.05] bg-white/[0.015] py-24">
         <div className="container">
           <Reveal className="mx-auto max-w-2xl text-center">
-            <h2 className="font-display text-3xl font-bold tracking-tight md:text-5xl">Four steps. Five minutes.</h2>
+            <h2 className="font-display text-3xl font-bold tracking-tight md:text-5xl">Quatre étapes. Cinq minutes.</h2>
           </Reveal>
           <div className="mt-14 grid gap-6 md:grid-cols-4">
             {steps.map((s, i) => (
@@ -110,8 +110,8 @@ export default function LandingPage() {
       {/* Pricing */}
       <section id="pricing" className="container py-24">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <h2 className="font-display text-3xl font-bold tracking-tight md:text-5xl">Pricing that scales with output.</h2>
-          <p className="mt-4 text-muted-foreground">Credits cover scripts, voices and renders. A typical 45-second video costs about 15 credits.</p>
+          <h2 className="font-display text-3xl font-bold tracking-tight md:text-5xl">Une tarification qui suit votre production.</h2>
+          <p className="mt-4 text-muted-foreground">Les crédits couvrent les scripts, les voix et les rendus. Une vidéo de 45 secondes coûte environ 15 crédits.</p>
         </Reveal>
         <div className="mt-14 grid gap-4 lg:grid-cols-4">
           {PLAN_ORDER.map((id, i) => {
@@ -123,8 +123,8 @@ export default function LandingPage() {
                   <h3 className="font-display text-xl font-bold">{plan.name}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">{plan.tagline}</p>
                   <div className="mt-6 flex items-baseline gap-1">
-                    <span className="font-display text-4xl font-bold">{plan.priceMonthly === 0 ? "Free" : formatCurrency(plan.priceMonthly)}</span>
-                    {plan.priceMonthly > 0 && <span className="text-sm text-muted-foreground">/month</span>}
+                    <span className="font-display text-4xl font-bold">{plan.priceMonthly === 0 ? "Gratuit" : formatCurrency(plan.priceMonthly)}</span>
+                    {plan.priceMonthly > 0 && <span className="text-sm text-muted-foreground">/mois</span>}
                   </div>
                   <ul className="mt-6 flex-1 space-y-2.5 text-sm">
                     {plan.features.map((f) => (
@@ -135,7 +135,7 @@ export default function LandingPage() {
                     ))}
                   </ul>
                   <Button asChild className="mt-6" variant={plan.highlight ? "gradient" : "secondary"}>
-                    <Link href="/sign-up">{plan.priceMonthly === 0 ? "Start free" : `Get ${plan.name}`}</Link>
+                    <Link href="/sign-up">{plan.priceMonthly === 0 ? "Commencer gratuitement" : `Choisir ${plan.name}`}</Link>
                   </Button>
                 </div>
               </Reveal>
@@ -143,8 +143,8 @@ export default function LandingPage() {
           })}
         </div>
         <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4" /> Stripe-secured billing</span>
-          <span className="inline-flex items-center gap-1.5"><Zap className="h-4 w-4" /> Credits never expire on paid plans</span>
+          <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4" /> Paiement sécurisé par Stripe</span>
+          <span className="inline-flex items-center gap-1.5"><Zap className="h-4 w-4" /> Les crédits n'expirent jamais sur les forfaits payants</span>
         </div>
       </section>
 
@@ -153,10 +153,10 @@ export default function LandingPage() {
         <Reveal>
           <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-brand-gradient p-12 text-center text-white">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.25),transparent_50%)]" />
-            <h2 className="relative font-display text-3xl font-bold md:text-5xl">Your next 30 videos are one brief away.</h2>
-            <p className="relative mx-auto mt-4 max-w-lg text-white/80">Join creators who replaced a 3-hour workflow with a 5-minute one.</p>
+            <h2 className="relative font-display text-3xl font-bold md:text-5xl">Vos 30 prochaines vidéos ne sont qu'à un brief.</h2>
+            <p className="relative mx-auto mt-4 max-w-lg text-white/80">Rejoignez les créateurs qui ont remplacé 3 heures de travail par 5 minutes.</p>
             <Button asChild size="xl" className="relative mt-8 bg-white text-brand-800 hover:bg-white/90">
-              <Link href="/sign-up">Create your first video <ArrowRight /></Link>
+              <Link href="/sign-up">Créer ma première vidéo <ArrowRight /></Link>
             </Button>
           </div>
         </Reveal>

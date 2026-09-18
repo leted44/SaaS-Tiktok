@@ -95,15 +95,15 @@ export function Studio(props: StudioProps) {
                 {title} <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
               </button>
             )}
-            <p className="text-xs text-muted-foreground">{project.aspectRatio === "VERTICAL" ? "9:16" : project.aspectRatio === "SQUARE" ? "1:1" : "16:9"} · {project.niche || "No niche"} · {activeScript ? `${activeScript.wordCount} words · ~${activeScript.estimatedDurationSec}s` : "No script"}</p>
+            <p className="text-xs text-muted-foreground">{project.aspectRatio === "VERTICAL" ? "9:16" : project.aspectRatio === "SQUARE" ? "1:1" : "16:9"} · {project.niche || "Sans niche"} · {activeScript ? `${activeScript.wordCount} mots · ~${activeScript.estimatedDurationSec}s` : "Aucun script"}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <span className={cn("inline-flex items-center gap-1.5 text-xs", saveStatus === "error" ? "text-red-300" : "text-muted-foreground")}>
-            {saveStatus === "saving" ? <><Loader2 className="h-3 w-3 animate-spin" /> Saving…</> : saveStatus === "saved" ? <><Check className="h-3 w-3 text-emerald-400" /> Saved</> : saveStatus === "error" ? "Save failed" : "All changes saved"}
+            {saveStatus === "saving" ? <><Loader2 className="h-3 w-3 animate-spin" /> Enregistrement…</> : saveStatus === "saved" ? <><Check className="h-3 w-3 text-emerald-400" /> Enregistré</> : saveStatus === "error" ? "Échec de l'enregistrement" : "Toutes les modifications sont enregistrées"}
           </span>
           <StatusBadge status={project.status} />
-          <Button variant="gradient" size="sm" onClick={() => setTab("export")}><Film /> Render</Button>
+          <Button variant="gradient" size="sm" onClick={() => setTab("export")}><Film /> Rendu</Button>
         </div>
       </div>
 
@@ -115,7 +115,7 @@ export function Studio(props: StudioProps) {
           {liveProps.scenes.length > 0 && <Timeline props={liveProps} playerRef={playerRef} selectedScene={selectedScene} onSelectScene={(i) => { setSelectedScene(i); if (tab === "export") setTab("visuals"); }} />}
           {!activeScript && (
             <div className="rounded-xl border border-dashed border-white/10 p-4 text-center text-sm text-muted-foreground">
-              Preview shows the animated background until a script exists. <Link href={`/scripts?project=${project.id}`} className="text-foreground underline-offset-4 hover:underline">Generate one now</Link>.
+              L'aperçu affiche le fond animé tant qu'aucun script n'existe. <Link href={`/scripts?project=${project.id}`} className="text-foreground underline-offset-4 hover:underline">Générer un script maintenant</Link>.
             </div>
           )}
         </div>
@@ -125,8 +125,8 @@ export function Studio(props: StudioProps) {
             <div className="border-b border-white/[0.05] p-3">
               <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="script" aria-label="Script" className="flex-col gap-0.5 px-1 py-1 text-[11px] sm:flex-row sm:text-xs"><FileText /><span>Script</span></TabsTrigger>
-                <TabsTrigger value="captions" aria-label="Captions" className="flex-col gap-0.5 px-1 py-1 text-[11px] sm:flex-row sm:text-xs"><Captions /><span>Captions</span></TabsTrigger>
-                <TabsTrigger value="visuals" aria-label="Visuals" className="flex-col gap-0.5 px-1 py-1 text-[11px] sm:flex-row sm:text-xs"><Layers /><span>Visuals</span></TabsTrigger>
+                <TabsTrigger value="captions" aria-label="Sous-titres" className="flex-col gap-0.5 px-1 py-1 text-[11px] sm:flex-row sm:text-xs"><Captions /><span>Sous-titres</span></TabsTrigger>
+                <TabsTrigger value="visuals" aria-label="Visuels" className="flex-col gap-0.5 px-1 py-1 text-[11px] sm:flex-row sm:text-xs"><Layers /><span>Visuels</span></TabsTrigger>
                 <TabsTrigger value="audio" aria-label="Audio" className="flex-col gap-0.5 px-1 py-1 text-[11px] sm:flex-row sm:text-xs"><Music2 /><span>Audio</span></TabsTrigger>
                 <TabsTrigger value="export" aria-label="Export" className="flex-col gap-0.5 px-1 py-1 text-[11px] sm:flex-row sm:text-xs"><Film /><span>Export</span></TabsTrigger>
               </TabsList>

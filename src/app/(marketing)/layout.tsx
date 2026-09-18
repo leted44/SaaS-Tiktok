@@ -13,17 +13,17 @@ export default async function MarketingLayout({ children }: { children: React.Re
         <div className="container flex h-16 items-center justify-between">
           <Logo />
           <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
-            <Link href="#features" className="transition-colors hover:text-foreground">Features</Link>
+            <Link href="#features" className="transition-colors hover:text-foreground">Fonctionnalités</Link>
             <Link href="#workflow" className="transition-colors hover:text-foreground">Workflow</Link>
-            <Link href="#pricing" className="transition-colors hover:text-foreground">Pricing</Link>
+            <Link href="#pricing" className="transition-colors hover:text-foreground">Tarifs</Link>
           </nav>
           <div className="flex items-center gap-2">
             {session?.user ? (
-              <Button asChild variant="gradient"><Link href="/dashboard">Open studio</Link></Button>
+              <Button asChild variant="gradient"><Link href="/dashboard">Ouvrir le studio</Link></Button>
             ) : (
               <>
-                <Button asChild variant="ghost"><Link href="/sign-in">Sign in</Link></Button>
-                <Button asChild variant="gradient"><Link href="/sign-up">Start free</Link></Button>
+                <Button asChild variant="ghost"><Link href="/sign-in">Connexion</Link></Button>
+                <Button asChild variant="gradient"><Link href="/sign-up">Essai gratuit</Link></Button>
               </>
             )}
           </div>
@@ -33,10 +33,10 @@ export default async function MarketingLayout({ children }: { children: React.Re
       <footer className="border-t border-white/[0.05] py-10">
         <div className="container flex flex-col items-center justify-between gap-4 text-sm text-muted-foreground md:flex-row">
           <Logo compact />
-          <p>© {new Date().getFullYear()} ClipForge. Built for creators who ship daily.</p>
+          <p>© {new Date().getFullYear()} ClipForge. Conçu pour les créateurs qui publient chaque jour.</p>
           <div className="flex gap-6">
-            <Link href="/sign-in" className="hover:text-foreground">Sign in</Link>
-            <Link href="#pricing" className="hover:text-foreground">Pricing</Link>
+            <Link href="/sign-in" className="hover:text-foreground">Connexion</Link>
+            <Link href="#pricing" className="hover:text-foreground">Tarifs</Link>
           </div>
         </div>
       </footer>

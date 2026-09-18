@@ -15,9 +15,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ platform: stri
   if (!session?.user?.id) return NextResponse.redirect(`${env.appUrl}/sign-in`);
   const { platform: raw } = await ctx.params;
   const platform = PLATFORMS[raw];
-  if (!platform) return NextResponse.json({ error: "Unknown platform" }, { status: 404 });
+  if (!platform) return NextResponse.json({ error: "Plateforme inconnue" }, { status: 404 });
   const configured = platform === "TIKTOK" ? integrations.tiktok() : platform === "YOUTUBE" ? integrations.youtube() : integrations.instagram();
-  if (!configured) return NextResponse.redirect(`${env.appUrl}/exports?error=${encodeURIComponent(`${raw} publishing is not configured on this server.`)}`);
+  if (!configured) return NextResponse.redirect(`${env.appUrl}/exports?error=${encodeURIComponent(`La publication ${raw} n'est pas configurée sur ce serveur.`)}`);
 
   const state = randomToken();
   const verifier = platform === "TIKTOK" ? randomToken(32) : undefined;

@@ -20,11 +20,11 @@ export function formatBytes(bytes: number): string {
 }
 
 export function formatNumber(n: number): string {
-  return new Intl.NumberFormat("en-US").format(n);
+  return new Intl.NumberFormat("fr-FR").format(n);
 }
 
 export function formatCurrency(cents: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(cents / 100);
+  return new Intl.NumberFormat("fr-FR", { style: "currency", currency, minimumFractionDigits: 0 }).format(cents / 100);
 }
 
 export function slugify(input: string): string {
@@ -62,12 +62,12 @@ export function relativeTime(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
   const diff = Date.now() - d.getTime();
   const s = Math.floor(diff / 1000);
-  if (s < 60) return "just now";
+  if (s < 60) return "à l'instant";
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return `il y a ${m} min`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return `il y a ${h} h`;
   const days = Math.floor(h / 24);
-  if (days < 30) return `${days}d ago`;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (days < 30) return `il y a ${days} j`;
+  return d.toLocaleDateString("fr-FR", { month: "short", day: "numeric" });
 }

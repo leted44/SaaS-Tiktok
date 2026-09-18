@@ -42,8 +42,8 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
       const data = (await res.json()) as Live;
       setLive(data);
       if (data.status === "COMPLETED" || data.status === "FAILED" || data.status === "CANCELLED") {
-        if (data.status === "COMPLETED") toast.success("Render complete! Your MP4 is ready.");
-        if (data.status === "FAILED") toast.error("Render failed. Credits were refunded.");
+        if (data.status === "COMPLETED") toast.success("Rendu terminé ! Votre MP4 est prêt.");
+        if (data.status === "FAILED") toast.error("Le rendu a échoué. Les crédits ont été remboursés.");
         router.refresh();
       }
     };
@@ -56,38 +56,38 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
   const RES_RANK = { "720p": 0, "1080p": 1, "4K": 2 };
 
   async function render() {
-    if (dirty) toast.info("Saving latest edits before rendering…");
+    if (dirty) toast.info("Enregistrement des dernières modifications avant le rendu…");
     setLoading(true);
     const res = await enqueueRender({ projectId, resolution });
     setLoading(false);
-    if (!res.ok) return toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Get credits", onClick: () => router.push("/billing") } : undefined });
-    toast.success(`Render queued (${res.data.resolution}) · ${res.data.creditsCharged} credits`);
+    if (!res.ok) return toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Obtenir des crédits", onClick: () => router.push("/billing") } : undefined });
+    toast.success(`Rendu mis en file (${res.data.resolution}) · ${res.data.creditsCharged} crédits`);
     router.refresh();
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <Label>Resolution</Label>
+        <Label>Résolution</Label>
         <div className="mt-2 grid grid-cols-3 gap-2">
           {(["720p", "1080p", "4K"] as const).map((r) => {
             const locked = RES_RANK[r] > RES_RANK[planLimits.maxResolution];
             return (
               <button key={r} type="button" disabled={locked} onClick={() => setResolution(r)} className={cn("rounded-lg border p-3 text-center transition disabled:opacity-50", resolution === r ? "border-primary/60 bg-primary/10" : "border-white/10 hover:border-white/20")}>
                 <p className="font-semibold">{r} {locked && <Lock className="inline h-3 w-3" />}</p>
-                <p className="text-[11px] text-muted-foreground">{planLimits.costs[r]} credits</p>
+                <p className="text-[11px] text-muted-foreground">{planLimits.costs[r]} crédits</p>
               </button>
             );
           })}
         </div>
-        {planLimits.watermark && <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-amber-300"><AlertTriangle className="h-3 w-3" /> Free plan exports include a watermark. <Link href="/billing" className="underline">Upgrade</Link> to remove.</p>}
+        {planLimits.watermark && <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-amber-300"><AlertTriangle className="h-3 w-3" /> Les exports du forfait gratuit incluent un filigrane. <Link href="/billing" className="underline">Passez à un forfait supérieur</Link> pour le retirer.</p>}
       </div>
 
-      {!hasVoiceover && hasScript && <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">No voiceover yet — the render will be silent with estimated caption timing. Generate one in the Audio tab for best results.</p>}
+      {!hasVoiceover && hasScript && <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">Pas encore de voix off — le rendu sera silencieux avec un timing de sous-titres estimé. Générez-en une dans l'onglet Audio pour un meilleur résultat.</p>}
 
       {activeRender ? (
         <div className="surface p-4">
-          <div className="flex items-center justify-between"><p className="text-sm font-semibold">Rendering…</p><StatusBadge status={live?.status ?? activeRender.status} /></div>
+          <div className="flex items-center justify-between"><p className="text-sm font-semibold">Rendu en cours…</p><StatusBadge status={live?.status ?? activeRender.status} /></div>
           <Progress value={live?.progress ?? activeRender.progress} className="mt-3 h-2" indicatorClassName="bg-brand-gradient" />
           <ol className="mt-4 space-y-1.5">
             {RENDER_STEPS.filter((s) => s.key !== "done").map((s) => {
@@ -101,20 +101,20 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
               );
             })}
           </ol>
-          <p className="mt-3 text-[11px] text-muted-foreground">Renders run in the background worker. You can leave this page.</p>
+          <p className="mt-3 text-[11px] text-muted-foreground">Les rendus s'exécutent dans le worker en arrière-plan. Vous pouvez quitter cette page.</p>
         </div>
       ) : (
         <Button className="w-full" size="lg" variant="gradient" onClick={render} loading={loading} disabled={!hasScript || credits < cost}>
-          <Film /> Render {resolution} · <Coins className="h-3.5 w-3.5" /> {cost}
+          <Film /> Rendu {resolution} · <Coins className="h-3.5 w-3.5" /> {cost}
         </Button>
       )}
-      {credits < cost && !activeRender && <p className="text-center text-[11px] text-red-300">Not enough credits ({credits}/{cost}). <Link href="/billing" className="underline">Top up</Link>.</p>}
+      {credits < cost && !activeRender && <p className="text-center text-[11px] text-red-300">Crédits insuffisants ({credits}/{cost}). <Link href="/billing" className="underline">Recharger</Link>.</p>}
 
-      {hasVoiceover && <Button asChild variant="outline" className="w-full"><a href={`/api/projects/${projectId}/captions`}><Subtitles /> Download captions (.srt)</a></Button>}
+      {hasVoiceover && <Button asChild variant="outline" className="w-full"><a href={`/api/projects/${projectId}/captions`}><Subtitles /> Télécharger les sous-titres (.srt)</a></Button>}
 
       {renders.length > 0 && (
         <div>
-          <Label>Recent renders</Label>
+          <Label>Rendus récents</Label>
           <ul className="mt-2 space-y-2">
             {renders.map((r) => (
               <li key={r.id} className="flex items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-2">

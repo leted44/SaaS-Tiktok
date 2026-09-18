@@ -1,21 +1,21 @@
 import { Badge } from "@/components/ui/badge";
 
 const MAP: Record<string, { label: string; variant: "default" | "secondary" | "success" | "warning" | "destructive" | "info" }> = {
-  DRAFT: { label: "Draft", variant: "secondary" },
-  SCRIPTED: { label: "Scripted", variant: "info" },
-  VOICED: { label: "Voiced", variant: "info" },
-  READY: { label: "Ready", variant: "default" },
-  RENDERING: { label: "Rendering", variant: "warning" },
-  RENDERED: { label: "Rendered", variant: "success" },
-  PUBLISHED: { label: "Published", variant: "success" },
-  FAILED: { label: "Failed", variant: "destructive" },
-  QUEUED: { label: "Queued", variant: "secondary" },
-  PROCESSING: { label: "Processing", variant: "warning" },
-  COMPLETED: { label: "Completed", variant: "success" },
-  CANCELLED: { label: "Cancelled", variant: "secondary" },
-  SCHEDULED: { label: "Scheduled", variant: "info" },
-  PUBLISHING: { label: "Publishing", variant: "warning" },
-  PENDING: { label: "Pending", variant: "secondary" },
+  DRAFT: { label: "Brouillon", variant: "secondary" },
+  SCRIPTED: { label: "Scripté", variant: "info" },
+  VOICED: { label: "Voix générée", variant: "info" },
+  READY: { label: "Prêt", variant: "default" },
+  RENDERING: { label: "Rendu en cours", variant: "warning" },
+  RENDERED: { label: "Rendu terminé", variant: "success" },
+  PUBLISHED: { label: "Publié", variant: "success" },
+  FAILED: { label: "Échoué", variant: "destructive" },
+  QUEUED: { label: "En attente", variant: "secondary" },
+  PROCESSING: { label: "En cours", variant: "warning" },
+  COMPLETED: { label: "Terminé", variant: "success" },
+  CANCELLED: { label: "Annulé", variant: "secondary" },
+  SCHEDULED: { label: "Programmé", variant: "info" },
+  PUBLISHING: { label: "Publication en cours", variant: "warning" },
+  PENDING: { label: "En attente", variant: "secondary" },
 };
 
 export function StatusBadge({ status }: { status: string }) {

@@ -27,7 +27,7 @@ export async function changePassword(input: unknown): Promise<ActionResult<undef
     const user = await prisma.user.findUniqueOrThrow({ where: { id: sessionUser.id } });
     if (user.passwordHash) {
       const ok = await bcrypt.compare(data.current, user.passwordHash);
-      if (!ok) throw new Error("Current password is incorrect.");
+      if (!ok) throw new Error("Le mot de passe actuel est incorrect.");
     }
     await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(data.next, 12) } });
     return undefined;
