@@ -16,16 +16,26 @@ Turn one idea into a scripted, voiced, captioned and published video for TikTok,
 | **Publishing hub** | OAuth for TikTok (Content Posting API), YouTube (resumable upload), Instagram (Reels container). Post now or schedule; processed by the worker. Tokens encrypted at rest (AES-256-GCM). |
 | **Billing** | Stripe subscriptions (Creator / Pro / Agency, monthly or yearly) + one-time credit packs. Idempotent webhooks, monthly credit refills, atomic credit ledger with automatic refunds on failure. Plan gates: watermark, resolution, premium voices, scheduling, account limits. |
 
-## Quick start
+## Quick start (local)
 
 ```bash
 cp .env.example .env          # fill in at least DATABASE_URL, DIRECT_URL, AUTH_SECRET
 npm install
-npm run db:push               # create tables
+npm run db:push               # sync tables for local iteration (or `db:deploy` to apply the committed migration)
 npm run db:seed               # optional demo account: demo@clipforge.app / demo1234
 npm run dev                   # http://localhost:3000
 npm run worker                # in a second terminal: renders + scheduled posts
 ```
+
+## Deploying (Vercel + Supabase)
+
+1. **Supabase** — new project → Project Settings → Database → copy the *Transaction pooler* string into `DATABASE_URL` and the *Session/direct* string into `DIRECT_URL`. Optionally create a public Storage bucket and grab its S3-compatible credentials (Storage → S3 Connection) for `S3_*`.
+2. **Vercel** — import this repo, set the environment variables from `.env.example` in Project Settings → Environment Variables (`AUTH_SECRET`, `CRON_SECRET`, `TOKEN_ENCRYPTION_KEY` — generate each with `openssl rand -base64 32` / `openssl rand -hex 32`). `npm run build` runs `prisma migrate deploy` automatically, so the committed migration in `prisma/migrations/` applies on first deploy.
+3. **Rendering** — Vercel's serverless functions cannot host the always-on Chromium process Remotion needs. Two options:
+   - Run `npm run worker` on a separate always-on host (Railway, Render, Fly.io, a small VPS) pointed at the same `DATABASE_URL`/`STORAGE_DRIVER=s3`.
+   - Or set `RENDER_ENGINE=lambda` and deploy a Remotion Lambda function (`npx remotion lambda functions deploy`, `npx remotion lambda sites create src/remotion/index.ts`) so rendering happens on AWS instead.
+   Without either, render jobs stay queued forever — everything else (auth, scripts, editor) still works.
+4. **Storage** — set `STORAGE_DRIVER=s3` in production; the local disk driver doesn't persist across serverless deploys.
 
 Everything boots without third-party keys. Modules show a "not configured" state until you add them:
 
