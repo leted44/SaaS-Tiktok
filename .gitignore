@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+dist
+.env
+.env*.local
+*.log
+.DS_Store
+/public/renders
+/storage
+/tmp
+/.remotion
+.vercel
+*.tsbuildinfo
+next-env.d.ts

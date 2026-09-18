@@ -1,0 +1,175 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type { PlayerRef } from "@remotion/player";
+import { FileText, Captions, Layers, Music2, Film, ArrowLeft, Check, Loader2, Pencil } from "lucide-react";
+import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { StatusBadge } from "@/components/shared/status-badge";
+import { PreviewPlayer } from "@/components/studio/preview-player";
+import { Timeline } from "@/components/studio/timeline";
+import { ScriptPanel } from "@/components/studio/script-panel";
+import { CaptionsPanel } from "@/components/studio/captions-panel";
+import { VisualsPanel } from "@/components/studio/visuals-panel";
+import { AudioPanel } from "@/components/studio/audio-panel";
+import { ExportPanel } from "@/components/studio/export-panel";
+import { saveEditorState, renameProject } from "@/server/actions/projects";
+import { getTrack } from "@/lib/music/library";
+import type { EditorState, StudioProps } from "@/components/studio/types";
+import type { ShortVideoProps } from "@/lib/render/props";
+import { DEFAULT_PREVIEW_PROPS } from "@/lib/render/props";
+import { cn } from "@/lib/utils";
+
+export function Studio(props: StudioProps) {
+  const { project, scripts, activeScriptId, voiceover, renders, previewProps, user, planLimits, voices, tracks, integrations } = props;
+  const router = useRouter();
+  const playerRef = useRef<PlayerRef>(null);
+  const [tab, setTab] = useState("script");
+  const [selectedScene, setSelectedScene] = useState<number | null>(null);
+  const [title, setTitle] = useState(project.title);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [state, setState] = useState<EditorState>({
+    captionStyle: project.captionStyle,
+    visualLayers: project.visualLayers,
+    backgroundStyle: project.backgroundStyle,
+    musicTrackId: project.musicTrackId,
+    musicVolume: project.musicVolume,
+    voiceId: project.voiceId,
+  });
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const lastSaved = useRef(JSON.stringify(state));
+  const dirty = JSON.stringify(state) !== lastSaved.current;
+
+  // Debounced autosave of editor state.
+  useEffect(() => {
+    if (!dirty) return;
+    setSaveStatus("saving");
+    const t = setTimeout(async () => {
+      const snapshot = JSON.stringify(state);
+      const res = await saveEditorState(project.id, state);
+      if (res.ok) {
+        lastSaved.current = snapshot;
+        setSaveStatus("saved");
+      } else {
+        setSaveStatus("error");
+        toast.error(res.error);
+      }
+    }, 900);
+    return () => clearTimeout(t);
+  }, [state, dirty, project.id]);
+
+  const activeScript = scripts.find((s) => s.id === activeScriptId) ?? scripts[0] ?? null;
+
+  // Live composition props: server-built base + client-side editor overrides.
+  const liveProps: ShortVideoProps = useMemo(() => {
+    const base = previewProps ?? { ...DEFAULT_PREVIEW_PROPS, title: project.title };
+    const track = getTrack(state.musicTrackId);
+    return { ...base, captionStyle: state.captionStyle, visualLayers: state.visualLayers, backgroundStyle: state.backgroundStyle, musicUrl: track?.url || null, musicVolume: state.musicVolume };
+  }, [previewProps, state, project.title]);
+
+  const patch = useCallback(<K extends keyof EditorState>(k: K, v: EditorState[K]) => setState((s) => ({ ...s, [k]: v })), []);
+
+  async function commitTitle() {
+    setEditingTitle(false);
+    if (title.trim() === project.title) return;
+    const res = await renameProject(project.id, title);
+    if (!res.ok) return toast.error(res.error);
+    router.refresh();
+  }
+
+  return (
+    <div className="mx-auto max-w-[1600px]">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Button asChild variant="ghost" size="icon"><Link href="/projects"><ArrowLeft /></Link></Button>
+          <div className="min-w-0">
+            {editingTitle ? (
+              <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} onBlur={commitTitle} onKeyDown={(e) => e.key === "Enter" && commitTitle()} className="h-9 w-80 font-display text-lg font-bold" />
+            ) : (
+              <button onClick={() => setEditingTitle(true)} className="group inline-flex items-center gap-2 truncate font-display text-xl font-bold tracking-tight md:text-2xl">
+                {title} <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
+              </button>
+            )}
+            <p className="text-xs text-muted-foreground">{project.aspectRatio === "VERTICAL" ? "9:16" : project.aspectRatio === "SQUARE" ? "1:1" : "16:9"} · {project.niche || "No niche"} · {activeScript ? `${activeScript.wordCount} words · ~${activeScript.estimatedDurationSec}s` : "No script"}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className={cn("inline-flex items-center gap-1.5 text-xs", saveStatus === "error" ? "text-red-300" : "text-muted-foreground")}>
+            {saveStatus === "saving" ? <><Loader2 className="h-3 w-3 animate-spin" /> Saving…</> : saveStatus === "saved" ? <><Check className="h-3 w-3 text-emerald-400" /> Saved</> : saveStatus === "error" ? "Save failed" : "All changes saved"}
+          </span>
+          <StatusBadge status={project.status} />
+          <Button variant="gradient" size="sm" onClick={() => setTab("export")}><Film /> Render</Button>
+        </div>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_440px]">
+        <div className="space-y-4">
+          <div className="flex justify-center">
+            <PreviewPlayer ref={playerRef} inputProps={liveProps} className={cn("w-full", project.aspectRatio === "VERTICAL" ? "max-w-[400px]" : project.aspectRatio === "SQUARE" ? "max-w-[560px]" : "max-w-[860px]")} />
+          </div>
+          {liveProps.scenes.length > 0 && <Timeline props={liveProps} playerRef={playerRef} selectedScene={selectedScene} onSelectScene={(i) => { setSelectedScene(i); if (tab === "export") setTab("visuals"); }} />}
+          {!activeScript && (
+            <div className="rounded-xl border border-dashed border-white/10 p-4 text-center text-sm text-muted-foreground">
+              Preview shows the animated background until a script exists. <Link href={`/scripts?project=${project.id}`} className="text-foreground underline-offset-4 hover:underline">Generate one now</Link>.
+            </div>
+          )}
+        </div>
+
+        <div className="surface flex max-h-[calc(100vh-140px)] flex-col xl:sticky xl:top-24">
+          <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
+            <div className="border-b border-white/[0.05] p-3">
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="script" aria-label="Script" className="flex-col gap-0.5 px-1 py-1 text-[11px] sm:flex-row sm:text-xs"><FileText /><span>Script</span></TabsTrigger>
+                <TabsTrigger value="captions" aria-label="Captions" className="flex-col gap-0.5 px-1 py-1 text-[11px] sm:flex-row sm:text-xs"><Captions /><span>Captions</span></TabsTrigger>
+                <TabsTrigger value="visuals" aria-label="Visuals" className="flex-col gap-0.5 px-1 py-1 text-[11px] sm:flex-row sm:text-xs"><Layers /><span>Visuals</span></TabsTrigger>
+                <TabsTrigger value="audio" aria-label="Audio" className="flex-col gap-0.5 px-1 py-1 text-[11px] sm:flex-row sm:text-xs"><Music2 /><span>Audio</span></TabsTrigger>
+                <TabsTrigger value="export" aria-label="Export" className="flex-col gap-0.5 px-1 py-1 text-[11px] sm:flex-row sm:text-xs"><Film /><span>Export</span></TabsTrigger>
+              </TabsList>
+            </div>
+            <ScrollArea className="min-h-0 flex-1">
+              <div className="p-4">
+                <TabsContent value="script" className="mt-0">
+                  <ScriptPanel projectId={project.id} scripts={scripts} activeScriptId={activeScriptId} selectedScene={selectedScene} onSelectScene={(i) => { setSelectedScene(i); if (i !== null && liveProps.scenes[i]) playerRef.current?.seekTo(Math.round((liveProps.scenes[i].startMs / 1000) * liveProps.fps)); }} aiConfigured={integrations.ai} />
+                </TabsContent>
+                <TabsContent value="captions" className="mt-0">
+                  <CaptionsPanel style={state.captionStyle} onChange={(s) => patch("captionStyle", s)} />
+                </TabsContent>
+                <TabsContent value="visuals" className="mt-0">
+                  <VisualsPanel layers={state.visualLayers} background={state.backgroundStyle} scenes={liveProps.scenes} selectedScene={selectedScene} onLayersChange={(l) => patch("visualLayers", l)} onBackgroundChange={(b) => patch("backgroundStyle", b)} />
+                </TabsContent>
+                <TabsContent value="audio" className="mt-0">
+                  <AudioPanel
+                    projectId={project.id}
+                    scriptId={activeScript?.id ?? null}
+                    voiceover={voiceover}
+                    voiceId={state.voiceId}
+                    musicTrackId={state.musicTrackId}
+                    musicVolume={state.musicVolume}
+                    voices={voices}
+                    tracks={tracks}
+                    premiumAllowed={planLimits.premiumVoices}
+                    ttsConfigured={integrations.tts}
+                    estimatedDurationSec={activeScript?.estimatedDurationSec ?? project.targetDurationSec}
+                    costPer30s={planLimits.costs.voicePer30s}
+                    credits={user.credits}
+                    onVoiceChange={(id) => patch("voiceId", id)}
+                    onMusicChange={(id) => patch("musicTrackId", id)}
+                    onVolumeChange={(v) => patch("musicVolume", v)}
+                  />
+                </TabsContent>
+                <TabsContent value="export" className="mt-0">
+                  <ExportPanel projectId={project.id} renders={renders} planLimits={planLimits} credits={user.credits} hasScript={Boolean(activeScript)} hasVoiceover={Boolean(voiceover?.audioUrl)} dirty={dirty} />
+                </TabsContent>
+              </div>
+            </ScrollArea>
+          </Tabs>
+        </div>
+      </div>
+    </div>
+  );
+}

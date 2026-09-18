@@ -1,0 +1,466 @@
+// ClipForge — Prisma schema
+// PostgreSQL (Supabase). Run `npm run db:push` for dev, `npm run db:deploy` in prod.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum Plan {
+  FREE
+  CREATOR
+  PRO
+  AGENCY
+}
+
+enum SubscriptionStatus {
+  NONE
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  INCOMPLETE
+}
+
+enum ProjectStatus {
+  DRAFT
+  SCRIPTED
+  VOICED
+  READY
+  RENDERING
+  RENDERED
+  PUBLISHED
+  FAILED
+}
+
+enum AspectRatio {
+  VERTICAL   // 9:16  1080x1920
+  SQUARE     // 1:1   1080x1080
+  HORIZONTAL // 16:9  1920x1080
+}
+
+enum VoiceoverStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum AssetType {
+  IMAGE
+  VIDEO
+  AUDIO
+  LOGO
+  FONT
+}
+
+enum RenderStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum SocialPlatform {
+  TIKTOK
+  INSTAGRAM
+  YOUTUBE
+}
+
+enum PublishStatus {
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  CANCELLED
+}
+
+enum CreditTxType {
+  SIGNUP_BONUS
+  SUBSCRIPTION_GRANT
+  PURCHASE
+  SCRIPT_GENERATION
+  VOICEOVER
+  RENDER
+  REFUND
+  ADMIN_ADJUSTMENT
+}
+
+// ───────────────────────────── Auth ─────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  role          UserRole  @default(USER)
+
+  // Billing
+  plan                 Plan               @default(FREE)
+  subscriptionStatus   SubscriptionStatus @default(NONE)
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  stripePriceId        String?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+
+  // Credits
+  credits           Int      @default(0)
+  lifetimeCredits   Int      @default(0)
+  creditsResetAt    DateTime?
+
+  onboardedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  accounts           Account[]
+  sessions           Session[]
+  workspaces         Workspace[]
+  projects           Project[]
+  scripts            Script[]
+  voiceovers         Voiceover[]
+  assets             Asset[]
+  renderJobs         RenderJob[]
+  socialAccounts     SocialAccount[]
+  publishJobs        PublishJob[]
+  creditTransactions CreditTransaction[]
+
+  @@index([stripeCustomerId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ───────────────────────────── Workspace & Brand Kit ─────────────────────────────
+
+model Workspace {
+  id      String @id @default(cuid())
+  ownerId String
+  name    String
+  slug    String @unique
+
+  // Brand kit
+  primaryColor     String  @default("#7C3AED")
+  secondaryColor   String  @default("#FFFFFF")
+  accentColor      String  @default("#F59E0B")
+  fontFamily       String  @default("Inter")
+  captionPreset    String  @default("hormozi")
+  logoUrl          String?
+  watermarkUrl     String?
+  watermarkOpacity Float   @default(0.8)
+  watermarkPosition String @default("bottom-right")
+  defaultVoiceId   String  @default("rachel")
+  defaultLanguage  String  @default("en")
+  defaultAspect    AspectRatio @default(VERTICAL)
+  defaultMusicId   String?
+  toneOfVoice      String? @db.Text
+  targetAudience   String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner          User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  projects       Project[]
+  assets         Asset[]
+  socialAccounts SocialAccount[]
+
+  @@index([ownerId])
+}
+
+// ───────────────────────────── Projects ─────────────────────────────
+
+model Project {
+  id          String        @id @default(cuid())
+  workspaceId String
+  userId      String
+  title       String
+  topic       String?       @db.Text
+  niche       String?
+  sourceUrl   String?
+  status      ProjectStatus @default(DRAFT)
+  aspectRatio AspectRatio   @default(VERTICAL)
+  targetDurationSec Int     @default(45)
+  language    String        @default("en")
+
+  voiceId         String?
+  musicTrackId    String?
+  musicVolume     Float   @default(0.18)
+
+  // Editor state — caption styling + visual layers (validated by zod in src/lib/validations)
+  captionStyle    Json?
+  visualLayers    Json?
+  backgroundStyle Json?
+
+  thumbnailUrl String?
+  activeScriptId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scripts     Script[]
+  voiceovers  Voiceover[]
+  renderJobs  RenderJob[]
+  publishJobs PublishJob[]
+
+  @@index([workspaceId])
+  @@index([userId, updatedAt])
+}
+
+model Script {
+  id        String @id @default(cuid())
+  projectId String
+  userId    String
+  version   Int    @default(1)
+
+  title            String
+  hook             String   @db.Text
+  scenes           Json     // Array<{ id, text, visualDescription, brollQuery, durationSec, emphasis[] }>
+  callToAction     String   @db.Text
+  fullText         String   @db.Text
+  hashtags         String[]
+  viralityScore    Int      @default(0)
+  hookScore        Int      @default(0)
+  retentionScore   Int      @default(0)
+  clarityScore     Int      @default(0)
+  scoreRationale   String?  @db.Text
+  estimatedDurationSec Int  @default(0)
+  wordCount        Int      @default(0)
+  alternativeHooks String[]
+
+  model      String?
+  inputTokens  Int?
+  outputTokens Int?
+
+  createdAt DateTime @default(now())
+
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  voiceovers Voiceover[]
+
+  @@index([projectId, version])
+}
+
+model Voiceover {
+  id        String          @id @default(cuid())
+  projectId String
+  scriptId  String
+  userId    String
+  provider  String          @default("elevenlabs")
+  voiceId   String
+  status    VoiceoverStatus @default(PENDING)
+  audioUrl  String?
+  durationMs Int?
+  wordTimings Json?         // Array<{ word, startMs, endMs, sceneIndex }>
+  stability  Float          @default(0.5)
+  similarity Float          @default(0.75)
+  speed      Float          @default(1.0)
+  error     String?         @db.Text
+  createdAt DateTime        @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  script  Script  @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+}
+
+model Asset {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String
+  type        AssetType
+  name        String
+  url         String
+  storageKey  String?
+  mimeType    String
+  sizeBytes   Int       @default(0)
+  width       Int?
+  height      Int?
+  durationMs  Int?
+  createdAt   DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, type])
+}
+
+// ───────────────────────────── Rendering ─────────────────────────────
+
+model RenderJob {
+  id        String       @id @default(cuid())
+  projectId String
+  userId    String
+  status    RenderStatus @default(QUEUED)
+  progress  Int          @default(0)   // 0-100
+  step      String       @default("queued")
+  engine    String       @default("local")
+  priority  Int          @default(0)
+  attempts  Int          @default(0)
+  maxAttempts Int        @default(3)
+
+  inputProps    Json      // Full Remotion composition props snapshot
+  compositionId String    @default("ShortVideo")
+  width         Int       @default(1080)
+  height        Int       @default(1920)
+  fps           Int       @default(30)
+  durationInFrames Int    @default(0)
+  watermark     Boolean   @default(false)
+
+  outputUrl    String?
+  thumbnailUrl String?
+  sizeBytes    Int?
+  durationMs   Int?
+  creditsCharged Int      @default(0)
+  error        String?    @db.Text
+  logs         Json?
+
+  lockedAt    DateTime?
+  lockedBy    String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publishJobs PublishJob[]
+
+  @@index([status, priority, createdAt])
+  @@index([userId, createdAt])
+  @@index([projectId])
+}
+
+// ───────────────────────────── Publishing ─────────────────────────────
+
+model SocialAccount {
+  id             String         @id @default(cuid())
+  userId         String
+  workspaceId    String
+  platform       SocialPlatform
+  platformUserId String
+  username       String
+  displayName    String?
+  avatarUrl      String?
+  accessToken    String         @db.Text // AES-256-GCM encrypted
+  refreshToken   String?        @db.Text // AES-256-GCM encrypted
+  tokenExpiresAt DateTime?
+  scopes         String[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  publishJobs PublishJob[]
+
+  @@unique([workspaceId, platform, platformUserId])
+  @@index([userId])
+}
+
+model PublishJob {
+  id              String         @id @default(cuid())
+  renderJobId     String
+  projectId       String
+  userId          String
+  socialAccountId String
+  platform        SocialPlatform
+  status          PublishStatus  @default(SCHEDULED)
+  scheduledAt     DateTime
+  publishedAt     DateTime?
+  title           String?
+  caption         String         @db.Text
+  hashtags        String[]
+  privacy         String         @default("public")
+  externalPostId  String?
+  externalUrl     String?
+  error           String?        @db.Text
+  attempts        Int            @default(0)
+  lockedAt        DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  renderJob     RenderJob     @relation(fields: [renderJobId], references: [id], onDelete: Cascade)
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledAt])
+  @@index([userId, createdAt])
+}
+
+// ───────────────────────────── Billing ─────────────────────────────
+
+model CreditTransaction {
+  id           String       @id @default(cuid())
+  userId       String
+  type         CreditTxType
+  amount       Int          // positive = grant, negative = consumption
+  balanceAfter Int
+  description  String
+  referenceId  String?      // projectId / renderJobId / stripe invoice id
+  createdAt    DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([referenceId])
+}
+
+model StripeEvent {
+  id          String   @id // Stripe event id — enforces webhook idempotency
+  type        String
+  processedAt DateTime @default(now())
+}

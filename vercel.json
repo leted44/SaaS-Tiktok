@@ -1,0 +1,9 @@
+{
+  "crons": [
+    { "path": "/api/jobs/process", "schedule": "* * * * *" }
+  ],
+  "functions": {
+    "src/app/api/jobs/process/route.ts": { "maxDuration": 300 },
+    "src/app/api/voice/preview/route.ts": { "maxDuration": 60 }
+  }
+}

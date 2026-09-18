@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 250 33% 4%;
+    --foreground: 240 10% 96%;
+    --card: 250 25% 7%;
+    --card-foreground: 240 10% 96%;
+    --popover: 250 25% 7%;
+    --popover-foreground: 240 10% 96%;
+    --primary: 262 83% 62%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 250 15% 13%;
+    --secondary-foreground: 240 10% 92%;
+    --muted: 250 15% 12%;
+    --muted-foreground: 240 6% 62%;
+    --accent: 250 18% 15%;
+    --accent-foreground: 240 10% 96%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 66% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 20 10% 10%;
+    --border: 250 15% 15%;
+    --input: 250 15% 16%;
+    --ring: 262 83% 62%;
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+  }
+  ::selection {
+    background: hsl(var(--primary) / 0.35);
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(250 12% 22%);
+    border-radius: 999px;
+    border: 3px solid hsl(var(--background));
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(250 12% 30%);
+  }
+}
+
+@layer components {
+  .glass {
+    @apply border border-white/[0.06] bg-white/[0.03] backdrop-blur-xl;
+  }
+  .glass-strong {
+    @apply border border-white/[0.08] bg-white/[0.06] backdrop-blur-2xl;
+  }
+  .surface {
+    @apply rounded-xl border border-white/[0.06] bg-card shadow-card;
+  }
+  .text-gradient {
+    @apply bg-brand-gradient bg-clip-text text-transparent;
+  }
+  .ring-focus {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-white/[0.05];
+  }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0 animate-shimmer;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+    background-size: 700px 100%;
+  }
+  .dot-grid {
+    background-image: radial-gradient(hsl(0 0% 100% / 0.07) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+}
