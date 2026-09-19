@@ -3,6 +3,7 @@ import os from "os";
 import { promises as fs } from "fs";
 import type { RenderJob } from "@prisma/client";
 import { env } from "@/lib/env";
+import { prisma } from "@/lib/prisma";
 import { putFile, storageKey } from "@/lib/storage";
 import { updateRenderProgress } from "@/lib/render/queue";
 import { shortVideoPropsSchema, type ShortVideoProps } from "@/lib/render/props";
@@ -16,7 +17,8 @@ export interface RenderOutput {
 
 export interface RenderEngine {
   name: string;
-  render(job: RenderJob, props: ShortVideoProps): Promise<RenderOutput>;
+  /** Returns null when the render is still in progress and should be checked again later. */
+  render(job: RenderJob, props: ShortVideoProps): Promise<RenderOutput | null>;
 }
 
 let cachedBundle: { serveUrl: string; builtAt: number } | null = null;
@@ -91,11 +93,22 @@ export const localRemotionEngine: RenderEngine = {
   },
 };
 
+interface LambdaRenderState {
+  renderId: string;
+  bucketName: string;
+}
+
 /**
  * Remotion Lambda engine: offloads rendering to AWS Lambda for horizontal scale.
  * Requires a deployed function + site (`npx remotion lambda functions deploy`,
  * `npx remotion lambda sites create src/remotion/index.ts`). The @remotion/lambda
  * package is loaded dynamically so it stays an optional dependency.
+ *
+ * Starting a render and waiting for it to finish are split across separate calls
+ * (persisted in `job.logs`) instead of blocking inside one invocation: a Vercel
+ * serverless function can be killed well before a render completes, and looping
+ * `renderMediaOnLambda` again on the next tick would start a second render on top
+ * of the first, stacking concurrent Lambda invocations until AWS rate-limits them.
  */
 export const lambdaRemotionEngine: RenderEngine = {
   name: "lambda",
@@ -108,34 +121,45 @@ export const lambdaRemotionEngine: RenderEngine = {
       renderMediaOnLambda: (args: Record<string, unknown>) => Promise<{ renderId: string; bucketName: string }>;
       getRenderProgress: (args: Record<string, unknown>) => Promise<{ done: boolean; overallProgress: number; fatalErrorEncountered: boolean; errors: { message: string }[]; outputFile: string | null; outputSizeInBytes: number | null }>;
     };
-    const inputProps = shortVideoPropsSchema.parse(props);
 
-    await updateRenderProgress(job.id, "rendering");
-    const { renderId, bucketName } = await lambda.renderMediaOnLambda({
-      region: env.remotion.region,
-      functionName: env.remotion.functionName,
-      serveUrl: env.remotion.serveUrl,
-      composition: job.compositionId,
-      inputProps,
-      codec: "h264",
-      crf: 18,
-      privacy: "public",
-      maxRetries: 2,
-      // Fewer, larger chunks keep concurrent Lambda invocations low — new AWS
-      // accounts start with a much lower concurrency quota than the account default.
-      framesPerLambda: 300,
-      outName: `${job.id}.mp4`,
-    });
+    const state = job.logs as unknown as LambdaRenderState | null;
+    let renderId: string;
+    let bucketName: string;
 
-    for (;;) {
-      await new Promise((r) => setTimeout(r, 2500));
-      const progress = await lambda.getRenderProgress({ renderId, bucketName, functionName: env.remotion.functionName, region: env.remotion.region });
-      if (progress.fatalErrorEncountered) throw new Error(progress.errors.map((e) => e.message).join("; ") || "Lambda render failed");
-      await updateRenderProgress(job.id, "rendering", 25 + progress.overallProgress * 70);
-      if (progress.done && progress.outputFile) {
-        return { outputUrl: progress.outputFile, thumbnailUrl: null, sizeBytes: progress.outputSizeInBytes ?? 0, durationMs: Math.round((job.durationInFrames / job.fps) * 1000) };
-      }
+    if (state?.renderId && state?.bucketName) {
+      renderId = state.renderId;
+      bucketName = state.bucketName;
+    } else {
+      const inputProps = shortVideoPropsSchema.parse(props);
+      await updateRenderProgress(job.id, "rendering", 25);
+      const started = await lambda.renderMediaOnLambda({
+        region: env.remotion.region,
+        functionName: env.remotion.functionName,
+        serveUrl: env.remotion.serveUrl,
+        composition: job.compositionId,
+        inputProps,
+        codec: "h264",
+        crf: 18,
+        privacy: "public",
+        maxRetries: 1,
+        // Fewer, larger chunks keep concurrent Lambda invocations low — new AWS
+        // accounts start with a much lower concurrency quota than the account default.
+        framesPerLambda: 300,
+        outName: `${job.id}.mp4`,
+      });
+      renderId = started.renderId;
+      bucketName = started.bucketName;
+      await prisma.renderJob.update({ where: { id: job.id }, data: { logs: { renderId, bucketName } } });
+      return null;
     }
+
+    const progress = await lambda.getRenderProgress({ renderId, bucketName, functionName: env.remotion.functionName, region: env.remotion.region });
+    if (progress.fatalErrorEncountered) throw new Error(progress.errors.map((e) => e.message).join("; ") || "Lambda render failed");
+    await updateRenderProgress(job.id, "rendering", 25 + progress.overallProgress * 70);
+    if (progress.done && progress.outputFile) {
+      return { outputUrl: progress.outputFile, thumbnailUrl: null, sizeBytes: progress.outputSizeInBytes ?? 0, durationMs: Math.round((job.durationInFrames / job.fps) * 1000) };
+    }
+    return null;
   },
 };
 

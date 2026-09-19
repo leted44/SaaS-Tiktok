@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { RenderStatus, PublishStatus } from "@prisma/client";
+import { Prisma, RenderStatus, PublishStatus } from "@prisma/client";
 
 export const RENDER_STEPS = [
   { key: "queued", label: "En attente dans la file", progress: 0 },
@@ -35,7 +35,7 @@ export async function claimNextRenderJob(workerId: string) {
 
   const claimed = await prisma.renderJob.updateMany({
     where: { id: candidate.id, status: candidate.status, lockedAt: candidate.lockedAt },
-    data: { status: RenderStatus.PROCESSING, lockedAt: new Date(), lockedBy: workerId, startedAt: new Date(), attempts: { increment: 1 }, step: "preparing", progress: 8, error: null },
+    data: { status: RenderStatus.PROCESSING, lockedAt: new Date(), lockedBy: workerId, startedAt: new Date(), attempts: { increment: 1 }, step: "preparing", progress: 8, error: null, logs: Prisma.DbNull },
   });
   if (claimed.count === 0) return null;
   return prisma.renderJob.findUnique({ where: { id: candidate.id }, include: { project: { include: { workspace: true } }, user: true } });
@@ -70,6 +70,7 @@ export async function failRenderJob(jobId: string, error: string) {
       error: error.slice(0, 4000),
       lockedAt: null,
       lockedBy: null,
+      logs: Prisma.DbNull,
     },
   });
   if (exhausted) {
