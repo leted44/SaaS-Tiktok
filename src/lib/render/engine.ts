@@ -121,7 +121,9 @@ export const lambdaRemotionEngine: RenderEngine = {
       crf: 18,
       privacy: "public",
       maxRetries: 2,
-      framesPerLambda: 60,
+      // Fewer, larger chunks keep concurrent Lambda invocations low — new AWS
+      // accounts start with a much lower concurrency quota than the account default.
+      framesPerLambda: 300,
       outName: `${job.id}.mp4`,
     });
 
