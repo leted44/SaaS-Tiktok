@@ -1,0 +1,13 @@
+import path from "path";
+import { Config } from "@remotion/cli/config";
+
+Config.overrideWebpackConfig((config) => ({
+  ...config,
+  resolve: {
+    ...config.resolve,
+    alias: {
+      ...config.resolve?.alias,
+      "@": path.join(process.cwd(), "src"),
+    },
+  },
+}));
