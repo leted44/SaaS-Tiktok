@@ -25,7 +25,7 @@ export const VOICES: VoiceDefinition[] = [
   { id: "elli", providerVoiceId: "MF3mGyEYCl7XYWbV9V6O", name: "Elli", gender: "female", accent: "Américain", language: "en", style: "Émotionnelle", description: "Registre expressif pour le storytelling émotionnel.", premium: true, tags: ["histoire", "émotion"] },
   { id: "charlotte", providerVoiceId: "XB0fDUnXU5powFXDhCwa", name: "Charlotte", gender: "female", accent: "Britannique", language: "en", style: "Élégante", description: "Accent britannique raffiné pour le luxe et le lifestyle.", premium: true, tags: ["luxe", "lifestyle"] },
   { id: "daniel", providerVoiceId: "onwK4e9ZLuTAKqWW03F9", name: "Daniel", gender: "male", accent: "Britannique", language: "en", style: "Documentaire", description: "Narration qualité broadcast pour les documentaires.", premium: true, tags: ["documentaire", "histoire"] },
-  { id: "matilda", providerVoiceId: "XrExE9yKIg1WjnnlVkGX", name: "Matilda", gender: "female", accent: "Américain", language: "en", style: "Chaleureuse & enjouée", description: "Voix enjouée et accessible pour les tutoriels.", premium: false, tags: ["tutoriel", "tech"] },
+  { id: "matilda", providerVoiceId: "NihRgaLj2HWAjvZ5XNxl", name: "Matilda", gender: "female", accent: "Américain", language: "en", style: "Chaleureuse & enjouée", description: "Voix enjouée et accessible pour les tutoriels.", premium: false, tags: ["tutoriel", "tech"] },
   { id: "liam", providerVoiceId: "TX3LPaxmHKxFdv7VOQHJ", name: "Liam", gender: "male", accent: "Américain", language: "en", style: "Jeune & naturelle", description: "Voix de créateur native pour le public Gen-Z.", premium: true, tags: ["genz", "tendances"] },
 ];
 
