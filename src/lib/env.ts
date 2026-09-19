@@ -3,7 +3,10 @@
  * Optional integrations degrade gracefully: the app boots without keys and
  * exposes clear "not configured" states in the UI instead of crashing.
  */
-const read = (key: string, fallback = ""): string => process.env[key] ?? fallback;
+const read = (key: string, fallback = ""): string => {
+  const value = process.env[key];
+  return value && value.length > 0 ? value : fallback;
+};
 
 export const env = {
   appUrl: read("NEXT_PUBLIC_APP_URL", "http://localhost:3000"),
