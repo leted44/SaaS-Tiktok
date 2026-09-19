@@ -31,7 +31,7 @@ npm run worker                # in a second terminal: renders + scheduled posts
 
 1. **Supabase** — new project → Project Settings → Database → copy the *Transaction pooler* string into `DATABASE_URL` and the *Session/direct* string into `DIRECT_URL`. Optionally create a public Storage bucket and grab its S3-compatible credentials (Storage → S3 Connection) for `S3_*`.
 2. **Vercel** — import this repo, set the environment variables from `.env.example` in Project Settings → Environment Variables (`AUTH_SECRET`, `CRON_SECRET`, `TOKEN_ENCRYPTION_KEY` — generate each with `openssl rand -base64 32` / `openssl rand -hex 32`). `npm run build` runs `prisma migrate deploy` automatically, so the committed migration in `prisma/migrations/` applies on first deploy.
-3. **Rendering** — Vercel's serverless functions cannot host the always-on Chromium process Remotion needs. Two options:
+3. **Rendering** — the committed `vercel.json` cron (`/api/jobs/process`, once daily — Vercel's free Hobby plan caps crons at one run/day) is only a safety-net trigger, not the real render path. Vercel's serverless functions cannot host the always-on Chromium process Remotion needs. Two options:
    - Run `npm run worker` on a separate always-on host (Railway, Render, Fly.io, a small VPS) pointed at the same `DATABASE_URL`/`STORAGE_DRIVER=s3`.
    - Or set `RENDER_ENGINE=lambda` and deploy a Remotion Lambda function (`npx remotion lambda functions deploy`, `npx remotion lambda sites create src/remotion/index.ts`) so rendering happens on AWS instead.
    Without either, render jobs stay queued forever — everything else (auth, scripts, editor) still works.
