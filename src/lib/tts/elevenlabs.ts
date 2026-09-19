@@ -53,7 +53,7 @@ export async function synthesizeElevenLabs(text: string, providerVoiceId: string
     }),
   });
 
-  if (res.status === 401 || res.status === 402) throw new TTSError("ElevenLabs a rejeté la requête (quota ou clé API).", "QUOTA");
+  if (res.status === 401 || res.status === 402) throw new TTSError(`ElevenLabs a rejeté la requête (${res.status}) : ${(await res.text()).slice(0, 300)}`, "QUOTA");
   if (!res.ok) throw new TTSError(`Erreur ElevenLabs ${res.status} : ${(await res.text()).slice(0, 300)}`, "UPSTREAM");
 
   const data = (await res.json()) as ElevenLabsTimestampResponse;
