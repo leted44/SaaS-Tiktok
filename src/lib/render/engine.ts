@@ -98,6 +98,10 @@ interface LambdaRenderState {
   bucketName: string;
 }
 
+const POLL_INTERVAL_MS = 3000;
+/** Safely under any realistic serverless function timeout (Vercel Hobby caps around 60s). */
+const POLL_BUDGET_MS = 45_000;
+
 /**
  * Remotion Lambda engine: offloads rendering to AWS Lambda for horizontal scale.
  * Requires a deployed function + site (`npx remotion lambda functions deploy`,
@@ -153,13 +157,22 @@ export const lambdaRemotionEngine: RenderEngine = {
       return null;
     }
 
-    const progress = await lambda.getRenderProgress({ renderId, bucketName, functionName: env.remotion.functionName, region: env.remotion.region });
-    if (progress.fatalErrorEncountered) throw new Error(progress.errors.map((e) => e.message).join("; ") || "Lambda render failed");
-    await updateRenderProgress(job.id, "rendering", 25 + progress.overallProgress * 70);
-    if (progress.done && progress.outputFile) {
-      return { outputUrl: progress.outputFile, thumbnailUrl: null, sizeBytes: progress.outputSizeInBytes ?? 0, durationMs: Math.round((job.durationInFrames / job.fps) * 1000) };
+    // The external cron only ticks once a minute, so a single check here would
+    // make the progress bar update at that same crawl even when the render
+    // itself finishes in seconds. Poll in a short loop instead, bounded well
+    // under any serverless function time limit, and let a later tick pick up
+    // where this one left off if the render is still going after the budget.
+    const deadline = Date.now() + POLL_BUDGET_MS;
+    for (;;) {
+      const progress = await lambda.getRenderProgress({ renderId, bucketName, functionName: env.remotion.functionName, region: env.remotion.region });
+      if (progress.fatalErrorEncountered) throw new Error(progress.errors.map((e) => e.message).join("; ") || "Lambda render failed");
+      await updateRenderProgress(job.id, "rendering", 25 + progress.overallProgress * 70);
+      if (progress.done && progress.outputFile) {
+        return { outputUrl: progress.outputFile, thumbnailUrl: null, sizeBytes: progress.outputSizeInBytes ?? 0, durationMs: Math.round((job.durationInFrames / job.fps) * 1000) };
+      }
+      if (Date.now() >= deadline) return null;
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
     }
-    return null;
   },
 };
 
