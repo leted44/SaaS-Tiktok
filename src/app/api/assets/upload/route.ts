@@ -17,8 +17,14 @@ const ALLOWED: Record<string, AssetType> = {
   "video/webm": "VIDEO",
   "video/quicktime": "VIDEO",
   "audio/mpeg": "AUDIO",
+  "audio/mp3": "AUDIO",
   "audio/wav": "AUDIO",
   "audio/x-wav": "AUDIO",
+  // Phones hand over m4a/aac far more often than mp3.
+  "audio/mp4": "AUDIO",
+  "audio/x-m4a": "AUDIO",
+  "audio/aac": "AUDIO",
+  "audio/ogg": "AUDIO",
 };
 
 /** Multipart upload for b-roll, logos, watermarks and music. Returns the stored asset. */

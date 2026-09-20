@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Play, Pause, Lock, Search, Music2, Volume2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -12,44 +13,29 @@ import { Slider } from "@/components/ui/slider";
 import type { VoiceDefinition } from "@/lib/tts/voices";
 import type { MusicTrack } from "@/lib/music/library";
 import { MOOD_LABELS } from "@/lib/music/library";
-import { VOICE_PREVIEW_TEXT } from "@/lib/tts/voices";
+import { languageLabel, sortVoices, VOICE_PREVIEW_TEXT } from "@/lib/tts/voices";
+import { useVoicePreview } from "@/lib/tts/use-voice-preview";
 import { cn, formatDuration } from "@/lib/utils";
 
 export function VoiceCatalog({ voices, tracks, premiumAllowed, ttsConfigured }: { voices: VoiceDefinition[]; tracks: MusicTrack[]; premiumAllowed: boolean; ttsConfigured: boolean }) {
   const [q, setQ] = useState("");
   const [gender, setGender] = useState<"all" | "female" | "male">("all");
+  const [language, setLanguage] = useState<string>("all");
   const [text, setText] = useState(VOICE_PREVIEW_TEXT);
   const [speed, setSpeed] = useState(1);
-  const [playing, setPlaying] = useState<string | null>(null);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const cache = useRef<Map<string, string>>(new Map());
+  const { playing, loadingId, toggle } = useVoicePreview(text, speed);
 
-  useEffect(() => () => { audioRef.current?.pause(); cache.current.forEach((u) => URL.revokeObjectURL(u)); }, []);
-
-  async function preview(voice: VoiceDefinition) {
-    if (voice.premium && !premiumAllowed) return toast.error(`${voice.name} est une voix premium. Passez à un forfait supérieur pour la débloquer.`);
-    if (playing === voice.id) { audioRef.current?.pause(); setPlaying(null); return; }
-    audioRef.current?.pause();
-    const key = `${voice.id}:${speed}:${text}`;
-    let url = cache.current.get(key);
-    if (!url) {
-      setLoadingId(voice.id);
-      const res = await fetch("/api/voice/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ voiceId: voice.id, text, speed }) });
-      setLoadingId(null);
-      if (!res.ok) { const j = await res.json().catch(() => ({})); return toast.error(j.error ?? "Échec de l'aperçu"); }
-      if (res.headers.get("x-tts-provider") === "offline") toast.info("Synthèse vocale non configurée — lecture d'un espace réservé silencieux avec timing estimé.");
-      url = URL.createObjectURL(await res.blob());
-      cache.current.set(key, url);
-    }
-    const audio = new Audio(url);
-    audioRef.current = audio;
-    audio.onended = () => setPlaying(null);
-    await audio.play();
-    setPlaying(voice.id);
-  }
-
-  const filtered = voices.filter((v) => (gender === "all" || v.gender === gender) && `${v.name} ${v.style} ${v.accent} ${v.tags.join(" ")}`.toLowerCase().includes(q.toLowerCase()));
+  const languages = Array.from(new Set(voices.map((v) => v.language)));
+  const filtered = sortVoices(
+    voices.filter(
+      (v) =>
+        (gender === "all" || v.gender === gender) &&
+        (language === "all" || v.language === language) &&
+        `${v.name} ${v.style} ${v.accent} ${v.tags.join(" ")}`.toLowerCase().includes(q.toLowerCase()),
+    ),
+    language === "all" ? null : language,
+    premiumAllowed,
+  );
 
   return (
     <Tabs defaultValue="voices">
@@ -80,13 +66,29 @@ export function VoiceCatalog({ voices, tracks, premiumAllowed, ttsConfigured }: 
           {([["all", "Toutes"], ["female", "Femme"], ["male", "Homme"]] as const).map(([g, label]) => (
             <button key={g} onClick={() => setGender(g)} className={cn("rounded-full border px-3 py-1 text-xs transition", gender === g ? "border-primary/60 bg-primary/15" : "border-white/10 text-muted-foreground hover:text-foreground")}>{label}</button>
           ))}
+          {languages.length > 1 && (
+            <>
+              <span className="mx-1 h-4 w-px bg-white/10" />
+              {[["all", "Toutes langues"] as const, ...languages.map((l) => [l, languageLabel(l)] as const)].map(([value, label]) => (
+                <button key={value} onClick={() => setLanguage(value)} className={cn("rounded-full border px-3 py-1 text-xs transition", language === value ? "border-primary/60 bg-primary/15" : "border-white/10 text-muted-foreground hover:text-foreground")}>{label}</button>
+              ))}
+            </>
+          )}
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((v, i) => {
             const locked = v.premium && !premiumAllowed;
             const active = playing === v.id;
+            const groupHeader = i === 0 || filtered[i - 1].language !== v.language ? (
+              <p key={`h-${v.language}`} className="col-span-full mt-2 flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground first:mt-0">
+                {languageLabel(v.language)}
+                <span className="h-px flex-1 bg-white/[0.06]" />
+              </p>
+            ) : null;
             return (
-              <motion.div key={v.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className={cn("surface group relative p-4 transition-all hover:border-primary/30", active && "border-primary/50 shadow-glow-sm")}>
+              <Fragment key={v.id}>
+              {groupHeader}
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className={cn("surface group relative p-4 transition-all hover:border-primary/30", active && "border-primary/50 shadow-glow-sm")}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-3">
                     <div className={cn("flex h-11 w-11 items-center justify-center rounded-xl font-display text-lg font-bold text-white", v.gender === "female" ? "bg-gradient-to-br from-pink-500 to-purple-600" : "bg-gradient-to-br from-indigo-500 to-cyan-500")}>{v.name[0]}</div>
@@ -100,9 +102,10 @@ export function VoiceCatalog({ voices, tracks, premiumAllowed, ttsConfigured }: 
                 <p className="mt-3 line-clamp-2 text-xs text-muted-foreground">{v.description}</p>
                 <div className="mt-3 flex flex-wrap gap-1">{v.tags.map((t) => <span key={t} className="rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[10px] text-muted-foreground">#{t}</span>)}</div>
                 <div className="mt-4 flex items-center gap-2">
-                  <Button size="sm" variant={active ? "default" : "secondary"} onClick={() => preview(v)} disabled={loadingId === v.id} className="flex-1">
+                  <Button size="sm" variant={active ? "default" : "secondary"} onClick={() => toggle(v.id)} disabled={loadingId === v.id} className="flex-1">
                     {loadingId === v.id ? <Loader2 className="animate-spin" /> : active ? <Pause /> : <Play />} {active ? "Arrêter" : "Écouter"}
                   </Button>
+                  {locked && <Button asChild size="sm" variant="outline"><Link href="/billing">Débloquer</Link></Button>}
                 </div>
                 {active && (
                   <div className="mt-3 flex h-6 items-end justify-center gap-0.5">
@@ -112,6 +115,7 @@ export function VoiceCatalog({ voices, tracks, premiumAllowed, ttsConfigured }: 
                   </div>
                 )}
               </motion.div>
+              </Fragment>
             );
           })}
         </div>
@@ -129,7 +133,7 @@ function MusicList({ tracks, premiumAllowed }: { tracks: MusicTrack[]; premiumAl
   const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => () => audioRef.current?.pause(), []);
   function toggle(t: MusicTrack) {
-    if (!t.url) return;
+    if (!t.url) return toast.info("Aucun fichier sous licence n'est encore associé à cette piste. Importez votre propre musique depuis l'onglet Audio du studio.");
     if (t.premium && !premiumAllowed) return toast.error("Piste premium — passez à un forfait supérieur pour la débloquer.");
     if (playing === t.id) { audioRef.current?.pause(); setPlaying(null); return; }
     audioRef.current?.pause();
@@ -150,10 +154,10 @@ function MusicList({ tracks, premiumAllowed }: { tracks: MusicTrack[]; premiumAl
             <p className="font-medium">{t.name}</p>
             <p className="text-xs text-muted-foreground">{t.artist} · {MOOD_LABELS[t.mood]} · {t.bpm} BPM · {formatDuration(t.durationMs)}</p>
           </div>
-          {t.premium ? <Badge variant="gradient">Premium</Badge> : <Badge variant="secondary">Gratuit</Badge>}
+          {!t.url ? <Badge variant="secondary">Indisponible</Badge> : t.premium ? <Badge variant="gradient">Premium</Badge> : <Badge variant="secondary">Gratuit</Badge>}
         </div>
       ))}
-      <p className="px-4 py-3 text-xs text-muted-foreground">Déposez des fichiers MP3 sous licence dans <code>/public/music</code> en respectant les identifiants de piste pour activer la lecture et le rendu.</p>
+      <p className="px-4 py-3 text-xs text-muted-foreground">Aucun fichier sous licence n'est fourni avec l'application : ces pistes restent indisponibles tant qu'un MP3 n'est pas déposé dans <code>/public/music</code> sous l'identifiant correspondant. En attendant, importez votre propre musique depuis l'onglet Audio du studio.</p>
     </div>
   );
 }

@@ -74,6 +74,7 @@ export async function generateScriptAction(input: unknown): Promise<ActionResult
         callToAction: result.script.callToAction,
         fullText: result.fullText,
         hashtags: result.script.hashtags,
+        socialCopy: result.script.socialCopy,
         viralityScore: result.script.scores.virality,
         hookScore: result.script.scores.hook,
         retentionScore: result.script.scores.retention,

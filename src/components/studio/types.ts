@@ -1,5 +1,6 @@
 import type { CaptionStyle, VisualLayer, BackgroundStyle, Scene } from "@/lib/validations";
 import type { ShortVideoProps } from "@/lib/render/props";
+import type { SocialCopy } from "@/lib/social/captions";
 
 export interface StudioProject {
   id: string;
@@ -11,6 +12,8 @@ export interface StudioProject {
   niche: string | null;
   voiceId: string | null;
   musicTrackId: string | null;
+  musicUrl: string | null;
+  musicName: string | null;
   musicVolume: number;
   captionStyle: CaptionStyle;
   visualLayers: VisualLayer[];
@@ -26,6 +29,7 @@ export interface StudioScript {
   scenes: Scene[];
   callToAction: string;
   hashtags: string[];
+  socialCopy: SocialCopy;
   viralityScore: number;
   hookScore: number;
   retentionScore: number;
@@ -68,7 +72,7 @@ export interface StudioProps {
   previewProps: ShortVideoProps | null;
   user: { credits: number; plan: string };
   planLimits: { watermark: boolean; maxResolution: "720p" | "1080p" | "4K"; premiumVoices: boolean; costs: { "720p": number; "1080p": number; "4K": number; voicePer30s: number } };
-  voices: { id: string; name: string; style: string; gender: string; premium: boolean }[];
+  voices: { id: string; name: string; style: string; gender: string; language: string; premium: boolean }[];
   tracks: { id: string; name: string; mood: string; url: string; premium: boolean }[];
   integrations: { ai: boolean; tts: boolean; stock: boolean };
 }
@@ -78,6 +82,8 @@ export interface EditorState {
   visualLayers: VisualLayer[];
   backgroundStyle: BackgroundStyle;
   musicTrackId: string | null;
+  musicUrl: string | null;
+  musicName: string | null;
   musicVolume: number;
   voiceId: string | null;
 }

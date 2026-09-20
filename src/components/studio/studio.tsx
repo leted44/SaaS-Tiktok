@@ -38,6 +38,8 @@ export function Studio(props: StudioProps) {
     visualLayers: project.visualLayers,
     backgroundStyle: project.backgroundStyle,
     musicTrackId: project.musicTrackId,
+    musicUrl: project.musicUrl,
+    musicName: project.musicName,
     musicVolume: project.musicVolume,
     voiceId: project.voiceId,
   });
@@ -69,7 +71,7 @@ export function Studio(props: StudioProps) {
   const liveProps: ShortVideoProps = useMemo(() => {
     const base = previewProps ?? { ...DEFAULT_PREVIEW_PROPS, title: project.title };
     const track = getTrack(state.musicTrackId);
-    return { ...base, captionStyle: state.captionStyle, visualLayers: state.visualLayers, backgroundStyle: state.backgroundStyle, musicUrl: track?.url || null, musicVolume: state.musicVolume };
+    return { ...base, captionStyle: state.captionStyle, visualLayers: state.visualLayers, backgroundStyle: state.backgroundStyle, musicUrl: state.musicUrl || track?.url || null, musicVolume: state.musicVolume };
   }, [previewProps, state, project.title]);
 
   // Stock search term per composition scene. The hook and CTA have no b-roll
@@ -161,21 +163,25 @@ export function Studio(props: StudioProps) {
                     voiceover={voiceover}
                     voiceId={state.voiceId}
                     musicTrackId={state.musicTrackId}
+                    musicUrl={state.musicUrl}
+                    musicName={state.musicName}
                     musicVolume={state.musicVolume}
                     voices={voices}
                     tracks={tracks}
+                    previewText={activeScript?.hook ?? ""}
                     premiumAllowed={planLimits.premiumVoices}
                     ttsConfigured={integrations.tts}
                     estimatedDurationSec={activeScript?.estimatedDurationSec ?? project.targetDurationSec}
                     costPer30s={planLimits.costs.voicePer30s}
                     credits={user.credits}
                     onVoiceChange={(id) => patch("voiceId", id)}
-                    onMusicChange={(id) => patch("musicTrackId", id)}
+                    onMusicChange={(id) => setState((s) => ({ ...s, musicTrackId: id, musicUrl: null, musicName: null }))}
+                    onCustomMusicChange={(url, name) => setState((s) => ({ ...s, musicUrl: url, musicName: name, musicTrackId: url ? null : s.musicTrackId }))}
                     onVolumeChange={(v) => patch("musicVolume", v)}
                   />
                 </TabsContent>
                 <TabsContent value="export" className="mt-0">
-                  <ExportPanel projectId={project.id} renders={renders} planLimits={planLimits} credits={user.credits} hasScript={Boolean(activeScript)} hasVoiceover={Boolean(voiceover?.audioUrl)} dirty={dirty} />
+                  <ExportPanel projectId={project.id} renders={renders} planLimits={planLimits} credits={user.credits} hasScript={Boolean(activeScript)} hasVoiceover={Boolean(voiceover?.audioUrl)} dirty={dirty} socialCopy={activeScript?.socialCopy ?? null} hashtags={activeScript?.hashtags ?? []} />
                 </TabsContent>
               </div>
             </ScrollArea>

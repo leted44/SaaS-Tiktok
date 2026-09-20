@@ -56,7 +56,8 @@ export function buildShortVideoProps({ project, script, voiceover, workspace, re
 
   const [width, height] = ASPECT_DIMENSIONS[project.aspectRatio][resolution];
   const track = getTrack(project.musicTrackId ?? workspace.defaultMusicId);
-  const musicUrl = track?.url ? (absolute ? absoluteUrl(track.url) : track.url) : null;
+  const musicSrc = project.musicUrl || track?.url || null;
+  const musicUrl = musicSrc ? (absolute ? absoluteUrl(musicSrc) : musicSrc) : null;
   const voiceoverUrl = voiceover?.audioUrl ? (absolute ? absoluteUrl(voiceover.audioUrl) : voiceover.audioUrl) : null;
 
   return {

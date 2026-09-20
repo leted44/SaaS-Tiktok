@@ -36,4 +36,33 @@ export function getVoice(id: string | null | undefined): VoiceDefinition {
   return (id && VOICE_BY_ID[id]) || VOICES[0];
 }
 
+export const LANGUAGE_LABELS: Record<string, string> = { fr: "Français", en: "Anglais", es: "Espagnol", de: "Allemand", it: "Italien", pt: "Portugais" };
+
+export function languageLabel(code: string): string {
+  return LANGUAGE_LABELS[code] ?? code.toUpperCase();
+}
+
+const CATALOG_ORDER = new Map(VOICES.map((v, i) => [v.id, i]));
+
+/**
+ * Stable ordering for every voice list in the app: the language being written
+ * first (an English-accented voice reading French is the wrong default), then
+ * the voices the current plan can actually use, then the curated catalog order.
+ */
+export function sortVoices(voices: VoiceDefinition[], language?: string | null, premiumAllowed = true): VoiceDefinition[] {
+  const lang = language?.slice(0, 2).toLowerCase();
+  const rank = (v: VoiceDefinition) => [
+    lang && v.language === lang ? 0 : 1,
+    (v.premium && !premiumAllowed ? 1 : 0),
+    v.premium ? 1 : 0,
+    CATALOG_ORDER.get(v.id) ?? 0,
+  ];
+  return [...voices].sort((a, b) => {
+    const ra = rank(a);
+    const rb = rank(b);
+    for (let i = 0; i < ra.length; i++) if (ra[i] !== rb[i]) return ra[i] - rb[i];
+    return 0;
+  });
+}
+
 export const VOICE_PREVIEW_TEXT = "Arrête de scroller. Dans les 30 prochaines secondes, je vais te montrer l'habitude qui a tout changé.";

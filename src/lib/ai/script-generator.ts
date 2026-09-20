@@ -23,6 +23,20 @@ const scriptOutputSchema = z.object({
     .describe("Ordered scenes after the hook. 4-10 scenes."),
   callToAction: z.string().describe("Closing line that drives the requested action, spoken aloud"),
   hashtags: z.array(z.string()).describe("8-12 hashtags without the # symbol, mix of broad and niche"),
+  socialCopy: z
+    .object({
+      tiktok: z
+        .string()
+        .describe(
+          "TikTok post caption in the script's language. One or two short lines (max 150 characters total, before hashtags) that tease the payoff without spoiling it, then 3 to 5 hashtags on the same line. No emoji spam: 0 to 2 maximum.",
+        ),
+      instagram: z
+        .string()
+        .describe(
+          "Instagram Reels caption in the script's language. A curiosity-driven first line (it is the only one shown before 'more'), then 2-4 short lines of value separated by blank lines, then one line inviting a comment or a save, then a final block of 8-12 hashtags. Use real line breaks.",
+        ),
+    })
+    .describe("Ready-to-paste post descriptions, written for each platform's own reading habits. Never a copy of the spoken script."),
   scores: z.object({
     virality: z.number().describe("0-100 overall predicted virality"),
     hook: z.number().describe("0-100 scroll-stopping power of the hook"),
@@ -55,7 +69,8 @@ Principles you always apply:
 - Close the loop before the CTA. The CTA is one sentence, natural, never begging.
 - Scores are honest and calibrated: 90+ is rare and reserved for genuinely exceptional concepts.
 - Write in the requested language. Keep hashtags in that language plus 2-3 global ones.
-- brollQuery is the one exception: always English, and always a literal thing a camera can film (a person doing something, an object, a place). "man opening empty wallet" works; "financial anxiety" returns nothing usable.`;
+- brollQuery is the one exception: always English, and always a literal thing a camera can film (a person doing something, an object, a place). "man opening empty wallet" works; "financial anxiety" returns nothing usable.
+- socialCopy is read silently in a feed, not spoken. It gives a reason to watch, save or comment, and never repeats the hook word for word. TikTok rewards short and blunt; Instagram rewards a first line that earns the "more" tap.`;
 
 function buildUserPrompt(input: GenerateScriptInput, brand?: { toneOfVoice?: string | null; targetAudience?: string | null }): string {
   const targetWords = Math.round(input.targetDurationSec * 2.6);
@@ -139,6 +154,7 @@ function normalizeScript(s: GeneratedScript): GeneratedScript {
   return {
     ...s,
     hashtags: s.hashtags.map((h) => h.replace(/^#/, "").replace(/\s+/g, "")).filter(Boolean).slice(0, 12),
+    socialCopy: { tiktok: s.socialCopy.tiktok.trim(), instagram: s.socialCopy.instagram.trim() },
     alternativeHooks: s.alternativeHooks.slice(0, 3),
     scenes: s.scenes.slice(0, 12).map((sc) => ({
       ...sc,

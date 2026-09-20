@@ -235,6 +235,10 @@ model Project {
 
   voiceId         String?
   musicTrackId    String?
+  // A track uploaded by the user. Takes precedence over musicTrackId so the
+  // bundled library stays selectable without losing a custom upload.
+  musicUrl        String?
+  musicName       String?
   musicVolume     Float   @default(0.18)
 
   // Editor state — caption styling + visual layers (validated by zod in src/lib/validations)
@@ -271,6 +275,7 @@ model Script {
   callToAction     String   @db.Text
   fullText         String   @db.Text
   hashtags         String[]
+  socialCopy       Json?    // { tiktok: string, instagram: string }
   viralityScore    Int      @default(0)
   hookScore        Int      @default(0)
   retentionScore   Int      @default(0)

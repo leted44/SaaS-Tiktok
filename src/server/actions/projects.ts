@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { getCurrentWorkspace } from "@/server/queries";
@@ -73,6 +74,8 @@ export async function saveEditorState(projectId: string, input: unknown): Promis
         visualLayers: state.visualLayers,
         backgroundStyle: state.backgroundStyle,
         musicTrackId: state.musicTrackId,
+        musicUrl: state.musicUrl,
+        musicName: state.musicName,
         musicVolume: state.musicVolume,
         voiceId: state.voiceId,
       },
@@ -123,6 +126,7 @@ export async function saveScriptEdits(scriptId: string, input: unknown): Promise
         callToAction: edits.callToAction,
         fullText,
         hashtags: edits.hashtags,
+        socialCopy: original.socialCopy ?? Prisma.DbNull,
         alternativeHooks: original.alternativeHooks,
         viralityScore: scores.virality,
         hookScore: scores.hook,

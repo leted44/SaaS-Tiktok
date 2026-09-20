@@ -169,6 +169,8 @@ export const projectEditorStateSchema = z.object({
   visualLayers: visualLayersSchema,
   backgroundStyle: backgroundStyleSchema,
   musicTrackId: z.string().nullable(),
+  musicUrl: z.string().nullable(),
+  musicName: z.string().nullable(),
   musicVolume: z.number().min(0).max(1),
   voiceId: z.string().nullable(),
 });

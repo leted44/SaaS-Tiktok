@@ -11,6 +11,8 @@ import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { enqueueRender } from "@/server/actions/renders";
 import { RENDER_STEPS } from "@/lib/render/queue";
+import { SocialCopyBlock } from "@/components/studio/social-copy";
+import type { SocialCopy } from "@/lib/social/captions";
 import type { StudioRender, StudioProps } from "@/components/studio/types";
 import { cn, relativeTime } from "@/lib/utils";
 
@@ -22,11 +24,13 @@ interface Props {
   hasScript: boolean;
   hasVoiceover: boolean;
   dirty: boolean;
+  socialCopy: SocialCopy | null;
+  hashtags: string[];
 }
 
 type Live = { status: string; progress: number; step: string; stepLabel: string; outputUrl: string | null; thumbnailUrl: string | null; error: string | null };
 
-export function ExportPanel({ projectId, renders, planLimits, credits, hasScript, hasVoiceover, dirty }: Props) {
+export function ExportPanel({ projectId, renders, planLimits, credits, hasScript, hasVoiceover, dirty, socialCopy, hashtags }: Props) {
   const router = useRouter();
   const [resolution, setResolution] = useState<"720p" | "1080p" | "4K">(planLimits.maxResolution === "720p" ? "720p" : "1080p");
   const [loading, setLoading] = useState(false);
@@ -112,6 +116,8 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
       {credits < cost && !activeRender && <p className="text-center text-[11px] text-red-300">Crédits insuffisants ({credits}/{cost}). <Link href="/billing" className="underline">Recharger</Link>.</p>}
 
       {hasVoiceover && <Button asChild variant="outline" className="w-full"><a href={`/api/projects/${projectId}/captions`}><Subtitles /> Télécharger les sous-titres (.srt)</a></Button>}
+
+      {socialCopy && <SocialCopyBlock copy={socialCopy} hashtags={hashtags} />}
 
       {renders.length > 0 && (
         <div>

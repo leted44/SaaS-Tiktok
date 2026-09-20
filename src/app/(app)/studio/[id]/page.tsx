@@ -4,10 +4,11 @@ import { getProjectForStudio } from "@/server/queries";
 import { buildShortVideoProps } from "@/lib/render/build-props";
 import { Studio } from "@/components/studio/studio";
 import { effectivePlanDef, isAdmin, renderCost, CREDIT_COSTS } from "@/lib/plans";
-import { VOICES } from "@/lib/tts/voices";
+import { sortVoices, VOICES } from "@/lib/tts/voices";
 import { MUSIC_TRACKS } from "@/lib/music/library";
 import { integrations } from "@/lib/env";
 import { parseJson, scenesSchema, captionStyleSchema, visualLayersSchema, backgroundStyleSchema } from "@/lib/validations";
+import { fallbackSocialCopy, socialCopySchema } from "@/lib/social/captions";
 import { presetStyle } from "@/lib/captions/presets";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +43,8 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         niche: project.niche,
         voiceId: project.voiceId,
         musicTrackId: project.musicTrackId,
+        musicUrl: project.musicUrl,
+        musicName: project.musicName,
         musicVolume: project.musicVolume,
         captionStyle: parseJson(captionStyleSchema, project.captionStyle, presetStyle(project.workspace.captionPreset)),
         visualLayers: parseJson(visualLayersSchema, project.visualLayers, []),
@@ -56,6 +59,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         scenes: parseJson(scenesSchema, s.scenes, []),
         callToAction: s.callToAction,
         hashtags: s.hashtags,
+        socialCopy: parseJson(socialCopySchema, s.socialCopy, fallbackSocialCopy({ hook: s.hook, callToAction: s.callToAction, hashtags: s.hashtags })),
         viralityScore: s.viralityScore,
         hookScore: s.hookScore,
         retentionScore: s.retentionScore,
@@ -78,7 +82,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
           ? { "720p": 0, "1080p": 0, "4K": 0, voicePer30s: 0 }
           : { "720p": renderCost("720p"), "1080p": renderCost("1080p"), "4K": renderCost("4K"), voicePer30s: CREDIT_COSTS.VOICEOVER_PER_30S },
       }}
-      voices={VOICES.map((v) => ({ id: v.id, name: v.name, style: v.style, gender: v.gender, premium: v.premium }))}
+      voices={sortVoices(VOICES, project.language, plan.premiumVoices).map((v) => ({ id: v.id, name: v.name, style: v.style, gender: v.gender, language: v.language, premium: v.premium }))}
       tracks={MUSIC_TRACKS.map((t) => ({ id: t.id, name: t.name, mood: t.mood, url: t.url, premium: t.premium }))}
       integrations={{ ai: integrations.ai(), tts: integrations.tts(), stock: integrations.stock() }}
     />
