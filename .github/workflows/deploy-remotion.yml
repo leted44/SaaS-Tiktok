@@ -30,8 +30,19 @@ jobs:
       - run: npm ci
 
       - name: Deploy Remotion site
-        run: npx remotion lambda sites create src/remotion/index.ts --site-name=clipforge
         env:
-          REMOTION_AWS_ACCESS_KEY_ID: ${{ secrets.REMOTION_AWS_ACCESS_KEY_ID }}
-          REMOTION_AWS_SECRET_ACCESS_KEY: ${{ secrets.REMOTION_AWS_SECRET_ACCESS_KEY }}
-          REMOTION_AWS_REGION: us-east-1
+          RAW_ACCESS_KEY_ID: ${{ secrets.REMOTION_AWS_ACCESS_KEY_ID }}
+          RAW_SECRET_ACCESS_KEY: ${{ secrets.REMOTION_AWS_SECRET_ACCESS_KEY }}
+        run: |
+          # A secret pasted from a phone often carries a stray space or newline,
+          # which AWS rejects as a malformed credential. GitHub never shows a
+          # secret back, so that can't be spotted by eye — strip it here instead.
+          # AWS keys never contain whitespace, so this can't corrupt a good one.
+          export REMOTION_AWS_ACCESS_KEY_ID="$(printf '%s' "$RAW_ACCESS_KEY_ID" | tr -d '[:space:]')"
+          export REMOTION_AWS_SECRET_ACCESS_KEY="$(printf '%s' "$RAW_SECRET_ACCESS_KEY" | tr -d '[:space:]')"
+          export REMOTION_AWS_REGION=us-east-1
+          if [ "${#REMOTION_AWS_ACCESS_KEY_ID}" -ne 20 ]; then
+            echo "REMOTION_AWS_ACCESS_KEY_ID is ${#REMOTION_AWS_ACCESS_KEY_ID} characters; an AWS access key id is 20 and starts with AKIA. The two secrets may be swapped." >&2
+            exit 1
+          fi
+          npx remotion lambda sites create src/remotion/index.ts --site-name=clipforge
