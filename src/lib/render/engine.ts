@@ -146,9 +146,10 @@ export const lambdaRemotionEngine: RenderEngine = {
         crf: 18,
         privacy: "public",
         maxRetries: 1,
-        // Fewer, larger chunks keep concurrent Lambda invocations low — new AWS
-        // accounts start with a much lower concurrency quota than the account default.
-        framesPerLambda: 300,
+        // Chunk size trades two failure modes against each other: too many chunks
+        // trips a new AWS account's low concurrency quota, too few makes a single
+        // chunk outlast the function timeout. ~6 chunks for a 35s video sits between.
+        framesPerLambda: 200,
         outName: `${job.id}.mp4`,
       });
       renderId = started.renderId;

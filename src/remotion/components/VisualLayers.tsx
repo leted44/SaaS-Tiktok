@@ -30,7 +30,9 @@ export const VisualLayers: React.FC<{ layers: VisualLayer[] }> = ({ layers }) =>
                 <Img src={layer.src} style={{ width: "100%", height: "100%", objectFit: layer.fit }} />
               )}
               {layer.type === "video" && layer.src && (
-                <OffthreadVideo src={layer.src} muted style={{ width: "100%", height: "100%", objectFit: layer.fit }} />
+                // Phone cameras record HDR, and Remotion tone-maps every extracted
+                // frame by default — far too slow to finish inside a Lambda timeout.
+                <OffthreadVideo src={layer.src} muted toneMapped={false} style={{ width: "100%", height: "100%", objectFit: layer.fit }} />
               )}
               {layer.type === "color" && <AbsoluteFill style={{ background: layer.color ?? "#000" }} />}
               {layer.type === "gradient" && (
