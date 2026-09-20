@@ -130,8 +130,14 @@ export const lambdaRemotionEngine: RenderEngine = {
     if (!env.remotion.functionName || !env.remotion.serveUrl) {
       throw new Error("RENDER_ENGINE=lambda requires REMOTION_LAMBDA_FUNCTION_NAME and REMOTION_SERVE_URL");
     }
-    const lambdaModule = "@remotion/lambda/client";
-    const lambda = (await import(/* webpackIgnore: true */ lambdaModule)) as {
+    // Imported by its literal specifier, not through a variable with
+    // webpackIgnore: hiding it from the bundler also hides it from Next's
+    // dependency tracing, so the package never got copied into the serverless
+    // function and the import failed at runtime. It is marked external in
+    // next.config instead, which keeps it out of the bundle but still traced.
+    // Loose types because the real ones want narrower unions (AwsRegion) than
+    // the env config carries.
+    const lambda = (await import("@remotion/lambda/client")) as unknown as {
       renderMediaOnLambda: (args: Record<string, unknown>) => Promise<{ renderId: string; bucketName: string }>;
       getRenderProgress: (args: Record<string, unknown>) => Promise<{ done: boolean; overallProgress: number; fatalErrorEncountered: boolean; errors: { message: string }[]; outputFile: string | null; outputSizeInBytes: number | null }>;
     };
