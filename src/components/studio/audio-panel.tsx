@@ -14,6 +14,7 @@ import type { StudioProps, StudioVoiceover } from "@/components/studio/types";
 import { MOOD_LABELS } from "@/lib/music/library";
 import { languageLabel, VOICE_PREVIEW_TEXT } from "@/lib/tts/voices";
 import { useVoicePreview } from "@/lib/tts/use-voice-preview";
+import { VoiceCloneCard } from "@/components/studio/voice-clone";
 import { cn, formatDuration, relativeTime } from "@/lib/utils";
 
 interface Props {
@@ -26,6 +27,9 @@ interface Props {
   musicName: string | null;
   musicVolume: number;
   voices: StudioProps["voices"];
+  customVoice: { name: string; sampleUrl: string } | null;
+  voiceCloningAllowed: boolean;
+  voiceCloneCost: number;
   tracks: StudioProps["tracks"];
   /** Sample line read by the preview — the project's own hook when it has one. */
   previewText: string;
@@ -35,6 +39,7 @@ interface Props {
   costPer30s: number;
   credits: number;
   onVoiceChange: (id: string) => void;
+  onCustomVoiceChange: () => void;
   onMusicChange: (id: string | null) => void;
   onCustomMusicChange: (url: string | null, name: string | null) => void;
   onVolumeChange: (v: number) => void;
@@ -115,6 +120,8 @@ export function AudioPanel(p: Props) {
         </div>
         <p className="mt-2 text-[11px] text-muted-foreground">Toutes les voix sont écoutables, y compris les voix Pro.</p>
       </div>
+
+      <VoiceCloneCard customVoice={p.customVoice} allowed={p.voiceCloningAllowed} cost={p.voiceCloneCost} credits={p.credits} onChange={p.onCustomVoiceChange} />
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2"><div className="flex justify-between"><Label>Stabilité</Label><span className="text-xs">{Math.round(stability * 100)}%</span></div><Slider value={[stability]} min={0} max={1} step={0.05} onValueChange={([v]) => setStability(v)} /></div>

@@ -95,6 +95,7 @@ enum CreditTxType {
   PURCHASE
   SCRIPT_GENERATION
   VOICEOVER
+  VOICE_CLONE
   RENDER
   REFUND
   ADMIN_ADJUSTMENT
@@ -140,8 +141,24 @@ model User {
   socialAccounts     SocialAccount[]
   publishJobs        PublishJob[]
   creditTransactions CreditTransaction[]
+  customVoice        CustomVoice?
 
   @@index([stripeCustomerId])
+}
+
+// A user's own cloned voice (ElevenLabs Instant Voice Cloning). One slot per
+// user for now — recording again replaces it rather than stacking clones.
+model CustomVoice {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  name             String
+  providerVoiceId  String
+  sampleUrl        String
+  consentConfirmed Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {

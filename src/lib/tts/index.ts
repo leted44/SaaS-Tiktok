@@ -6,6 +6,8 @@ export interface SynthesisRequest {
   /** Ordered text segments (hook, scenes…, CTA). Word timings carry the segment index. */
   segments: string[];
   voiceId: string;
+  /** Already-resolved ElevenLabs voice id, when the caller looked one up itself (e.g. a cloned voice). Falls back to the static catalog otherwise. */
+  providerVoiceId?: string;
   options?: TTSOptions;
 }
 
@@ -14,7 +16,7 @@ export interface SynthesisRequest {
  * segment boundaries by word index so captions can be mapped back to scenes.
  */
 export async function synthesizeSpeech(req: SynthesisRequest): Promise<TTSResult> {
-  const voice = getVoice(req.voiceId);
+  const providerVoiceId = req.providerVoiceId || getVoice(req.voiceId).providerVoiceId;
   const cleaned = req.segments.map((s) => s.trim()).filter(Boolean);
   const text = cleaned.join(" ");
   const boundaries: number[] = [];
@@ -25,7 +27,7 @@ export async function synthesizeSpeech(req: SynthesisRequest): Promise<TTSResult
   }
 
   if (env.elevenLabsApiKey) {
-    return synthesizeElevenLabs(text, voice.providerVoiceId, boundaries, req.options);
+    return synthesizeElevenLabs(text, providerVoiceId, boundaries, req.options);
   }
   return synthesizeOffline(text, boundaries, req.options?.speed ?? 1);
 }

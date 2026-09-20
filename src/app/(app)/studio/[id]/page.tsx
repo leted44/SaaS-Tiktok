@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getProjectForStudio } from "@/server/queries";
+import { getProjectForStudio, getCustomVoice } from "@/server/queries";
 import { buildShortVideoProps } from "@/lib/render/build-props";
 import { Studio } from "@/components/studio/studio";
 import { effectivePlanDef, isAdmin, renderCost, CREDIT_COSTS } from "@/lib/plans";
 import { sortVoices, VOICES } from "@/lib/tts/voices";
+import { customVoiceDefinition, CUSTOM_VOICE_ID } from "@/lib/tts/resolve-voice";
 import { MUSIC_TRACKS } from "@/lib/music/library";
 import { integrations } from "@/lib/env";
 import { parseJson, scenesSchema, captionStyleSchema, visualLayersSchema, backgroundStyleSchema } from "@/lib/validations";
@@ -26,6 +27,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
   const { project, user, activeScript, activeVoiceover } = data;
   const plan = effectivePlanDef(user);
   const admin = isAdmin(user.role);
+  const customVoice = await getCustomVoice(user.id);
 
   const previewProps = activeScript
     ? buildShortVideoProps({ project, script: activeScript, voiceover: activeVoiceover, workspace: project.workspace, resolution: "1080p", watermark: plan.watermark, absolute: false })
@@ -78,11 +80,16 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         watermark: plan.watermark,
         maxResolution: plan.maxResolution,
         premiumVoices: plan.premiumVoices,
+        voiceCloning: plan.voiceCloning,
         costs: admin
-          ? { "720p": 0, "1080p": 0, "4K": 0, voicePer30s: 0 }
-          : { "720p": renderCost("720p"), "1080p": renderCost("1080p"), "4K": renderCost("4K"), voicePer30s: CREDIT_COSTS.VOICEOVER_PER_30S },
+          ? { "720p": 0, "1080p": 0, "4K": 0, voicePer30s: 0, voiceClone: 0 }
+          : { "720p": renderCost("720p"), "1080p": renderCost("1080p"), "4K": renderCost("4K"), voicePer30s: CREDIT_COSTS.VOICEOVER_PER_30S, voiceClone: CREDIT_COSTS.VOICE_CLONE },
       }}
-      voices={sortVoices(VOICES, project.language, plan.premiumVoices).map((v) => ({ id: v.id, name: v.name, style: v.style, gender: v.gender, language: v.language, premium: v.premium }))}
+      voices={[
+        ...(customVoice ? [customVoiceDefinition(customVoice.name)] : []),
+        ...sortVoices(VOICES, project.language, plan.premiumVoices),
+      ].map((v) => ({ id: v.id, name: v.name, style: v.style, gender: v.gender, language: v.language, premium: v.id === CUSTOM_VOICE_ID ? false : v.premium }))}
+      customVoice={customVoice ? { name: customVoice.name, sampleUrl: customVoice.sampleUrl } : null}
       tracks={MUSIC_TRACKS.map((t) => ({ id: t.id, name: t.name, mood: t.mood, url: t.url, premium: t.premium }))}
       integrations={{ ai: integrations.ai(), tts: integrations.tts(), stock: integrations.stock() }}
     />

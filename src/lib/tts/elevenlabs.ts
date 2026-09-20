@@ -84,6 +84,47 @@ export function synthesizeOffline(text: string, sceneBoundaries: number[], speed
   return { audio: silentWav(durationMs), mimeType: "audio/wav", durationMs, wordTimings, provider: "offline" };
 }
 
+export interface VoiceSampleFile {
+  buffer: Buffer;
+  filename: string;
+  mimeType: string;
+}
+
+/**
+ * Instant Voice Cloning: a synchronous ElevenLabs call that returns a usable
+ * voice_id immediately (unlike Professional Voice Cloning, which trains for
+ * hours) — good enough quality for short-form narration from a couple of
+ * minutes of sample audio.
+ */
+export async function cloneVoice(name: string, files: VoiceSampleFile[]): Promise<{ providerVoiceId: string }> {
+  if (!env.elevenLabsApiKey) throw new TTSError("Le clonage de voix n'est pas configuré (clé ELEVENLABS_API_KEY manquante).", "NOT_CONFIGURED");
+  if (!files.length) throw new TTSError("Aucun échantillon audio fourni.", "UPSTREAM");
+
+  const form = new FormData();
+  form.append("name", name);
+  for (const f of files) form.append("files", new Blob([new Uint8Array(f.buffer)], { type: f.mimeType }), f.filename);
+
+  const res = await fetch("https://api.elevenlabs.io/v1/voices/add", {
+    method: "POST",
+    headers: { "xi-api-key": env.elevenLabsApiKey },
+    body: form,
+  });
+  if (res.status === 401 || res.status === 402) throw new TTSError(`ElevenLabs a rejeté le clonage (${res.status}) : ${(await res.text()).slice(0, 300)}`, "QUOTA");
+  if (!res.ok) throw new TTSError(`Erreur ElevenLabs ${res.status} : ${(await res.text()).slice(0, 300)}`, "UPSTREAM");
+
+  const data = (await res.json()) as { voice_id: string };
+  return { providerVoiceId: data.voice_id };
+}
+
+/** Best-effort cleanup so replacing a clone doesn't leave orphaned voices on the ElevenLabs account. */
+export async function deleteClonedVoice(providerVoiceId: string): Promise<void> {
+  if (!env.elevenLabsApiKey) return;
+  await fetch(`https://api.elevenlabs.io/v1/voices/${providerVoiceId}`, {
+    method: "DELETE",
+    headers: { "xi-api-key": env.elevenLabsApiKey },
+  }).catch(() => undefined);
+}
+
 function silentWav(durationMs: number, sampleRate = 22050): Buffer {
   const samples = Math.ceil((durationMs / 1000) * sampleRate);
   const dataSize = samples * 2;

@@ -10,6 +10,10 @@ export const getCurrentUser = cache(async () => {
   return user;
 });
 
+export const getCustomVoice = cache(async (userId: string) => {
+  return prisma.customVoice.findUnique({ where: { userId } });
+});
+
 export const getCurrentWorkspace = cache(async () => {
   const user = await getCurrentUser();
   let workspace = await prisma.workspace.findFirst({ where: { ownerId: user.id }, orderBy: { createdAt: "asc" } });

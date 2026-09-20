@@ -26,7 +26,7 @@ import { DEFAULT_PREVIEW_PROPS } from "@/lib/render/props";
 import { cn } from "@/lib/utils";
 
 export function Studio(props: StudioProps) {
-  const { project, scripts, activeScriptId, voiceover, renders, previewProps, user, planLimits, voices, tracks, integrations } = props;
+  const { project, scripts, activeScriptId, voiceover, renders, previewProps, user, planLimits, voices, customVoice, tracks, integrations } = props;
   const router = useRouter();
   const playerRef = useRef<PlayerRef>(null);
   const [tab, setTab] = useState("script");
@@ -167,6 +167,9 @@ export function Studio(props: StudioProps) {
                     musicName={state.musicName}
                     musicVolume={state.musicVolume}
                     voices={voices}
+                    customVoice={customVoice}
+                    voiceCloningAllowed={planLimits.voiceCloning}
+                    voiceCloneCost={planLimits.costs.voiceClone}
                     tracks={tracks}
                     previewText={activeScript?.hook ?? ""}
                     premiumAllowed={planLimits.premiumVoices}
@@ -175,6 +178,7 @@ export function Studio(props: StudioProps) {
                     costPer30s={planLimits.costs.voicePer30s}
                     credits={user.credits}
                     onVoiceChange={(id) => patch("voiceId", id)}
+                    onCustomVoiceChange={() => router.refresh()}
                     onMusicChange={(id) => setState((s) => ({ ...s, musicTrackId: id, musicUrl: null, musicName: null }))}
                     onCustomMusicChange={(url, name) => setState((s) => ({ ...s, musicUrl: url, musicName: name, musicTrackId: url ? null : s.musicTrackId }))}
                     onVolumeChange={(v) => patch("musicVolume", v)}

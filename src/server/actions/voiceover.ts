@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { voiceoverRequestSchema, scenesSchema, parseJson } from "@/lib/validations";
 import { synthesizeSpeech } from "@/lib/tts";
-import { getVoice } from "@/lib/tts/voices";
+import { resolveVoice, CUSTOM_VOICE_ID } from "@/lib/tts/resolve-voice";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, effectivePlanDef, voiceoverCost } from "@/lib/plans";
 import { putObject, storageKey } from "@/lib/storage";
@@ -26,8 +26,11 @@ export async function generateVoiceoverAction(input: unknown): Promise<ActionRes
     const data = voiceoverRequestSchema.parse(input);
     const user = await prisma.user.findUniqueOrThrow({ where: { id: sessionUser.id } });
     const script = await prisma.script.findFirstOrThrow({ where: { id: data.scriptId, projectId: data.projectId, userId: user.id } });
-    const voice = getVoice(data.voiceId);
-    if (voice.premium && !effectivePlanDef(user).premiumVoices) {
+    const voice = await resolveVoice(data.voiceId, user.id);
+    const plan = effectivePlanDef(user);
+    if (voice.id === CUSTOM_VOICE_ID && !plan.voiceCloning) {
+      throw new Error("Le clonage vocal est réservé aux forfaits Pro et Agence.");
+    } else if (voice.premium && voice.id !== CUSTOM_VOICE_ID && !plan.premiumVoices) {
       throw new Error(`${voice.name} est une voix premium. Passez au forfait Créateur ou supérieur pour l'utiliser.`);
     }
 
@@ -42,7 +45,7 @@ export async function generateVoiceoverAction(input: unknown): Promise<ActionRes
     });
 
     try {
-      const result = await synthesizeSpeech({ segments, voiceId: voice.id, options: { stability: data.stability, similarity: data.similarity, speed: data.speed } });
+      const result = await synthesizeSpeech({ segments, voiceId: voice.id, providerVoiceId: voice.providerVoiceId, options: { stability: data.stability, similarity: data.similarity, speed: data.speed } });
       const ext = result.mimeType === "audio/wav" ? "wav" : "mp3";
       const stored = await putObject(storageKey(user.id, "audio", `${voiceover.id}.${ext}`), result.audio, result.mimeType);
       await prisma.voiceover.update({

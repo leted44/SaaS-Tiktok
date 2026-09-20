@@ -15,6 +15,7 @@ export interface PlanDefinition {
   watermark: boolean;
   maxResolution: "720p" | "1080p" | "4K";
   premiumVoices: boolean;
+  voiceCloning: boolean;
   scheduling: boolean;
   priorityRendering: boolean;
   features: string[];
@@ -35,6 +36,7 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     watermark: true,
     maxResolution: "720p",
     premiumVoices: false,
+    voiceCloning: false,
     scheduling: false,
     priorityRendering: false,
     features: [
@@ -59,6 +61,7 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     watermark: false,
     maxResolution: "1080p",
     premiumVoices: true,
+    voiceCloning: false,
     scheduling: true,
     priorityRendering: false,
     features: [
@@ -84,11 +87,13 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     watermark: false,
     maxResolution: "4K",
     premiumVoices: true,
+    voiceCloning: true,
     scheduling: true,
     priorityRendering: true,
     features: [
       "1 200 crédits / mois (~100 vidéos)",
       "Tout ce qui est inclus dans Créateur",
+      "Clonez votre propre voix (IA)",
       "3 espaces de marque",
       "Exports 4K",
       "File de rendu prioritaire",
@@ -108,11 +113,13 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     watermark: false,
     maxResolution: "4K",
     premiumVoices: true,
+    voiceCloning: true,
     scheduling: true,
     priorityRendering: true,
     features: [
       "4 000 crédits / mois",
       "Tout ce qui est inclus dans Pro",
+      "Clonage vocal illimité",
       "Espaces de marque illimités",
       "Comptes sociaux illimités",
       "File de rendu la plus rapide",
@@ -130,6 +137,7 @@ export const CREDIT_COSTS = {
   RENDER_720P: 8,
   RENDER_1080P: 12,
   RENDER_4K: 24,
+  VOICE_CLONE: 50,
 } as const;
 
 export interface CreditPack {
@@ -169,7 +177,7 @@ export function isAdmin(role: string): boolean {
 
 export function effectivePlanDef(user: { plan: Plan; role: string }): PlanDefinition {
   if (!isAdmin(user.role)) return PLANS[user.plan];
-  return { ...PLANS[user.plan], watermark: false, maxResolution: "4K", premiumVoices: true, scheduling: true, priorityRendering: true };
+  return { ...PLANS[user.plan], watermark: false, maxResolution: "4K", premiumVoices: true, voiceCloning: true, scheduling: true, priorityRendering: true };
 }
 
 export function planFromPriceId(priceId: string | null | undefined, prices: Record<string, { month: string; year: string }>): Plan | null {

@@ -25,12 +25,12 @@ export function VoiceCatalog({ voices, tracks, premiumAllowed, ttsConfigured }: 
   const [speed, setSpeed] = useState(1);
   const { playing, loadingId, toggle } = useVoicePreview(text, speed);
 
-  const languages = Array.from(new Set(voices.map((v) => v.language)));
+  const languages = Array.from(new Set(voices.map((v) => v.language))).filter((l) => l !== "custom");
   const filtered = sortVoices(
     voices.filter(
       (v) =>
         (gender === "all" || v.gender === gender) &&
-        (language === "all" || v.language === language) &&
+        (language === "all" || v.language === language || v.language === "custom") &&
         `${v.name} ${v.style} ${v.accent} ${v.tags.join(" ")}`.toLowerCase().includes(q.toLowerCase()),
     ),
     language === "all" ? null : language,

@@ -36,7 +36,7 @@ export function getVoice(id: string | null | undefined): VoiceDefinition {
   return (id && VOICE_BY_ID[id]) || VOICES[0];
 }
 
-export const LANGUAGE_LABELS: Record<string, string> = { fr: "Français", en: "Anglais", es: "Espagnol", de: "Allemand", it: "Italien", pt: "Portugais" };
+export const LANGUAGE_LABELS: Record<string, string> = { fr: "Français", en: "Anglais", es: "Espagnol", de: "Allemand", it: "Italien", pt: "Portugais", custom: "Votre voix" };
 
 export function languageLabel(code: string): string {
   return LANGUAGE_LABELS[code] ?? code.toUpperCase();
