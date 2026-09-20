@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireDbUser } from "@/lib/auth";
 import { generateScriptSchema, scenesSchema, parseJson } from "@/lib/validations";
 import { generateScript } from "@/lib/ai/script-generator";
 import { generateSocialCopy } from "@/lib/ai/caption-generator";
@@ -23,14 +23,16 @@ export interface GeneratedScriptSummary {
 
 export async function generateScriptAction(input: unknown): Promise<ActionResult<GeneratedScriptSummary>> {
   return guard(async () => {
-    const user = await requireUser();
+    // Fresh DB read, not the session's role: a role granted after the user's
+    // last login stays stale in their JWT for up to 30 days otherwise.
+    const user = await requireDbUser();
     const data = generateScriptSchema.parse(input);
     const workspace = await getCurrentWorkspace();
 
     // Charge first (atomic), refund if generation fails — never let a failed call eat credits.
     const admin = isAdmin(user.role);
     const creditsLeft = admin
-      ? (await prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { credits: true } })).credits
+      ? user.credits
       : await chargeCredits(user.id, CREDIT_COSTS.SCRIPT_GENERATION, "SCRIPT_GENERATION", `Script : ${data.topic.slice(0, 60)}`);
 
     let result;
@@ -105,7 +107,7 @@ export async function generateScriptAction(input: unknown): Promise<ActionResult
 /** Rewrites just the post captions for an existing script — a weak caption shouldn't cost a whole new script. */
 export async function regenerateSocialCopyAction(scriptId: string): Promise<ActionResult<{ socialCopy: SocialCopy; creditsLeft: number }>> {
   return guard(async () => {
-    const user = await requireUser();
+    const user = await requireDbUser();
     const script = await prisma.script.findFirstOrThrow({
       where: { id: scriptId, userId: user.id },
       include: { project: { include: { workspace: true } } },
@@ -113,9 +115,7 @@ export async function regenerateSocialCopyAction(scriptId: string): Promise<Acti
 
     const admin = isAdmin(user.role);
     const cost = admin ? 0 : CREDIT_COSTS.SOCIAL_COPY;
-    const creditsLeft = cost > 0
-      ? await chargeCredits(user.id, cost, "SCRIPT_GENERATION", "Régénération de la description")
-      : (await prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { credits: true } })).credits;
+    const creditsLeft = cost > 0 ? await chargeCredits(user.id, cost, "SCRIPT_GENERATION", "Régénération de la description") : user.credits;
 
     let socialCopy: SocialCopy;
     try {
