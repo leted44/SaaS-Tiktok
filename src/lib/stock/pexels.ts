@@ -69,12 +69,17 @@ async function pexels<T>(path: string, params: Record<string, string>): Promise<
   return (await res.json()) as T;
 }
 
+/** Smallest rendition that still fills a 1080×1920 frame without upscaling. */
+const TARGET_HEIGHT = 1280;
+
 /**
- * Search royalty-free stock media for a scene. Portrait orientation only —
- * the compositions are 9:16, so landscape assets would be cropped to a sliver.
+ * Search royalty-free stock media for a scene. Portrait is preferred because the
+ * compositions are 9:16, but it can be relaxed — landscape assets get cropped by
+ * the `cover` fit rather than dropped.
  */
-export async function searchStock(query: string, type: "video" | "image", limit = 8, minHeight = 1280): Promise<StockResult[]> {
-  const params = { query, orientation: "portrait", per_page: String(limit) };
+export async function searchStock(query: string, type: "video" | "image", limit = 8, portraitOnly = true): Promise<StockResult[]> {
+  const params: Record<string, string> = { query, per_page: String(limit) };
+  if (portraitOnly) params.orientation = "portrait";
 
   if (type === "image") {
     const data = await pexels<{ photos: PexelsPhoto[] }>("/v1/search", params);
@@ -93,7 +98,7 @@ export async function searchStock(query: string, type: "video" | "image", limit 
 
   const data = await pexels<{ videos: PexelsVideo[] }>("/videos/search", params);
   return data.videos.flatMap((v) => {
-    const file = pickVideoFile(v.video_files, minHeight);
+    const file = pickVideoFile(v.video_files, TARGET_HEIGHT);
     if (!file) return [];
     return [{
       id: `pexels-video-${v.id}`,
@@ -116,10 +121,23 @@ export async function searchStock(query: string, type: "video" | "image", limit 
  * empty list rather than failing the whole batch.
  */
 export async function stockCandidates(query: string, prefer: "video" | "image" = "video", limit = 3): Promise<StockResult[]> {
+  const dedupe = (lists: StockResult[][]) => {
+    const seen = new Set<string>();
+    return lists.flat().filter((r) => !seen.has(r.id) && seen.add(r.id)).slice(0, limit);
+  };
+
   try {
-    const primary = await searchStock(query, prefer, limit);
-    if (primary.length) return primary;
-    return await searchStock(query, prefer === "video" ? "image" : "video", limit);
+    const portrait = await searchStock(query, prefer, limit);
+    if (portrait.length >= limit) return portrait;
+
+    // Pexels carries far less portrait footage than landscape, and a thin
+    // portrait result set is where off-topic matches come from. Widening the
+    // orientation keeps the subject right; `cover` crops the frame.
+    const wide = await searchStock(query, prefer, limit, false);
+    const merged = dedupe([portrait, wide]);
+    if (merged.length) return merged;
+
+    return await searchStock(query, prefer === "video" ? "image" : "video", limit, false);
   } catch (err) {
     if (err instanceof StockError && err.code === "NOT_CONFIGURED") throw err;
     return [];

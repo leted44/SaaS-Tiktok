@@ -14,7 +14,7 @@ const scriptOutputSchema = z.object({
       z.object({
         text: z.string().describe("Narration for this scene, 1-3 sentences, spoken aloud"),
         visualDescription: z.string().describe("What appears on screen — concrete, filmable"),
-        brollQuery: z.string().describe("2-4 word stock footage search query"),
+        brollQuery: z.string().describe("ALWAYS IN ENGLISH, whatever the script language. 2-4 words naming a concrete, filmable subject that stock libraries actually carry, e.g. 'woman counting coins', 'city street night'. Never abstract concepts, brand names, or text."),
         durationSec: z.number().describe("Estimated spoken duration in seconds"),
         emphasis: z.array(z.string()).describe("1-3 words from the text to highlight in captions"),
         onScreenText: z.string().nullable().describe("Optional big on-screen text overlay (max 5 words) or null"),
@@ -54,7 +54,8 @@ Principles you always apply:
 - Pattern interrupts every 5-8 seconds: change of visual, on-screen text, or rhetorical question.
 - Close the loop before the CTA. The CTA is one sentence, natural, never begging.
 - Scores are honest and calibrated: 90+ is rare and reserved for genuinely exceptional concepts.
-- Write in the requested language. Keep hashtags in that language plus 2-3 global ones.`;
+- Write in the requested language. Keep hashtags in that language plus 2-3 global ones.
+- brollQuery is the one exception: always English, and always a literal thing a camera can film (a person doing something, an object, a place). "man opening empty wallet" works; "financial anxiety" returns nothing usable.`;
 
 function buildUserPrompt(input: GenerateScriptInput, brand?: { toneOfVoice?: string | null; targetAudience?: string | null }): string {
   const targetWords = Math.round(input.targetDurationSec * 2.6);
