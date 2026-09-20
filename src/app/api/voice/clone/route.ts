@@ -12,6 +12,11 @@ export const dynamic = "force-dynamic";
 const MAX_BYTES = 25 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/mp4", "audio/x-m4a", "audio/aac", "audio/ogg", "audio/webm"]);
 
+/** MediaRecorder reports e.g. "audio/webm;codecs=opus" — compare on the base type only. */
+function baseMimeType(type: string): string {
+  return type.split(";")[0].trim();
+}
+
 /** Create or replace the caller's cloned voice. Consent is mandatory and checked server-side, not just in the UI. */
 export async function POST(req: Request) {
   const session = await auth();
@@ -27,7 +32,7 @@ export async function POST(req: Request) {
   if (!files.length) return NextResponse.json({ error: "Aucun fichier audio fourni." }, { status: 400 });
   let totalBytes = 0;
   for (const f of files) {
-    if (!ALLOWED_TYPES.has(f.type)) return NextResponse.json({ error: `Type de fichier non pris en charge : ${f.type}` }, { status: 415 });
+    if (!ALLOWED_TYPES.has(baseMimeType(f.type))) return NextResponse.json({ error: `Type de fichier non pris en charge : ${f.type}` }, { status: 415 });
     totalBytes += f.size;
   }
   if (totalBytes > MAX_BYTES) return NextResponse.json({ error: "Les échantillons dépassent 25 Mo au total." }, { status: 413 });

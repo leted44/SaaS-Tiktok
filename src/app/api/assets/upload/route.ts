@@ -27,6 +27,11 @@ const ALLOWED: Record<string, AssetType> = {
   "audio/ogg": "AUDIO",
 };
 
+/** Some pickers report a codec parameter (e.g. "audio/ogg;codecs=opus") — compare on the base type only. */
+function baseMimeType(type: string): string {
+  return type.split(";")[0].trim();
+}
+
 /** Multipart upload for b-roll, logos, watermarks and music. Returns the stored asset. */
 export async function POST(req: Request) {
   const session = await auth();
@@ -36,7 +41,7 @@ export async function POST(req: Request) {
   const kind = String(form.get("kind") ?? "asset");
   if (!(file instanceof File)) return NextResponse.json({ error: "Aucun fichier fourni" }, { status: 400 });
   if (file.size > MAX_BYTES) return NextResponse.json({ error: "Le fichier dépasse 50 Mo" }, { status: 413 });
-  const type = kind === "logo" ? "LOGO" : ALLOWED[file.type];
+  const type = kind === "logo" ? "LOGO" : ALLOWED[baseMimeType(file.type)];
   if (!type) return NextResponse.json({ error: `Unsupported file type ${file.type}` }, { status: 415 });
 
   const workspace = await prisma.workspace.findFirstOrThrow({ where: { ownerId: session.user.id }, orderBy: { createdAt: "asc" } });
