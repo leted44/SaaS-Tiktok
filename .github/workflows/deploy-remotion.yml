@@ -1,0 +1,37 @@
+name: Deploy Remotion Lambda site
+
+# Redeploys the Remotion composition to S3 whenever it changes, so a code
+# change (caption position, visuals, styling) reaches actual rendered videos
+# instead of only the in-app preview, which is served straight from Vercel.
+#
+# Keeps the site name fixed ("clipforge") so the Serve URL stored in
+# REMOTION_SERVE_URL on Vercel never changes — this redeploys the existing
+# site in place rather than creating a new one to point at.
+
+on:
+  push:
+    branches: [claude/ai-video-creation-platform-hihlkr]
+    paths:
+      - "src/remotion/**"
+      - "package.json"
+      - "package-lock.json"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Deploy Remotion site
+        run: npx remotion lambda sites create src/remotion/index.ts --site-name=clipforge
+        env:
+          REMOTION_AWS_ACCESS_KEY_ID: ${{ secrets.REMOTION_AWS_ACCESS_KEY_ID }}
+          REMOTION_AWS_SECRET_ACCESS_KEY: ${{ secrets.REMOTION_AWS_SECRET_ACCESS_KEY }}
+          REMOTION_AWS_REGION: us-east-1
