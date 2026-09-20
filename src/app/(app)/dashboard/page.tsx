@@ -13,7 +13,7 @@ import { PlatformIcon } from "@/components/shared/platform-icon";
 import { UsageChart } from "@/components/dashboard/usage-chart";
 import { StatTile } from "@/components/dashboard/stat-tile";
 import { relativeTime, formatNumber } from "@/lib/utils";
-import { CREDIT_COSTS } from "@/lib/plans";
+import { CREDIT_COSTS, isAdmin } from "@/lib/plans";
 
 export const metadata: Metadata = { title: "Tableau de bord" };
 export const dynamic = "force-dynamic";
@@ -28,13 +28,13 @@ export default async function DashboardPage() {
     <div className="mx-auto max-w-7xl">
       <PageHeader
         title={`Ravi de vous revoir, ${firstName}.`}
-        description={`${workspace.name} · Forfait ${plan.name} · ${formatNumber(user.credits)} crédits (~${videosLeft} vidéos restantes)`}
+        description={isAdmin(user.role) ? `${workspace.name} · Compte interne · générations illimitées` : `${workspace.name} · Forfait ${plan.name} · ${formatNumber(user.credits)} crédits (~${videosLeft} vidéos restantes)`}
         actions={
           <Button asChild variant="gradient"><Link href="/scripts"><Sparkles /> Nouvelle vidéo</Link></Button>
         }
       />
 
-      {user.credits < 12 && <div className="mb-6"><UpgradePrompt title={user.credits === 0 ? "Vous n'avez plus de crédits" : "Crédits bientôt épuisés"} body={`Il vous en reste ${user.credits}. Une vidéo complète coûte environ 15 crédits.`} compact /></div>}
+      {user.credits < 12 && !isAdmin(user.role) && <div className="mb-6"><UpgradePrompt title={user.credits === 0 ? "Vous n'avez plus de crédits" : "Crédits bientôt épuisés"} body={`Il vous en reste ${user.credits}. Une vidéo complète coûte environ 15 crédits.`} compact /></div>}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatTile icon={FolderKanban} label="Projets" value={totals.projects} hint="depuis le début" />

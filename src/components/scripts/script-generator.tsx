@@ -14,7 +14,6 @@ import { Slider } from "@/components/ui/slider";
 import { Card, CardContent } from "@/components/ui/card";
 import { UpgradePrompt } from "@/components/shared/upgrade-prompt";
 import { generateScriptAction } from "@/server/actions/scripts";
-import { CREDIT_COSTS } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 
 const NICHES = ["Finance", "Fitness", "Santé", "Tech", "Business", "Marketing", "Motivation", "Éducation", "Beauté", "Cuisine", "Voyage", "Gaming", "Immobilier", "Parentalité", "Psychologie"];
@@ -44,7 +43,7 @@ const EXAMPLES = [
   "La routine matinale que les neurosciences valident vraiment",
 ];
 
-export function ScriptGenerator({ credits, aiConfigured, projectId, initialTopic }: { credits: number; aiConfigured: boolean; projectId?: string; initialTopic?: string }) {
+export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initialTopic }: { credits: number; cost: number; aiConfigured: boolean; projectId?: string; initialTopic?: string }) {
   const router = useRouter();
   const [topic, setTopic] = useState(initialTopic ?? "");
   const [sourceUrl, setSourceUrl] = useState("");
@@ -58,7 +57,9 @@ export function ScriptGenerator({ credits, aiConfigured, projectId, initialTopic
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(0);
 
-  const canGenerate = credits >= CREDIT_COSTS.SCRIPT_GENERATION;
+  // Comes from the server already resolved, so an ADMIN account on zero credits
+  // isn't blocked here by a price the server would never charge it.
+  const canGenerate = credits >= cost;
 
   async function onGenerate() {
     if (topic.trim().length < 3) return toast.error("Décrivez d'abord votre sujet.");
@@ -165,7 +166,7 @@ export function ScriptGenerator({ credits, aiConfigured, projectId, initialTopic
           </div>
 
           <div className="flex flex-col gap-3 border-t border-white/[0.05] pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><Coins className="h-3.5 w-3.5" /> Coûte {CREDIT_COSTS.SCRIPT_GENERATION} crédit · {credits} disponible{credits > 1 ? "s" : ""}</p>
+            <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><Coins className="h-3.5 w-3.5" /> {cost === 0 ? "Gratuit sur ce compte" : `Coûte ${cost} crédit · ${credits} disponible${credits > 1 ? "s" : ""}`}</p>
             <Button size="lg" variant="gradient" onClick={onGenerate} loading={loading} disabled={!canGenerate || !aiConfigured}>
               {loading ? STEPS[step] : <><Sparkles /> Générer le script <ArrowRight /></>}
             </Button>
