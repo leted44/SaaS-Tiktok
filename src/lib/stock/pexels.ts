@@ -72,6 +72,9 @@ async function pexels<T>(path: string, params: Record<string, string>): Promise<
 /** Smallest rendition that still fills a 1080×1920 frame without upscaling. */
 const TARGET_HEIGHT = 1280;
 
+/** Below this many portrait hits, the vertical pool is too thin to be relevant. */
+const MIN_PORTRAIT_RESULTS = 3;
+
 /**
  * Search royalty-free stock media for a scene. Portrait is preferred because the
  * compositions are 9:16, but it can be relaxed — landscape assets get cropped by
@@ -128,7 +131,7 @@ export async function stockCandidates(query: string, prefer: "video" | "image" =
 
   try {
     const portrait = await searchStock(query, prefer, limit);
-    if (portrait.length >= limit) return portrait;
+    if (portrait.length >= MIN_PORTRAIT_RESULTS) return portrait;
 
     // Pexels carries far less portrait footage than landscape, and a thin
     // portrait result set is where off-topic matches come from. Widening the

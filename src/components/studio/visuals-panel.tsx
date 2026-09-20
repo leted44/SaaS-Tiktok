@@ -36,6 +36,8 @@ export function VisualsPanel({ layers, background, scenes, sceneQueries, stockCo
   const [stockQuery, setStockQuery] = useState("");
   const [stockResults, setStockResults] = useState<StockResult[]>([]);
   const [searching, setSearching] = useState(false);
+  // Deleting a visual means "not this one" — auto-fill must not hand it back.
+  const [rejected, setRejected] = useState<Set<string>>(new Set());
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -111,26 +113,36 @@ export function VisualsPanel({ layers, background, scenes, sceneQueries, stockCo
       const json = await res.json();
       if (!res.ok) return toast.error(json.error ?? "Génération impossible");
 
-      const used = new Set(layers.map((l) => l.src));
+      const used = new Set([...layers.map((l) => l.src), ...rejected]);
       const added: VisualLayer[] = [];
       (json.matches as StockResult[][]).forEach((candidates, k) => {
-        const pick = candidates.find((c) => !used.has(c.url)) ?? candidates[0];
-        if (!pick) return;
+        const fresh = candidates.filter((c) => !used.has(c.url));
+        if (!fresh.length) return;
+        const pick = fresh[0];
         used.add(pick.url);
         const layer = buildLayer(pick.url, pick.type, empty[k]);
         if (layer) added.push(layer);
       });
 
-      if (!added.length) return toast.error("Aucun visuel correspondant trouvé.");
+      if (!added.length) return toast.error("Plus de visuel inédit pour ces scènes. Utilisez la recherche manuelle ci-dessus.");
       onLayersChange([...layers, ...added]);
-      toast.success(`${added.length} visuel${added.length > 1 ? "s" : ""} ajouté${added.length > 1 ? "s" : ""} automatiquement.`);
+      const missing = empty.length - added.length;
+      toast.success(
+        `${added.length} visuel${added.length > 1 ? "s" : ""} ajouté${added.length > 1 ? "s" : ""}.` +
+          (missing > 0 ? ` ${missing} scène${missing > 1 ? "s" : ""} sans résultat inédit — cherchez manuellement.` : ""),
+      );
     } finally {
       setAutoFilling(false);
     }
   }
 
   const update = (id: string, patch: Partial<VisualLayer>) => onLayersChange(layers.map((l) => (l.id === id ? { ...l, ...patch } : l)));
-  const remove = (id: string) => onLayersChange(layers.filter((l) => l.id !== id));
+
+  function remove(id: string) {
+    const src = layers.find((l) => l.id === id)?.src;
+    if (src) setRejected((r) => new Set(r).add(src));
+    onLayersChange(layers.filter((l) => l.id !== id));
+  }
 
   return (
     <div className="space-y-6">

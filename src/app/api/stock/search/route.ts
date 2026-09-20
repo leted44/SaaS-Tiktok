@@ -42,7 +42,8 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
 
   try {
-    const matches = await Promise.all(parsed.data.queries.map((q) => (q.trim() ? stockCandidates(q, parsed.data.type) : Promise.resolve([]))));
+    // Deep enough that regenerating a scene the user rejected still has options.
+    const matches = await Promise.all(parsed.data.queries.map((q) => (q.trim() ? stockCandidates(q, parsed.data.type, 8) : Promise.resolve([]))));
     return NextResponse.json({ matches });
   } catch (err) {
     return errorResponse(err);
