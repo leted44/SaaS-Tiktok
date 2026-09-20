@@ -28,6 +28,9 @@ export const VOICES: VoiceDefinition[] = [
   { id: "matilda", providerVoiceId: "NihRgaLj2HWAjvZ5XNxl", name: "Matilda", gender: "female", accent: "Américain", language: "en", style: "Chaleureuse & enjouée", description: "Voix enjouée et accessible pour les tutoriels.", premium: false, tags: ["tutoriel", "tech"] },
   { id: "liam", providerVoiceId: "TX3LPaxmHKxFdv7VOQHJ", name: "Liam", gender: "male", accent: "Américain", language: "en", style: "Jeune & naturelle", description: "Voix de créateur native pour le public Gen-Z.", premium: true, tags: ["genz", "tendances"] },
   { id: "maxime", providerVoiceId: "5Qfm4RqcAer0xoyWtoHC", name: "Maxime", gender: "male", accent: "Français", language: "fr", style: "Jeune & décontractée", description: "Voix française naturelle pour du contenu quotidien et accessible.", premium: false, tags: ["lifestyle", "quotidien"] },
+  { id: "tenko", providerVoiceId: "0bKGtCCpdKSI5NjGhU3z", name: "Tenko", gender: "male", accent: "Français (Paris)", language: "fr", style: "Jeune & narrative", description: "Voix parisienne pour la narration et les contenus de personnage.", premium: false, tags: ["narration", "histoire"] },
+  { id: "jeanne", providerVoiceId: "txtf1EDouKke753vN8SL", name: "Jeanne", gender: "female", accent: "Français (Paris)", language: "fr", style: "Professionnelle & captivante", description: "Voix parisienne soignée, idéale pour du contenu à forte crédibilité.", premium: true, tags: ["professionnel", "lifestyle"] },
+  { id: "victoire", providerVoiceId: "O31r762Gb3WFygrEOGh0", name: "Victoire", gender: "female", accent: "Français", language: "fr", style: "Fluide & captivante", description: "Voix naturelle pour la narration et les échanges du quotidien.", premium: true, tags: ["narration", "quotidien"] },
 ];
 
 export const VOICE_BY_ID = Object.fromEntries(VOICES.map((v) => [v.id, v])) as Record<string, VoiceDefinition>;
