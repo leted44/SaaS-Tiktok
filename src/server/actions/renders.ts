@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { renderRequestSchema } from "@/lib/validations";
 import { chargeCredits, refundCredits } from "@/lib/credits";
-import { PLANS, clampResolution, renderCost } from "@/lib/plans";
+import { isAdmin, effectivePlanDef, clampResolution, renderCost } from "@/lib/plans";
 import { buildShortVideoProps } from "@/lib/render/build-props";
 import { env } from "@/lib/env";
 import { guard, type ActionResult } from "@/server/action-result";
@@ -25,10 +25,10 @@ export async function enqueueRender(input: unknown): Promise<ActionResult<{ rend
     const active = await prisma.renderJob.count({ where: { projectId: project.id, status: { in: ["QUEUED", "PROCESSING"] } } });
     if (active > 0) throw new Error("Un rendu est déjà en cours pour ce projet.");
 
-    const planDef = PLANS[user.plan];
+    const planDef = effectivePlanDef(user);
     const resolution = clampResolution(data.resolution, planDef.maxResolution);
-    const cost = renderCost(user.plan, resolution);
-    await chargeCredits(user.id, cost, "RENDER", `Rendu ${resolution} — ${project.title}`, project.id);
+    const cost = isAdmin(user.role) ? 0 : renderCost(resolution);
+    if (cost > 0) await chargeCredits(user.id, cost, "RENDER", `Rendu ${resolution} — ${project.title}`, project.id);
 
     try {
       const props = buildShortVideoProps({ project, script, voiceover, workspace: project.workspace, resolution, watermark: planDef.watermark, absolute: true });
@@ -52,7 +52,7 @@ export async function enqueueRender(input: unknown): Promise<ActionResult<{ rend
       revalidatePath("/exports");
       return { renderJobId: job.id, creditsCharged: cost, resolution };
     } catch (err) {
-      await refundCredits(user.id, cost, "Remboursement — le rendu n'a pas pu être mis en file", project.id);
+      if (cost > 0) await refundCredits(user.id, cost, "Remboursement — le rendu n'a pas pu être mis en file", project.id);
       throw err;
     }
   });

@@ -7,7 +7,7 @@ import { voiceoverRequestSchema, scenesSchema, parseJson } from "@/lib/validatio
 import { synthesizeSpeech } from "@/lib/tts";
 import { getVoice } from "@/lib/tts/voices";
 import { chargeCredits, refundCredits } from "@/lib/credits";
-import { PLANS, voiceoverCost } from "@/lib/plans";
+import { isAdmin, effectivePlanDef, voiceoverCost } from "@/lib/plans";
 import { putObject, storageKey } from "@/lib/storage";
 import { estimateSpeechMs } from "@/lib/utils";
 import { guard, type ActionResult } from "@/server/action-result";
@@ -27,15 +27,15 @@ export async function generateVoiceoverAction(input: unknown): Promise<ActionRes
     const user = await prisma.user.findUniqueOrThrow({ where: { id: sessionUser.id } });
     const script = await prisma.script.findFirstOrThrow({ where: { id: data.scriptId, projectId: data.projectId, userId: user.id } });
     const voice = getVoice(data.voiceId);
-    if (voice.premium && !PLANS[user.plan].premiumVoices) {
+    if (voice.premium && !effectivePlanDef(user).premiumVoices) {
       throw new Error(`${voice.name} est une voix premium. Passez au forfait Créateur ou supérieur pour l'utiliser.`);
     }
 
     const scenes = parseJson(scenesSchema, script.scenes, []);
     const segments = [script.hook, ...scenes.map((s) => s.text), script.callToAction];
     const estimatedMs = estimateSpeechMs(segments.join(" ")) / data.speed;
-    const cost = voiceoverCost(estimatedMs);
-    await chargeCredits(user.id, cost, "VOICEOVER", `Voix off (${voice.name})`, data.projectId);
+    const cost = isAdmin(user.role) ? 0 : voiceoverCost(estimatedMs);
+    if (cost > 0) await chargeCredits(user.id, cost, "VOICEOVER", `Voix off (${voice.name})`, data.projectId);
 
     const voiceover = await prisma.voiceover.create({
       data: { projectId: data.projectId, scriptId: data.scriptId, userId: user.id, voiceId: voice.id, status: "PROCESSING", stability: data.stability, similarity: data.similarity, speed: data.speed },
@@ -54,7 +54,7 @@ export async function generateVoiceoverAction(input: unknown): Promise<ActionRes
       return { voiceoverId: voiceover.id, audioUrl: stored.url, durationMs: result.durationMs, provider: result.provider, creditsCharged: cost };
     } catch (err) {
       await prisma.voiceover.update({ where: { id: voiceover.id }, data: { status: "FAILED", error: err instanceof Error ? err.message : String(err) } });
-      await refundCredits(user.id, cost, "Remboursement — la voix off a échoué", voiceover.id);
+      if (cost > 0) await refundCredits(user.id, cost, "Remboursement — la voix off a échoué", voiceover.id);
       throw err;
     }
   });

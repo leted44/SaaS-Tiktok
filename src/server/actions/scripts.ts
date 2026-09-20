@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { generateScriptSchema } from "@/lib/validations";
 import { generateScript } from "@/lib/ai/script-generator";
 import { chargeCredits, refundCredits } from "@/lib/credits";
-import { CREDIT_COSTS } from "@/lib/plans";
+import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
 import { getCurrentWorkspace } from "@/server/queries";
 import { guard, type ActionResult } from "@/server/action-result";
 import { nanoid } from "nanoid";
@@ -26,13 +26,16 @@ export async function generateScriptAction(input: unknown): Promise<ActionResult
     const workspace = await getCurrentWorkspace();
 
     // Charge first (atomic), refund if generation fails — never let a failed call eat credits.
-    const creditsLeft = await chargeCredits(user.id, CREDIT_COSTS.SCRIPT_GENERATION, "SCRIPT_GENERATION", `Script : ${data.topic.slice(0, 60)}`);
+    const admin = isAdmin(user.role);
+    const creditsLeft = admin
+      ? (await prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { credits: true } })).credits
+      : await chargeCredits(user.id, CREDIT_COSTS.SCRIPT_GENERATION, "SCRIPT_GENERATION", `Script : ${data.topic.slice(0, 60)}`);
 
     let result;
     try {
       result = await generateScript(data, { toneOfVoice: workspace.toneOfVoice, targetAudience: workspace.targetAudience });
     } catch (err) {
-      await refundCredits(user.id, CREDIT_COSTS.SCRIPT_GENERATION, "Remboursement — la génération du script a échoué");
+      if (!admin) await refundCredits(user.id, CREDIT_COSTS.SCRIPT_GENERATION, "Remboursement — la génération du script a échoué");
       throw err;
     }
 

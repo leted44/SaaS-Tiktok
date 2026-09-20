@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getProjectForStudio } from "@/server/queries";
 import { buildShortVideoProps } from "@/lib/render/build-props";
 import { Studio } from "@/components/studio/studio";
-import { PLANS, renderCost, CREDIT_COSTS } from "@/lib/plans";
+import { effectivePlanDef, isAdmin, renderCost, CREDIT_COSTS } from "@/lib/plans";
 import { VOICES } from "@/lib/tts/voices";
 import { MUSIC_TRACKS } from "@/lib/music/library";
 import { integrations } from "@/lib/env";
@@ -23,7 +23,8 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
   const data = await getProjectForStudio(id);
   if (!data) notFound();
   const { project, user, activeScript, activeVoiceover } = data;
-  const plan = PLANS[user.plan];
+  const plan = effectivePlanDef(user);
+  const admin = isAdmin(user.role);
 
   const previewProps = activeScript
     ? buildShortVideoProps({ project, script: activeScript, voiceover: activeVoiceover, workspace: project.workspace, resolution: "1080p", watermark: plan.watermark, absolute: false })
@@ -69,7 +70,14 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
       renders={project.renderJobs.map((r) => ({ id: r.id, status: r.status, progress: r.progress, step: r.step, outputUrl: r.outputUrl, thumbnailUrl: r.thumbnailUrl, error: r.error, createdAt: r.createdAt.toISOString(), width: r.width, height: r.height, creditsCharged: r.creditsCharged }))}
       previewProps={previewProps}
       user={{ credits: user.credits, plan: user.plan }}
-      planLimits={{ watermark: plan.watermark, maxResolution: plan.maxResolution, premiumVoices: plan.premiumVoices, costs: { "720p": renderCost(user.plan, "720p"), "1080p": renderCost(user.plan, "1080p"), "4K": renderCost(user.plan, "4K"), voicePer30s: CREDIT_COSTS.VOICEOVER_PER_30S } }}
+      planLimits={{
+        watermark: plan.watermark,
+        maxResolution: plan.maxResolution,
+        premiumVoices: plan.premiumVoices,
+        costs: admin
+          ? { "720p": 0, "1080p": 0, "4K": 0, voicePer30s: 0 }
+          : { "720p": renderCost("720p"), "1080p": renderCost("1080p"), "4K": renderCost("4K"), voicePer30s: CREDIT_COSTS.VOICEOVER_PER_30S },
+      }}
       voices={VOICES.map((v) => ({ id: v.id, name: v.name, style: v.style, gender: v.gender, premium: v.premium }))}
       tracks={MUSIC_TRACKS.map((t) => ({ id: t.id, name: t.name, mood: t.mood, url: t.url, premium: t.premium }))}
       integrations={{ ai: integrations.ai(), tts: integrations.tts(), stock: integrations.stock() }}

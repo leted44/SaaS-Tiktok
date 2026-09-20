@@ -150,17 +150,26 @@ export function voiceoverCost(durationMs: number): number {
   return Math.max(CREDIT_COSTS.VOICEOVER_PER_30S, Math.ceil(durationMs / 30_000) * CREDIT_COSTS.VOICEOVER_PER_30S);
 }
 
-export function renderCost(plan: Plan, resolution: "720p" | "1080p" | "4K"): number {
-  const allowed = PLANS[plan].maxResolution;
-  const effective = clampResolution(resolution, allowed);
-  if (effective === "4K") return CREDIT_COSTS.RENDER_4K;
-  if (effective === "1080p") return CREDIT_COSTS.RENDER_1080P;
+/** Price of a resolution on its own terms — never clamped to the caller's plan, so the pricing table always shows the real cost of every tier. */
+export function renderCost(resolution: "720p" | "1080p" | "4K"): number {
+  if (resolution === "4K") return CREDIT_COSTS.RENDER_4K;
+  if (resolution === "1080p") return CREDIT_COSTS.RENDER_1080P;
   return CREDIT_COSTS.RENDER_720P;
 }
 
 const RES_RANK = { "720p": 0, "1080p": 1, "4K": 2 } as const;
 export function clampResolution(requested: "720p" | "1080p" | "4K", max: "720p" | "1080p" | "4K") {
   return RES_RANK[requested] > RES_RANK[max] ? max : requested;
+}
+
+/** ADMIN accounts bypass plan limits entirely — for internal testing, never exposed to real users. */
+export function isAdmin(role: string): boolean {
+  return role === "ADMIN";
+}
+
+export function effectivePlanDef(user: { plan: Plan; role: string }): PlanDefinition {
+  if (!isAdmin(user.role)) return PLANS[user.plan];
+  return { ...PLANS[user.plan], watermark: false, maxResolution: "4K", premiumVoices: true, scheduling: true, priorityRendering: true };
 }
 
 export function planFromPriceId(priceId: string | null | undefined, prices: Record<string, { month: string; year: string }>): Plan | null {
