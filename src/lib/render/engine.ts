@@ -155,14 +155,15 @@ export const lambdaRemotionEngine: RenderEngine = {
       renderId = started.renderId;
       bucketName = started.bucketName;
       await prisma.renderJob.update({ where: { id: job.id }, data: { logs: { renderId, bucketName } } });
-      return null;
+      // Falls through into the poll loop below instead of returning here: the
+      // external cron only ticks once a minute, so stopping now would throw
+      // away up to a full minute of dead time before the first status check,
+      // even for a render that finishes well inside this invocation's budget.
     }
 
-    // The external cron only ticks once a minute, so a single check here would
-    // make the progress bar update at that same crawl even when the render
-    // itself finishes in seconds. Poll in a short loop instead, bounded well
-    // under any serverless function time limit, and let a later tick pick up
-    // where this one left off if the render is still going after the budget.
+    // Poll in a short loop, bounded well under any serverless function time
+    // limit, and let a later cron tick pick up where this one left off if the
+    // render is still going after the budget.
     const deadline = Date.now() + POLL_BUDGET_MS;
     for (;;) {
       const progress = await lambda.getRenderProgress({ renderId, bucketName, functionName: env.remotion.functionName, region: env.remotion.region });
