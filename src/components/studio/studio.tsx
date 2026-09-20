@@ -185,7 +185,7 @@ export function Studio(props: StudioProps) {
                   />
                 </TabsContent>
                 <TabsContent value="export" className="mt-0">
-                  <ExportPanel projectId={project.id} renders={renders} planLimits={planLimits} credits={user.credits} hasScript={Boolean(activeScript)} hasVoiceover={Boolean(voiceover?.audioUrl)} dirty={dirty} socialCopy={activeScript?.socialCopy ?? null} hashtags={activeScript?.hashtags ?? []} />
+                  <ExportPanel projectId={project.id} renders={renders} planLimits={planLimits} credits={user.credits} hasScript={Boolean(activeScript)} hasVoiceover={Boolean(voiceover?.audioUrl)} dirty={dirty} scriptId={activeScript?.id ?? null} socialCopy={activeScript?.socialCopy ?? null} hashtags={activeScript?.hashtags ?? []} aiConfigured={integrations.ai} />
                 </TabsContent>
               </div>
             </ScrollArea>

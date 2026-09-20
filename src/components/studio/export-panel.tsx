@@ -24,13 +24,15 @@ interface Props {
   hasScript: boolean;
   hasVoiceover: boolean;
   dirty: boolean;
+  scriptId: string | null;
   socialCopy: SocialCopy | null;
   hashtags: string[];
+  aiConfigured: boolean;
 }
 
 type Live = { status: string; progress: number; step: string; stepLabel: string; outputUrl: string | null; thumbnailUrl: string | null; error: string | null };
 
-export function ExportPanel({ projectId, renders, planLimits, credits, hasScript, hasVoiceover, dirty, socialCopy, hashtags }: Props) {
+export function ExportPanel({ projectId, renders, planLimits, credits, hasScript, hasVoiceover, dirty, scriptId, socialCopy, hashtags, aiConfigured }: Props) {
   const router = useRouter();
   const [resolution, setResolution] = useState<"720p" | "1080p" | "4K">(planLimits.maxResolution === "720p" ? "720p" : "1080p");
   const [loading, setLoading] = useState(false);
@@ -117,7 +119,9 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
 
       {hasVoiceover && <Button asChild variant="outline" className="w-full"><a href={`/api/projects/${projectId}/captions`}><Subtitles /> Télécharger les sous-titres (.srt)</a></Button>}
 
-      {socialCopy && <SocialCopyBlock copy={socialCopy} hashtags={hashtags} />}
+      {socialCopy && scriptId && (
+        <SocialCopyBlock scriptId={scriptId} copy={socialCopy} hashtags={hashtags} cost={planLimits.costs.socialCopy} aiConfigured={aiConfigured} />
+      )}
 
       {renders.length > 0 && (
         <div>

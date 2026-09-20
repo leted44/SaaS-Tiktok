@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import { generateScriptSchema } from "@/lib/validations";
+import { generateScriptSchema, scenesSchema, parseJson } from "@/lib/validations";
 import { generateScript } from "@/lib/ai/script-generator";
+import { generateSocialCopy } from "@/lib/ai/caption-generator";
+import type { SocialCopy } from "@/lib/social/captions";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
 import { getCurrentWorkspace } from "@/server/queries";
@@ -97,5 +99,43 @@ export async function generateScriptAction(input: unknown): Promise<ActionResult
     revalidatePath("/projects");
     revalidatePath(`/studio/${projectId}`);
     return { projectId, scriptId: script.id, version: script.version, viralityScore: script.viralityScore, creditsLeft };
+  });
+}
+
+/** Rewrites just the post captions for an existing script — a weak caption shouldn't cost a whole new script. */
+export async function regenerateSocialCopyAction(scriptId: string): Promise<ActionResult<{ socialCopy: SocialCopy; creditsLeft: number }>> {
+  return guard(async () => {
+    const user = await requireUser();
+    const script = await prisma.script.findFirstOrThrow({
+      where: { id: scriptId, userId: user.id },
+      include: { project: { include: { workspace: true } } },
+    });
+
+    const admin = isAdmin(user.role);
+    const cost = admin ? 0 : CREDIT_COSTS.SOCIAL_COPY;
+    const creditsLeft = cost > 0
+      ? await chargeCredits(user.id, cost, "SCRIPT_GENERATION", "Régénération de la description")
+      : (await prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { credits: true } })).credits;
+
+    let socialCopy: SocialCopy;
+    try {
+      socialCopy = await generateSocialCopy({
+        title: script.title,
+        hook: script.hook,
+        sceneTexts: parseJson(scenesSchema, script.scenes, []).map((s) => s.text),
+        callToAction: script.callToAction,
+        language: script.project.language,
+        niche: script.project.niche,
+        toneOfVoice: script.project.workspace.toneOfVoice,
+        targetAudience: script.project.workspace.targetAudience,
+      });
+    } catch (err) {
+      if (cost > 0) await refundCredits(user.id, cost, "Remboursement — la régénération de la description a échoué");
+      throw err;
+    }
+
+    await prisma.script.update({ where: { id: script.id }, data: { socialCopy } });
+    revalidatePath(`/studio/${script.projectId}`);
+    return { socialCopy, creditsLeft };
   });
 }

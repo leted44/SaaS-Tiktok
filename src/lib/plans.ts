@@ -133,6 +133,7 @@ export const PLAN_ORDER: Plan[] = ["FREE", "CREATOR", "PRO", "AGENCY"];
 /** Credit cost of each billable operation. */
 export const CREDIT_COSTS = {
   SCRIPT_GENERATION: 1,
+  SOCIAL_COPY: 1,
   VOICEOVER_PER_30S: 2,
   RENDER_720P: 8,
   RENDER_1080P: 12,

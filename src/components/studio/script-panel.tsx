@@ -143,6 +143,7 @@ export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene,
       <div className="space-y-1.5">
         <Label>Hashtags</Label>
         <Input value={draft.hashtags.map((h) => `#${h}`).join(" ")} onChange={(e) => setDraft({ ...draft, hashtags: e.target.value.split(/[\s,]+/).map((h) => h.replace(/^#/, "")).filter(Boolean) })} />
+        <p className="text-[11px] text-muted-foreground">Réserve générale. Les hashtags prêts à publier, adaptés à TikTok et Instagram, sont dans l'onglet Export.</p>
       </div>
     </div>
   );

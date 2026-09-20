@@ -1,6 +1,7 @@
 import { InsufficientCreditsError } from "@/lib/credits";
 import { AuthError } from "@/lib/auth";
 import { ScriptGenerationError } from "@/lib/ai/script-generator";
+import { CaptionGenerationError } from "@/lib/ai/caption-generator";
 import { TTSError } from "@/lib/tts";
 import { ZodError } from "zod";
 
@@ -29,6 +30,7 @@ export async function guard<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
     if (err instanceof InsufficientCreditsError) return fail(err.message, err.code);
     if (err instanceof AuthError) return fail(err.message, err.code);
     if (err instanceof ScriptGenerationError) return fail(err.message, err.code);
+    if (err instanceof CaptionGenerationError) return fail(err.message, err.code);
     if (err instanceof TTSError) return fail(err.message, err.code);
     if (err instanceof Error && err.message.startsWith("NEXT_REDIRECT")) throw err;
     console.error("[action]", err);
