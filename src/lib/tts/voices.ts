@@ -27,6 +27,7 @@ export const VOICES: VoiceDefinition[] = [
   { id: "daniel", providerVoiceId: "onwK4e9ZLuTAKqWW03F9", name: "Daniel", gender: "male", accent: "Britannique", language: "en", style: "Documentaire", description: "Narration qualité broadcast pour les documentaires.", premium: true, tags: ["documentaire", "histoire"] },
   { id: "matilda", providerVoiceId: "NihRgaLj2HWAjvZ5XNxl", name: "Matilda", gender: "female", accent: "Américain", language: "en", style: "Chaleureuse & enjouée", description: "Voix enjouée et accessible pour les tutoriels.", premium: false, tags: ["tutoriel", "tech"] },
   { id: "liam", providerVoiceId: "TX3LPaxmHKxFdv7VOQHJ", name: "Liam", gender: "male", accent: "Américain", language: "en", style: "Jeune & naturelle", description: "Voix de créateur native pour le public Gen-Z.", premium: true, tags: ["genz", "tendances"] },
+  { id: "maxime", providerVoiceId: "5Qfm4RqcAer0xoyWtoHC", name: "Maxime", gender: "male", accent: "Français", language: "fr", style: "Jeune & décontractée", description: "Voix française naturelle pour du contenu quotidien et accessible.", premium: false, tags: ["lifestyle", "quotidien"] },
 ];
 
 export const VOICE_BY_ID = Object.fromEntries(VOICES.map((v) => [v.id, v])) as Record<string, VoiceDefinition>;
