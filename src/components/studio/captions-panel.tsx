@@ -48,6 +48,9 @@ export function CaptionsPanel({ style, onChange }: { style: CaptionStyle; onChan
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="top">Haut</SelectItem><SelectItem value="center">Centre</SelectItem><SelectItem value="bottom">Bas</SelectItem></SelectContent>
           </Select>
+          {style.position !== "center" && (
+            <p className="text-[11px] text-amber-300">TikTok et Reels recouvrent le haut et le bas de l&apos;écran avec leur propre interface. Le centre reste la zone la plus sûre.</p>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label>Animation</Label>

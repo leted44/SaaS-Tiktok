@@ -1,15 +1,24 @@
 import React from "react";
 import { AbsoluteFill, Sequence, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import type { ShortVideoProps } from "@/lib/render/props";
+import type { CaptionStyle } from "@/lib/validations";
 import { ensureFont } from "../fonts";
 
-const Card: React.FC<{ text: string; accent: string; fontFamily: string; scale: number; durationInFrames: number }> = ({ text, accent, fontFamily, scale, durationInFrames }) => {
+/**
+ * The captions own whichever band the user picked, so the card takes a free one:
+ * it drops below a top-aligned caption block instead of printing on top of it.
+ * Kept well above the bottom quarter, which TikTok and Reels cover with their
+ * own description and action buttons.
+ */
+const CARD_TOP: Record<CaptionStyle["position"], number> = { top: 720, center: 240, bottom: 240 };
+
+const Card: React.FC<{ text: string; accent: string; fontFamily: string; scale: number; durationInFrames: number; top: number }> = ({ text, accent, fontFamily, scale, durationInFrames, top }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const enter = spring({ frame, fps, config: { damping: 16, stiffness: 140 } });
   const exit = interpolate(frame, [durationInFrames - 8, durationInFrames], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
-    <AbsoluteFill style={{ alignItems: "center", justifyContent: "flex-start", paddingTop: 240 * scale }}>
+    <AbsoluteFill style={{ alignItems: "center", justifyContent: "flex-start", paddingTop: top * scale }}>
       <div
         style={{
           opacity: Math.min(enter, exit),
@@ -34,9 +43,10 @@ const Card: React.FC<{ text: string; accent: string; fontFamily: string; scale: 
   );
 };
 
-export const OnScreenText: React.FC<{ scenes: ShortVideoProps["scenes"]; accent: string; fontFamily: string; scale: number }> = ({ scenes, accent, fontFamily, scale }) => {
+export const OnScreenText: React.FC<{ scenes: ShortVideoProps["scenes"]; accent: string; fontFamily: string; scale: number; captionPosition: CaptionStyle["position"] }> = ({ scenes, accent, fontFamily, scale, captionPosition }) => {
   const { fps } = useVideoConfig();
   ensureFont(fontFamily);
+  const top = CARD_TOP[captionPosition];
   return (
     <>
       {scenes
@@ -46,7 +56,7 @@ export const OnScreenText: React.FC<{ scenes: ShortVideoProps["scenes"]; accent:
           const duration = Math.max(fps, Math.min(Math.round(((s.endMs - s.startMs) / 1000) * fps), fps * 3));
           return (
             <Sequence key={s.index} from={from} durationInFrames={duration} layout="none">
-              <Card text={s.onScreenText!} accent={accent} fontFamily={fontFamily} scale={scale} durationInFrames={duration} />
+              <Card text={s.onScreenText!} accent={accent} fontFamily={fontFamily} scale={scale} durationInFrames={duration} top={top} />
             </Sequence>
           );
         })}
