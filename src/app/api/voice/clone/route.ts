@@ -10,7 +10,22 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_BYTES = 25 * 1024 * 1024;
-const ALLOWED_TYPES = new Set(["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/mp4", "audio/x-m4a", "audio/aac", "audio/ogg", "audio/webm"]);
+const ALLOWED_TYPES = new Set([
+  "audio/mpeg",
+  "audio/mp3",
+  "audio/wav",
+  "audio/x-wav",
+  "audio/mp4",
+  "audio/x-m4a",
+  "audio/aac",
+  "audio/ogg",
+  "audio/webm",
+  // A browser that supports no audio-only container records the microphone
+  // into a video one instead. The track inside is still just audio, and
+  // ElevenLabs rejects anything that isn't.
+  "video/webm",
+  "video/mp4",
+]);
 
 /** MediaRecorder reports e.g. "audio/webm;codecs=opus" — compare on the base type only. */
 function baseMimeType(type: string): string {

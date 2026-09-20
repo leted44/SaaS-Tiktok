@@ -17,6 +17,17 @@ const READING_SCRIPT =
 const MIN_SECONDS = 20;
 const RECOMMENDED_SECONDS = 60;
 
+/**
+ * Left to itself, Chrome records an audio-only stream into a *video* container
+ * ("video/webm"), which the upload endpoint rightly refuses. Ask for a real
+ * audio container instead, in the order browsers actually support them.
+ */
+function pickAudioMimeType(): MediaRecorderOptions | undefined {
+  const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus", "audio/ogg"];
+  const mimeType = candidates.find((t) => MediaRecorder.isTypeSupported(t));
+  return mimeType ? { mimeType } : undefined;
+}
+
 interface Props {
   customVoice: { name: string; sampleUrl: string } | null;
   allowed: boolean;
@@ -47,7 +58,7 @@ export function VoiceCloneCard({ customVoice, allowed, cost, credits, onChange }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       chunks.current = [];
-      const recorder = new MediaRecorder(stream);
+      const recorder = new MediaRecorder(stream, pickAudioMimeType());
       recorder.ondataavailable = (e) => { if (e.data.size) chunks.current.push(e.data); };
       recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
