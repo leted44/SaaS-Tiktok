@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Upload, Image as ImageIcon, Film, Trash2, Layers, Palette, Loader2 } from "lucide-react";
+import { Upload, Image as ImageIcon, Film, Trash2, Layers, Palette, Loader2, Sparkles, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -13,20 +14,28 @@ import { cn } from "@/lib/utils";
 import { nanoid } from "nanoid";
 
 interface Asset { id: string; type: string; url: string; name: string; mimeType: string }
+interface StockResult { id: string; type: "image" | "video"; url: string; thumbnailUrl: string; author: string; durationSec: number | null }
 
 interface Props {
   layers: VisualLayer[];
   background: BackgroundStyle;
   scenes: ShortVideoProps["scenes"];
+  /** Stock search terms suggested by the AI, one per composition scene. */
+  sceneQueries: string[];
+  stockConfigured: boolean;
   selectedScene: number | null;
   onLayersChange: (l: VisualLayer[]) => void;
   onBackgroundChange: (b: BackgroundStyle) => void;
 }
 
-export function VisualsPanel({ layers, background, scenes, selectedScene, onLayersChange, onBackgroundChange }: Props) {
+export function VisualsPanel({ layers, background, scenes, sceneQueries, stockConfigured, selectedScene, onLayersChange, onBackgroundChange }: Props) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [autoFilling, setAutoFilling] = useState(false);
+  const [stockQuery, setStockQuery] = useState("");
+  const [stockResults, setStockResults] = useState<StockResult[]>([]);
+  const [searching, setSearching] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -47,13 +56,77 @@ export function VisualsPanel({ layers, background, scenes, selectedScene, onLaye
     setUploading(false);
   }
 
+  const sceneLabel = (i: number) => (i === 0 ? "au hook" : i === scenes.length - 1 ? "au CTA" : `à la scène ${i}`);
+
+  function buildLayer(src: string, type: "image" | "video", sceneIdx: number): VisualLayer | null {
+    const scene = scenes[sceneIdx];
+    if (!scene) return null;
+    // Videos already carry their own motion; only stills get a Ken Burns move.
+    return { id: nanoid(8), type, src, startMs: scene.startMs, endMs: scene.endMs, fit: "cover", kenBurns: type === "video" ? "none" : "in", opacity: 1, sceneIndex: sceneIdx };
+  }
+
   function addLayer(asset: Asset) {
     const sceneIdx = selectedScene ?? 0;
-    const scene = scenes[sceneIdx] ?? scenes[0];
-    if (!scene) return toast.error("Générez d'abord un script pour que les scènes existent.");
-    const layer: VisualLayer = { id: nanoid(8), type: asset.type === "VIDEO" ? "video" : "image", src: asset.url, startMs: scene.startMs, endMs: scene.endMs, fit: "cover", kenBurns: "in", opacity: 1, sceneIndex: sceneIdx };
+    const layer = buildLayer(asset.url, asset.type === "VIDEO" ? "video" : "image", sceneIdx);
+    if (!layer) return toast.error("Générez d'abord un script pour que les scènes existent.");
     onLayersChange([...layers.filter((l) => l.sceneIndex !== sceneIdx), layer]);
-    toast.success(`B-roll ajouté ${sceneIdx === 0 ? "au hook" : sceneIdx === scenes.length - 1 ? "au CTA" : `à la scène ${sceneIdx}`}`);
+    toast.success(`B-roll ajouté ${sceneLabel(sceneIdx)}`);
+  }
+
+  function addStock(result: StockResult) {
+    const sceneIdx = selectedScene ?? 0;
+    const layer = buildLayer(result.url, result.type, sceneIdx);
+    if (!layer) return toast.error("Générez d'abord un script pour que les scènes existent.");
+    onLayersChange([...layers.filter((l) => l.sceneIndex !== sceneIdx), layer]);
+    toast.success(`Visuel ajouté ${sceneLabel(sceneIdx)}`);
+  }
+
+  async function searchStock(query: string) {
+    if (!query.trim()) return;
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/stock/search?q=${encodeURIComponent(query)}&type=video`);
+      const json = await res.json();
+      if (!res.ok) return toast.error(json.error ?? "Recherche impossible");
+      setStockResults(json.results ?? []);
+      if (!json.results?.length) toast.info("Aucun résultat pour cette recherche.");
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  /** Fill every scene that has no visual yet, keeping anything already placed. */
+  async function autoFill() {
+    const empty = scenes.map((_, i) => i).filter((i) => !layers.some((l) => l.sceneIndex === i));
+    if (!scenes.length) return toast.error("Générez d'abord un script pour que les scènes existent.");
+    if (!empty.length) return toast.info("Toutes les scènes ont déjà un visuel. Supprimez-en un pour le régénérer.");
+
+    setAutoFilling(true);
+    try {
+      const res = await fetch("/api/stock/search", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ queries: empty.map((i) => sceneQueries[i] ?? ""), type: "video" }),
+      });
+      const json = await res.json();
+      if (!res.ok) return toast.error(json.error ?? "Génération impossible");
+
+      const used = new Set(layers.map((l) => l.src));
+      const added: VisualLayer[] = [];
+      (json.matches as StockResult[][]).forEach((candidates, k) => {
+        const pick = candidates.find((c) => !used.has(c.url)) ?? candidates[0];
+        if (!pick) return;
+        used.add(pick.url);
+        const layer = buildLayer(pick.url, pick.type, empty[k]);
+        if (layer) added.push(layer);
+      });
+
+      if (!added.length) return toast.error("Aucun visuel correspondant trouvé.");
+      onLayersChange([...layers, ...added]);
+      toast.success(`${added.length} visuel${added.length > 1 ? "s" : ""} ajouté${added.length > 1 ? "s" : ""} automatiquement.`);
+    } finally {
+      setAutoFilling(false);
+    }
   }
 
   const update = (id: string, patch: Partial<VisualLayer>) => onLayersChange(layers.map((l) => (l.id === id ? { ...l, ...patch } : l)));
@@ -82,7 +155,43 @@ export function VisualsPanel({ layers, background, scenes, selectedScene, onLaye
       </div>
 
       <div>
-        <div className="flex items-center justify-between"><Label>B-roll pour {selectedScene === null ? "la scène sélectionnée" : selectedScene === 0 ? "le hook" : selectedScene === scenes.length - 1 ? "le CTA" : `la scène ${selectedScene}`}</Label><span className="text-[11px] text-muted-foreground">Cliquez une scène sur la timeline</span></div>
+        <Label>Visuels automatiques</Label>
+        {stockConfigured ? (
+          <>
+            <Button className="mt-2 w-full" variant="gradient" onClick={autoFill} loading={autoFilling} disabled={!scenes.length}>
+              <Sparkles /> Remplir toutes les scènes
+            </Button>
+            <p className="mt-1.5 text-[11px] text-muted-foreground">Cherche un clip libre de droits par scène à partir des suggestions du script. Les scènes qui ont déjà un visuel ne sont pas touchées.</p>
+            <div className="mt-3 flex gap-2">
+              <Input
+                value={stockQuery}
+                onChange={(e) => setStockQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && searchStock(stockQuery)}
+                placeholder="Ou cherchez vous-même : ex. ville la nuit"
+                className="h-9 text-sm"
+              />
+              <Button variant="outline" size="icon" onClick={() => searchStock(stockQuery)} loading={searching} aria-label="Rechercher"><Search /></Button>
+            </div>
+            {stockResults.length > 0 && (
+              <div className="mt-3 grid grid-cols-4 gap-2">
+                {stockResults.map((r) => (
+                  <button key={r.id} onClick={() => addStock(r)} className="group relative aspect-[9/16] overflow-hidden rounded-lg border border-white/10 bg-white/5" title={`${r.author} · Pexels`}>
+                    <img src={r.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+                    <span className="absolute bottom-1 right-1 rounded bg-black/60 p-0.5 text-white">{r.type === "video" ? <Film className="h-3 w-3" /> : <ImageIcon className="h-3 w-3" />}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+            Clé <code>PEXELS_API_KEY</code> manquante — la recherche automatique de visuels est désactivée. Vous pouvez toujours déposer vos propres images ci-dessous.
+          </p>
+        )}
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between"><Label>Vos visuels pour {selectedScene === null ? "la scène sélectionnée" : selectedScene === 0 ? "le hook" : selectedScene === scenes.length - 1 ? "le CTA" : `la scène ${selectedScene}`}</Label><span className="text-[11px] text-muted-foreground">Cliquez une scène sur la timeline</span></div>
         <div
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}

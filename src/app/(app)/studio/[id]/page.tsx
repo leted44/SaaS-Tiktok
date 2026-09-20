@@ -72,7 +72,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
       planLimits={{ watermark: plan.watermark, maxResolution: plan.maxResolution, premiumVoices: plan.premiumVoices, costs: { "720p": renderCost(user.plan, "720p"), "1080p": renderCost(user.plan, "1080p"), "4K": renderCost(user.plan, "4K"), voicePer30s: CREDIT_COSTS.VOICEOVER_PER_30S } }}
       voices={VOICES.map((v) => ({ id: v.id, name: v.name, style: v.style, gender: v.gender, premium: v.premium }))}
       tracks={MUSIC_TRACKS.map((t) => ({ id: t.id, name: t.name, mood: t.mood, url: t.url, premium: t.premium }))}
-      integrations={{ ai: integrations.ai(), tts: integrations.tts() }}
+      integrations={{ ai: integrations.ai(), tts: integrations.tts(), stock: integrations.stock() }}
     />
   );
 }

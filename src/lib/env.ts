@@ -18,6 +18,8 @@ export const env = {
   elevenLabsApiKey: read("ELEVENLABS_API_KEY"),
   elevenLabsModelId: read("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2"),
 
+  pexelsApiKey: read("PEXELS_API_KEY"),
+
   storageDriver: read("STORAGE_DRIVER", "local") as "local" | "s3",
   s3: {
     endpoint: read("S3_ENDPOINT"),
@@ -63,6 +65,7 @@ export const env = {
 export const integrations = {
   ai: () => Boolean(env.anthropicApiKey),
   tts: () => Boolean(env.elevenLabsApiKey),
+  stock: () => Boolean(env.pexelsApiKey),
   stripe: () => Boolean(env.stripe.secretKey),
   s3: () => env.storageDriver === "s3" && Boolean(env.s3.accessKeyId),
   tiktok: () => Boolean(env.social.tiktok.clientKey),

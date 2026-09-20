@@ -70,7 +70,7 @@ export interface StudioProps {
   planLimits: { watermark: boolean; maxResolution: "720p" | "1080p" | "4K"; premiumVoices: boolean; costs: { "720p": number; "1080p": number; "4K": number; voicePer30s: number } };
   voices: { id: string; name: string; style: string; gender: string; premium: boolean }[];
   tracks: { id: string; name: string; mood: string; url: string; premium: boolean }[];
-  integrations: { ai: boolean; tts: boolean };
+  integrations: { ai: boolean; tts: boolean; stock: boolean };
 }
 
 export interface EditorState {

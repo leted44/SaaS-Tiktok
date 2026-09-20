@@ -72,6 +72,18 @@ export function Studio(props: StudioProps) {
     return { ...base, captionStyle: state.captionStyle, visualLayers: state.visualLayers, backgroundStyle: state.backgroundStyle, musicUrl: track?.url || null, musicVolume: state.musicVolume };
   }, [previewProps, state, project.title]);
 
+  // Stock search term per composition scene. The hook and CTA have no b-roll
+  // suggestion of their own, so they borrow the nearest scene's.
+  const sceneQueries = useMemo(() => {
+    const scriptScenes = activeScript?.scenes ?? [];
+    const last = liveProps.scenes.length - 1;
+    return liveProps.scenes.map((_, i) => {
+      if (i === 0) return scriptScenes[0]?.brollQuery ?? "";
+      if (i === last) return scriptScenes[scriptScenes.length - 1]?.brollQuery ?? "";
+      return scriptScenes[i - 1]?.brollQuery ?? "";
+    });
+  }, [activeScript, liveProps.scenes]);
+
   const patch = useCallback(<K extends keyof EditorState>(k: K, v: EditorState[K]) => setState((s) => ({ ...s, [k]: v })), []);
 
   async function commitTitle() {
@@ -140,7 +152,7 @@ export function Studio(props: StudioProps) {
                   <CaptionsPanel style={state.captionStyle} onChange={(s) => patch("captionStyle", s)} />
                 </TabsContent>
                 <TabsContent value="visuals" className="mt-0">
-                  <VisualsPanel layers={state.visualLayers} background={state.backgroundStyle} scenes={liveProps.scenes} selectedScene={selectedScene} onLayersChange={(l) => patch("visualLayers", l)} onBackgroundChange={(b) => patch("backgroundStyle", b)} />
+                  <VisualsPanel layers={state.visualLayers} background={state.backgroundStyle} scenes={liveProps.scenes} sceneQueries={sceneQueries} stockConfigured={integrations.stock} selectedScene={selectedScene} onLayersChange={(l) => patch("visualLayers", l)} onBackgroundChange={(b) => patch("backgroundStyle", b)} />
                 </TabsContent>
                 <TabsContent value="audio" className="mt-0">
                   <AudioPanel
