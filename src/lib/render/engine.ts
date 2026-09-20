@@ -15,10 +15,20 @@ export interface RenderOutput {
   durationMs: number;
 }
 
+export interface RenderOptions {
+  /**
+   * How long this call may keep polling a remote render before giving up and
+   * letting a later call resume. Zero means check once and return — what the
+   * studio's own 3-second progress polling passes, so a browser tab can drive
+   * a render forward without blocking on each request.
+   */
+  pollBudgetMs?: number;
+}
+
 export interface RenderEngine {
   name: string;
   /** Returns null when the render is still in progress and should be checked again later. */
-  render(job: RenderJob, props: ShortVideoProps): Promise<RenderOutput | null>;
+  render(job: RenderJob, props: ShortVideoProps, opts?: RenderOptions): Promise<RenderOutput | null>;
 }
 
 let cachedBundle: { serveUrl: string; builtAt: number } | null = null;
@@ -116,7 +126,7 @@ const POLL_BUDGET_MS = 45_000;
  */
 export const lambdaRemotionEngine: RenderEngine = {
   name: "lambda",
-  async render(job, props) {
+  async render(job, props, opts) {
     if (!env.remotion.functionName || !env.remotion.serveUrl) {
       throw new Error("RENDER_ENGINE=lambda requires REMOTION_LAMBDA_FUNCTION_NAME and REMOTION_SERVE_URL");
     }
@@ -162,9 +172,9 @@ export const lambdaRemotionEngine: RenderEngine = {
     }
 
     // Poll in a short loop, bounded well under any serverless function time
-    // limit, and let a later cron tick pick up where this one left off if the
+    // limit, and let a later call pick up where this one left off if the
     // render is still going after the budget.
-    const deadline = Date.now() + POLL_BUDGET_MS;
+    const deadline = Date.now() + (opts?.pollBudgetMs ?? POLL_BUDGET_MS);
     for (;;) {
       const progress = await lambda.getRenderProgress({ renderId, bucketName, functionName: env.remotion.functionName, region: env.remotion.region });
       if (progress.fatalErrorEncountered) throw new Error(progress.errors.map((e) => e.message).join("; ") || "Lambda render failed");

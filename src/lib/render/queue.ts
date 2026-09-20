@@ -41,6 +41,34 @@ export async function claimNextRenderJob(workerId: string) {
   return prisma.renderJob.findUnique({ where: { id: candidate.id }, include: { project: { include: { workspace: true } }, user: true } });
 }
 
+/**
+ * Claim one specific job — the one a studio tab is watching — rather than
+ * whatever is next in the queue. Returns null when there is nothing to do on
+ * it, including when another caller is mid-start (PROCESSING but no engine
+ * state saved yet), which is what keeps two concurrent pollers from launching
+ * the same render twice.
+ */
+export async function claimRenderJobById(jobId: string, workerId: string) {
+  const candidate = await prisma.renderJob.findUnique({
+    where: { id: jobId },
+    select: { id: true, status: true, lockedAt: true, logs: true, attempts: true, maxAttempts: true },
+  });
+  if (!candidate) return null;
+
+  if (candidate.status === RenderStatus.QUEUED) {
+    if (candidate.attempts >= candidate.maxAttempts) return null;
+    const claimed = await prisma.renderJob.updateMany({
+      where: { id: jobId, status: RenderStatus.QUEUED, lockedAt: candidate.lockedAt },
+      data: { status: RenderStatus.PROCESSING, lockedAt: new Date(), lockedBy: workerId, startedAt: new Date(), attempts: { increment: 1 }, step: "preparing", progress: 8, error: null, logs: Prisma.DbNull },
+    });
+    if (claimed.count === 0) return null;
+  } else if (candidate.status !== RenderStatus.PROCESSING || candidate.logs === null) {
+    return null;
+  }
+
+  return prisma.renderJob.findUnique({ where: { id: jobId }, include: { project: { include: { workspace: true } }, user: true } });
+}
+
 export async function updateRenderProgress(jobId: string, step: RenderStepKey, progress?: number) {
   const def = RENDER_STEPS.find((s) => s.key === step);
   await prisma.renderJob.update({

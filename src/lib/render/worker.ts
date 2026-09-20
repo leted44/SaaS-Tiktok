@@ -1,6 +1,6 @@
-import { Prisma } from "@prisma/client";
-import { claimNextRenderJob, completeRenderJob, failRenderJob } from "@/lib/render/queue";
-import { getRenderEngine } from "@/lib/render/engine";
+import { Prisma, type RenderJob, type Project, type Workspace, type User } from "@prisma/client";
+import { claimNextRenderJob, claimRenderJobById, completeRenderJob, failRenderJob } from "@/lib/render/queue";
+import { getRenderEngine, type RenderOptions } from "@/lib/render/engine";
 import { shortVideoPropsSchema } from "@/lib/render/props";
 import { refundCredits } from "@/lib/credits";
 import { processDuePublishJobs } from "@/lib/publish";
@@ -14,7 +14,10 @@ import { prisma } from "@/lib/prisma";
  * resumed before claiming a new one, so each tick only checks its progress
  * instead of restarting the render from scratch.
  */
-export async function processOneRenderJob(workerId: string): Promise<{ jobId: string; status: "completed" | "failed" | "requeued" | "in_progress" } | null> {
+type RenderJobWithRelations = RenderJob & { project: Project & { workspace: Workspace }; user: User };
+export type RenderJobOutcome = { jobId: string; status: "completed" | "failed" | "requeued" | "in_progress" };
+
+export async function processOneRenderJob(workerId: string, opts?: RenderOptions): Promise<RenderJobOutcome | null> {
   const resumable = await prisma.renderJob.findFirst({
     where: { status: "PROCESSING", logs: { not: Prisma.DbNull } },
     orderBy: { updatedAt: "asc" },
@@ -22,11 +25,25 @@ export async function processOneRenderJob(workerId: string): Promise<{ jobId: st
   });
   const job = resumable ?? (await claimNextRenderJob(workerId));
   if (!job) return null;
+  return runRenderJob(job, opts);
+}
 
+/**
+ * Move one specific job forward. Lets the studio's own progress polling drive
+ * a render — start it, advance it, finish it — instead of every step waiting on
+ * the external cron's next tick, which costs up to a minute of dead time each.
+ */
+export async function advanceRenderJob(jobId: string, workerId: string, opts?: RenderOptions): Promise<RenderJobOutcome | null> {
+  const job = await claimRenderJobById(jobId, workerId);
+  if (!job) return null;
+  return runRenderJob(job, opts);
+}
+
+async function runRenderJob(job: RenderJobWithRelations, opts?: RenderOptions): Promise<RenderJobOutcome> {
   const engine = getRenderEngine();
   try {
     const props = shortVideoPropsSchema.parse(job.inputProps);
-    const output = await engine.render(job, props);
+    const output = await engine.render(job, props, opts);
     if (!output) return { jobId: job.id, status: "in_progress" };
     await completeRenderJob(job.id, output);
     return { jobId: job.id, status: "completed" };
