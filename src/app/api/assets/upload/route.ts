@@ -2,37 +2,19 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { putObject, storageKey } from "@/lib/storage";
-import type { AssetType } from "@prisma/client";
+import { assetTypeFor, baseMimeType, MAX_ASSET_BYTES } from "@/lib/assets/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_BYTES = 50 * 1024 * 1024;
-const ALLOWED: Record<string, AssetType> = {
-  "image/png": "IMAGE",
-  "image/jpeg": "IMAGE",
-  "image/webp": "IMAGE",
-  "image/gif": "IMAGE",
-  "video/mp4": "VIDEO",
-  "video/webm": "VIDEO",
-  "video/quicktime": "VIDEO",
-  "audio/mpeg": "AUDIO",
-  "audio/mp3": "AUDIO",
-  "audio/wav": "AUDIO",
-  "audio/x-wav": "AUDIO",
-  // Phones hand over m4a/aac far more often than mp3.
-  "audio/mp4": "AUDIO",
-  "audio/x-m4a": "AUDIO",
-  "audio/aac": "AUDIO",
-  "audio/ogg": "AUDIO",
-};
-
-/** Some pickers report a codec parameter (e.g. "audio/ogg;codecs=opus") — compare on the base type only. */
-function baseMimeType(type: string): string {
-  return type.split(";")[0].trim();
-}
-
-/** Multipart upload for b-roll, logos, watermarks and music. Returns the stored asset. */
+/**
+ * Proxied upload: the file passes through this function on its way to storage.
+ *
+ * Kept for local development, where there is no bucket to sign an upload
+ * against. In production the client uses /api/assets/direct instead — a Vercel
+ * function request body is capped at 4.5 MB, which no video clears, and the
+ * bytes would otherwise cross the network twice for no benefit.
+ */
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -40,15 +22,15 @@ export async function POST(req: Request) {
   const file = form.get("file");
   const kind = String(form.get("kind") ?? "asset");
   if (!(file instanceof File)) return NextResponse.json({ error: "Aucun fichier fourni" }, { status: 400 });
-  if (file.size > MAX_BYTES) return NextResponse.json({ error: "Le fichier dépasse 50 Mo" }, { status: 413 });
-  const type = kind === "logo" ? "LOGO" : ALLOWED[baseMimeType(file.type)];
-  if (!type) return NextResponse.json({ error: `Unsupported file type ${file.type}` }, { status: 415 });
+  if (file.size > MAX_ASSET_BYTES) return NextResponse.json({ error: "Le fichier dépasse 50 Mo" }, { status: 413 });
+  const type = assetTypeFor(file.type, kind);
+  if (!type) return NextResponse.json({ error: `Type de fichier non pris en charge : ${file.type}` }, { status: 415 });
 
   const workspace = await prisma.workspace.findFirstOrThrow({ where: { ownerId: session.user.id }, orderBy: { createdAt: "asc" } });
   const buffer = Buffer.from(await file.arrayBuffer());
   const stored = await putObject(storageKey(session.user.id, "asset", file.name), buffer, file.type);
   const asset = await prisma.asset.create({
-    data: { workspaceId: workspace.id, userId: session.user.id, type, name: file.name, url: stored.url, storageKey: stored.key, mimeType: file.type, sizeBytes: stored.sizeBytes },
+    data: { workspaceId: workspace.id, userId: session.user.id, type, name: file.name, url: stored.url, storageKey: stored.key, mimeType: baseMimeType(file.type), sizeBytes: stored.sizeBytes },
   });
   return NextResponse.json({ asset });
 }

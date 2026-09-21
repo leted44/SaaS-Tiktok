@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import type { VisualLayer, BackgroundStyle } from "@/lib/validations";
 import type { ShortVideoProps } from "@/lib/render/props";
+import { Progress } from "@/components/ui/progress";
+import { uploadAsset } from "@/lib/assets/upload-client";
 import { cn } from "@/lib/utils";
 import { nanoid } from "nanoid";
 
@@ -30,7 +32,7 @@ interface Props {
 
 export function VisualsPanel({ layers, background, scenes, sceneQueries, stockConfigured, selectedScene, onLayersChange, onBackgroundChange }: Props) {
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState<{ name: string; done: number; total: number; fraction: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [autoFilling, setAutoFilling] = useState(false);
   const [stockQuery, setStockQuery] = useState("");
@@ -45,17 +47,22 @@ export function VisualsPanel({ layers, background, scenes, sceneQueries, stockCo
   }, []);
 
   async function upload(files: FileList | File[]) {
-    setUploading(true);
-    for (const file of Array.from(files)) {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/assets/upload", { method: "POST", body: fd });
-      if (!res.ok) { toast.error(`${file.name}: ${(await res.json()).error ?? "échec de l'envoi"}`); continue; }
-      const { asset } = await res.json();
-      setAssets((a) => [asset, ...a]);
-      addLayer(asset);
+    const list = Array.from(files);
+    // Serial on purpose: a phone's upstream is the bottleneck, so uploading in
+    // parallel only splits the same bandwidth and makes every file slower.
+    for (const [i, file] of list.entries()) {
+      setUploading({ name: file.name, done: i, total: list.length, fraction: 0 });
+      try {
+        const asset = await uploadAsset(file, {
+          onProgress: (fraction) => setUploading({ name: file.name, done: i, total: list.length, fraction }),
+        });
+        setAssets((a) => [asset, ...a]);
+        addLayer(asset);
+      } catch (err) {
+        toast.error(`${file.name} : ${err instanceof Error ? err.message : "échec de l'envoi"}`);
+      }
     }
-    setUploading(false);
+    setUploading(null);
   }
 
   const sceneLabel = (i: number) => (i === 0 ? "au hook" : i === scenes.length - 1 ? "au CTA" : `à la scène ${i}`);
@@ -215,6 +222,15 @@ export function VisualsPanel({ layers, background, scenes, sceneQueries, stockCo
           {uploading ? <Loader2 className="h-6 w-6 animate-spin text-brand-300" /> : <Upload className="h-6 w-6 text-brand-300" />}
           <p className="mt-2 text-sm font-medium">Déposez des images ou clips</p>
           <p className="text-xs text-muted-foreground">PNG, JPG, WebP, MP4 · jusqu'à 50 Mo</p>
+          {uploading && (
+            <div className="mt-3 w-full" onClick={(e) => e.stopPropagation()}>
+              <Progress value={Math.round(uploading.fraction * 100)} className="h-1.5" indicatorClassName="bg-brand-gradient" />
+              <p className="mt-1.5 truncate text-[11px] text-muted-foreground">
+                {uploading.total > 1 && `${uploading.done + 1}/${uploading.total} · `}
+                {uploading.name} · {Math.round(uploading.fraction * 100)} %
+              </p>
+            </div>
+          )}
         </div>
         {assets.length > 0 && (
           <div className="mt-3 grid grid-cols-4 gap-2">

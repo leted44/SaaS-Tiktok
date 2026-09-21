@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Mic2, Music2, Lock, Wand2, CheckCircle2, Play, Pause, Loader2, Upload, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { uploadAsset } from "@/lib/assets/upload-client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -51,6 +52,7 @@ export function AudioPanel(p: Props) {
   const [speed, setSpeed] = useState(1);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadPct, setUploadPct] = useState(0);
   const musicFileRef = useRef<HTMLInputElement>(null);
   // The preview endpoint caps the sample at 300 characters.
   const preview = useVoicePreview(p.previewText.trim().slice(0, 280) || VOICE_PREVIEW_TEXT, speed);
@@ -59,18 +61,17 @@ export function AudioPanel(p: Props) {
 
   async function uploadMusic(file: File) {
     setUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch("/api/assets/upload", { method: "POST", body: fd });
-    setUploading(false);
-    if (musicFileRef.current) musicFileRef.current.value = "";
-    if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
-      return toast.error(body.error ?? "Échec de l'envoi du fichier audio.");
+    setUploadPct(0);
+    try {
+      const asset = await uploadAsset(file, { onProgress: (f) => setUploadPct(Math.round(f * 100)) });
+      p.onCustomMusicChange(asset.url, asset.name);
+      toast.success("Musique importée — elle est ajoutée au montage.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Échec de l'envoi du fichier audio.");
+    } finally {
+      setUploading(false);
+      if (musicFileRef.current) musicFileRef.current.value = "";
     }
-    const { asset } = (await res.json()) as { asset: { url: string; name: string } };
-    p.onCustomMusicChange(asset.url, asset.name);
-    toast.success("Musique importée — elle est ajoutée au montage.");
   }
 
   async function generate() {
@@ -151,7 +152,7 @@ export function AudioPanel(p: Props) {
       <div>
         <div className="flex items-center justify-between">
           <Label className="inline-flex items-center gap-1"><Music2 className="h-3 w-3" /> Musique de fond</Label>
-          <Button size="sm" variant="ghost" className="h-7 text-[11px]" loading={uploading} onClick={() => musicFileRef.current?.click()}><Upload /> Importer un fichier</Button>
+          <Button size="sm" variant="ghost" className="h-7 text-[11px]" loading={uploading} onClick={() => musicFileRef.current?.click()}><Upload /> {uploading ? `${uploadPct} %` : "Importer un fichier"}</Button>
           <input ref={musicFileRef} type="file" accept="audio/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadMusic(e.target.files[0])} />
         </div>
 

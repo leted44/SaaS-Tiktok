@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Save, Upload, Lock } from "lucide-react";
 import { toast } from "sonner";
+import { uploadAsset } from "@/lib/assets/upload-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,15 +35,15 @@ export function BrandKitForm({ initial, voices, tracks, premiumAllowed, watermar
 
   async function upload(file: File) {
     setUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("kind", "logo");
-    const res = await fetch("/api/assets/upload", { method: "POST", body: fd });
-    setUploading(false);
-    if (!res.ok) return toast.error((await res.json()).error ?? "Échec de l'envoi");
-    const { asset } = await res.json();
-    set("watermarkUrl", asset.url.startsWith("http") ? asset.url : `${window.location.origin}${asset.url}`);
-    toast.success("Filigrane envoyé");
+    try {
+      const asset = await uploadAsset(file, { kind: "logo" });
+      set("watermarkUrl", asset.url.startsWith("http") ? asset.url : `${window.location.origin}${asset.url}`);
+      toast.success("Filigrane envoyé");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Échec de l'envoi");
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function save() {

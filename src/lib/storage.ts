@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { PutObjectCommand, S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, S3Client, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "@/lib/env";
 
 export interface StoredObject {
@@ -56,6 +57,48 @@ export async function putObject(key: string, body: Buffer, contentType: string):
 export async function putFile(key: string, filePath: string, contentType: string): Promise<StoredObject> {
   const body = await fs.readFile(filePath);
   return putObject(key, body, contentType);
+}
+
+/** True when uploads can bypass the app server and go straight to the bucket. */
+export function canPresignUploads(): boolean {
+  return env.storageDriver === "s3" && Boolean(env.s3.accessKeyId);
+}
+
+/**
+ * Sign a one-shot PUT so the browser can send a file straight to the bucket.
+ *
+ * Routing an upload through the app instead means the bytes cross the network
+ * twice — client to function, then function to bucket — and, on Vercel, they
+ * never even arrive: a function request body is capped at 4.5 MB, so a 30 MB
+ * video is uploaded in full and only then rejected with a 413. The signature
+ * pins the key and the content type, and expires quickly, so it cannot be
+ * replayed to overwrite anything else.
+ */
+export async function presignPut(key: string, contentType: string, expiresInSeconds = 600): Promise<string> {
+  return getSignedUrl(
+    s3(),
+    new PutObjectCommand({ Bucket: env.s3.bucket, Key: key, ContentType: contentType, CacheControl: "public, max-age=31536000, immutable" }),
+    { expiresIn: expiresInSeconds },
+  );
+}
+
+/**
+ * Confirm an object landed in the bucket and report its real size. A direct
+ * upload is only observed by the client, so the size it claims is not evidence
+ * that anything was stored — this is what makes the asset record trustworthy.
+ */
+export async function headObject(key: string): Promise<{ sizeBytes: number; contentType: string | null } | null> {
+  try {
+    const res = await s3().send(new HeadObjectCommand({ Bucket: env.s3.bucket, Key: key }));
+    return { sizeBytes: res.ContentLength ?? 0, contentType: res.ContentType ?? null };
+  } catch {
+    return null;
+  }
+}
+
+/** The public URL an uploaded object is served from. */
+export function publicUrl(key: string): string {
+  return publicUrlFor(key);
 }
 
 export async function deleteObject(key: string): Promise<void> {
