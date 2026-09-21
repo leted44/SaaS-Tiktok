@@ -178,7 +178,7 @@ export function isAdmin(role: string): boolean {
 
 export function effectivePlanDef(user: { plan: Plan; role: string }): PlanDefinition {
   if (!isAdmin(user.role)) return PLANS[user.plan];
-  return { ...PLANS[user.plan], watermark: false, maxResolution: "4K", premiumVoices: true, voiceCloning: true, scheduling: true, priorityRendering: true };
+  return { ...PLANS[user.plan], watermark: false, maxResolution: "4K", premiumVoices: true, voiceCloning: true, scheduling: true, priorityRendering: true, maxProjects: -1, maxSocialAccounts: -1 };
 }
 
 export function planFromPriceId(priceId: string | null | undefined, prices: Record<string, { month: string; year: string }>): Plan | null {

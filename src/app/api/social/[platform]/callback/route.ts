@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { exchangeCode, fetchProfile, upsertSocialAccount } from "@/lib/publish/oauth";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
-import { PLANS } from "@/lib/plans";
+import { effectivePlanDef } from "@/lib/plans";
 import { safeEqual } from "@/lib/crypto";
 import type { SocialPlatform } from "@prisma/client";
 
@@ -38,7 +38,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ platform: strin
   try {
     const user = await prisma.user.findUniqueOrThrow({ where: { id: session.user.id } });
     const workspace = await prisma.workspace.findFirstOrThrow({ where: { ownerId: user.id }, orderBy: { createdAt: "asc" } });
-    const limit = PLANS[user.plan].maxSocialAccounts;
+    const limit = effectivePlanDef(user).maxSocialAccounts;
     if (limit > 0) {
       const count = await prisma.socialAccount.count({ where: { workspaceId: workspace.id } });
       if (count >= limit) return back(`Votre forfait autorise ${limit} compte${limit > 1 ? "s" : ""} connecté${limit > 1 ? "s" : ""}. Passez à un forfait supérieur pour en connecter davantage.`);

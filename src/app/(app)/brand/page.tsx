@@ -4,13 +4,14 @@ import { PageHeader } from "@/components/shared/page-header";
 import { BrandKitForm } from "@/components/brand/brand-kit-form";
 import { VOICES } from "@/lib/tts/voices";
 import { MUSIC_TRACKS } from "@/lib/music/library";
-import { PLANS } from "@/lib/plans";
+import { effectivePlanDef } from "@/lib/plans";
 
 export const metadata: Metadata = { title: "Charte de marque" };
 export const dynamic = "force-dynamic";
 
 export default async function BrandPage() {
   const [workspace, user] = await Promise.all([getCurrentWorkspace(), getCurrentUser()]);
+  const plan = effectivePlanDef(user);
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader title="Charte de marque" description="Réglages par défaut appliqués à chaque nouveau projet : couleurs, polices, style de sous-titres, voix, filigrane et ton." />
@@ -34,8 +35,8 @@ export default async function BrandPage() {
         }}
         voices={VOICES.map((v) => ({ id: v.id, name: v.name, premium: v.premium, style: v.style }))}
         tracks={MUSIC_TRACKS.map((t) => ({ id: t.id, name: t.name }))}
-        premiumAllowed={PLANS[user.plan].premiumVoices}
-        watermarkForced={PLANS[user.plan].watermark}
+        premiumAllowed={plan.premiumVoices}
+        watermarkForced={plan.watermark}
       />
     </div>
   );

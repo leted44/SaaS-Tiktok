@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { publishRequestSchema } from "@/lib/validations";
-import { PLANS } from "@/lib/plans";
+import { effectivePlanDef } from "@/lib/plans";
 import { executePublishJob } from "@/lib/publish";
 import { guard, type ActionResult } from "@/server/action-result";
 
@@ -19,7 +19,7 @@ export async function schedulePublish(input: unknown): Promise<ActionResult<{ pu
 
     const scheduledAt = data.scheduledAt ? new Date(data.scheduledAt) : new Date();
     const isFuture = scheduledAt.getTime() > Date.now() + 60_000;
-    if (isFuture && !PLANS[user.plan].scheduling) throw new Error("La programmation des publications est disponible à partir du forfait Créateur.");
+    if (isFuture && !effectivePlanDef(user).scheduling) throw new Error("La programmation des publications est disponible à partir du forfait Créateur.");
 
     const job = await prisma.publishJob.create({
       data: {

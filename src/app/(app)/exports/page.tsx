@@ -3,7 +3,7 @@ import { getExportsData } from "@/server/queries";
 import { PageHeader } from "@/components/shared/page-header";
 import { ExportsHub } from "@/components/exports/exports-hub";
 import { integrations } from "@/lib/env";
-import { PLANS } from "@/lib/plans";
+import { effectivePlanDef } from "@/lib/plans";
 import { queueStats } from "@/lib/render/queue";
 
 export const metadata: Metadata = { title: "Exports & publication" };
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ExportsPage({ searchParams }: { searchParams: Promise<{ connected?: string; error?: string }> }) {
   const [params, data, stats] = await Promise.all([searchParams, getExportsData(), queueStats()]);
-  const plan = PLANS[data.user.plan];
+  const plan = effectivePlanDef(data.user);
   return (
     <div className="mx-auto max-w-7xl">
       <PageHeader title="Centre d'exports & de publication" description={`File de rendu : ${stats.queued} en attente · ${stats.processing} en cours. Téléchargez vos MP4 ou programmez des publications sur toutes les plateformes.`} />

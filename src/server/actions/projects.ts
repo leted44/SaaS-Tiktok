@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { getCurrentWorkspace } from "@/server/queries";
 import { createProjectSchema, projectEditorStateSchema, scriptEditSchema, scenesSchema, parseJson } from "@/lib/validations";
-import { PLANS } from "@/lib/plans";
+import { effectivePlanDef } from "@/lib/plans";
 import { guard, type ActionResult } from "@/server/action-result";
 import { assembleFullText, heuristicScores } from "@/lib/ai/script-generator";
 import { countWords } from "@/lib/utils";
@@ -17,10 +17,10 @@ export async function createProject(input: unknown): Promise<ActionResult<{ id: 
     const user = await requireUser();
     const data = createProjectSchema.parse(input);
     const dbUser = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
-    const limit = PLANS[dbUser.plan].maxProjects;
-    if (limit > 0) {
+    const planDef = effectivePlanDef(dbUser);
+    if (planDef.maxProjects > 0) {
       const count = await prisma.project.count({ where: { userId: user.id } });
-      if (count >= limit) throw new Error(`Votre forfait ${PLANS[dbUser.plan].name} autorise ${limit} projets. Passez à un forfait supérieur pour en créer davantage.`);
+      if (count >= planDef.maxProjects) throw new Error(`Votre forfait ${planDef.name} autorise ${planDef.maxProjects} projets. Passez à un forfait supérieur pour en créer davantage.`);
     }
     const workspace = await getCurrentWorkspace();
     const project = await prisma.project.create({
