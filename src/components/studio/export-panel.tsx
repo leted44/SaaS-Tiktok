@@ -92,7 +92,7 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
       {!hasVoiceover && hasScript && <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">Pas encore de voix off — le rendu sera silencieux avec un timing de sous-titres estimé. Générez-en une dans l'onglet Audio pour un meilleur résultat.</p>}
 
       {activeRender ? (
-        <div className="surface p-4">
+        <div className="surface min-w-0 overflow-hidden p-4">
           <div className="flex items-center justify-between"><p className="text-sm font-semibold">Rendu en cours…</p><StatusBadge status={live?.status ?? activeRender.status} /></div>
           <Progress value={live?.progress ?? activeRender.progress} className="mt-3 h-2" indicatorClassName="bg-brand-gradient" />
           <ol className="mt-4 space-y-1.5">
@@ -108,7 +108,7 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
             })}
           </ol>
           <p className="mt-3 text-[11px] text-muted-foreground">Les rendus s'exécutent dans le worker en arrière-plan. Vous pouvez quitter cette page.</p>
-          {live?.status === "FAILED" && live.error && <p className="mt-3 whitespace-pre-wrap rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-[11px] text-red-200">{live.error}</p>}
+          {live?.status === "FAILED" && live.error && <p className="mt-3 whitespace-pre-wrap break-words rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-[11px] text-red-200">{live.error}</p>}
         </div>
       ) : (
         <Button className="w-full" size="lg" variant="gradient" onClick={render} loading={loading} disabled={!hasScript || credits < cost}>
@@ -128,7 +128,7 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
           <Label>Rendus récents</Label>
           <ul className="mt-2 space-y-2">
             {renders.map((r) => (
-              <li key={r.id} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-2">
+              <li key={r.id} className="min-w-0 overflow-hidden rounded-lg border border-white/[0.06] bg-white/[0.02] p-2">
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-8 shrink-0 overflow-hidden rounded bg-white/5">{r.thumbnailUrl && <img src={r.thumbnailUrl} alt="" className="h-full w-full object-cover" />}</div>
                   <div className="min-w-0 flex-1"><p className="text-xs font-medium">{r.width}×{r.height}</p><p className="text-[11px] text-muted-foreground">{relativeTime(r.createdAt)} · {r.creditsCharged} cr</p></div>
@@ -140,7 +140,7 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
                     </>
                   )}
                 </div>
-                {r.status === "FAILED" && r.error && <p className="mt-2 whitespace-pre-wrap rounded border border-red-500/30 bg-red-500/10 p-2 text-[11px] text-red-200">{r.error}</p>}
+                {r.status === "FAILED" && r.error && <p className="mt-2 whitespace-pre-wrap break-words rounded border border-red-500/30 bg-red-500/10 p-2 text-[11px] text-red-200">{r.error}</p>}
                 {r.timings && <RenderTimings t={r.timings} />}
               </li>
             ))}
