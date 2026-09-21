@@ -7,7 +7,6 @@ import type { PlayerRef } from "@remotion/player";
 import { FileText, Captions, Layers, Music2, Film, ArrowLeft, Check, Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -135,8 +134,17 @@ export function Studio(props: StudioProps) {
           )}
         </div>
 
-        <div className="surface flex max-h-[calc(100vh-140px)] flex-col xl:sticky xl:top-24">
-          <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
+        {/*
+          The height cap and inner scrolling are desktop-only on purpose. On a
+          phone they made the editor a short, fixed-height box with its own
+          scrollbar inside an already-scrolling page: the tab with the most
+          content (Export) got trapped in it, and Radix's ScrollArea viewport —
+          which lays its content out as a table — stopped long strings from
+          wrapping, widening the page past the viewport. Below xl the panel is
+          just a block that grows, and the page scrolls.
+        */}
+        <div className="surface flex min-w-0 flex-col xl:sticky xl:top-24 xl:max-h-[calc(100vh-140px)]">
+          <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="border-b border-white/[0.05] p-3">
               <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="script" aria-label="Script" className="flex-col gap-0.5 px-1 py-1 text-[11px] sm:flex-row sm:text-xs"><FileText /><span>Script</span></TabsTrigger>
@@ -146,8 +154,8 @@ export function Studio(props: StudioProps) {
                 <TabsTrigger value="export" aria-label="Export" className="flex-col gap-0.5 px-1 py-1 text-[11px] sm:flex-row sm:text-xs"><Film /><span>Export</span></TabsTrigger>
               </TabsList>
             </div>
-            <ScrollArea className="min-h-0 flex-1">
-              <div className="p-4">
+            <div className="min-h-0 min-w-0 flex-1 xl:overflow-y-auto">
+              <div className="min-w-0 p-4">
                 <TabsContent value="script" className="mt-0">
                   <ScriptPanel projectId={project.id} scripts={scripts} activeScriptId={activeScriptId} selectedScene={selectedScene} onSelectScene={(i) => { setSelectedScene(i); if (i !== null && liveProps.scenes[i]) playerRef.current?.seekTo(Math.round((liveProps.scenes[i].startMs / 1000) * liveProps.fps)); }} aiConfigured={integrations.ai} />
                 </TabsContent>
@@ -189,7 +197,7 @@ export function Studio(props: StudioProps) {
                   <ExportPanel projectId={project.id} renders={renders} planLimits={planLimits} credits={user.credits} hasScript={Boolean(activeScript)} hasVoiceover={Boolean(voiceover?.audioUrl)} dirty={dirty} scriptId={activeScript?.id ?? null} socialCopy={activeScript?.socialCopy ?? null} hashtags={activeScript?.hashtags ?? []} aiConfigured={integrations.ai} />
                 </TabsContent>
               </div>
-            </ScrollArea>
+            </div>
           </Tabs>
         </div>
       </div>

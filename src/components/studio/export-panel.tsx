@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Film, Download, Send, Lock, Coins, Subtitles, AlertTriangle } from "lucide-react";
+import { Film, Download, Send, Lock, Coins, Subtitles, AlertTriangle, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { enqueueRender } from "@/server/actions/renders";
 import { RENDER_STEPS } from "@/lib/render/queue";
+import { summarizeRenderError } from "@/lib/render/errors";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
 import type { SocialCopy } from "@/lib/social/captions";
 import type { StudioRender, StudioProps, RenderTimingsView } from "@/components/studio/types";
@@ -38,6 +39,7 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
   const [loading, setLoading] = useState(false);
   const activeRender = renders.find((r) => r.status === "QUEUED" || r.status === "PROCESSING") ?? null;
   const [live, setLive] = useState<Live | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeRender) { setLive(null); return; }
@@ -57,6 +59,20 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
     const t = setInterval(poll, 3000);
     return () => { stopped = true; clearInterval(t); };
   }, [activeRender, router]);
+
+  /** Clear one entry from the render history — failed attempts pile up fast. */
+  async function removeRender(id: string) {
+    setRemoving(id);
+    try {
+      const res = await fetch(`/api/renders/${id}`, { method: "DELETE" });
+      if (!res.ok) { const body = await res.json().catch(() => ({})); throw new Error(body.error ?? "Suppression impossible"); }
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Suppression impossible");
+    } finally {
+      setRemoving(null);
+    }
+  }
 
   const cost = planLimits.costs[resolution];
   const RES_RANK = { "720p": 0, "1080p": 1, "4K": 2 };
@@ -108,7 +124,7 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
             })}
           </ol>
           <p className="mt-3 text-[11px] text-muted-foreground">Les rendus s'exécutent dans le worker en arrière-plan. Vous pouvez quitter cette page.</p>
-          {live?.status === "FAILED" && live.error && <p className="mt-3 whitespace-pre-wrap break-words rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-[11px] text-red-200">{live.error}</p>}
+          {live?.status === "FAILED" && live.error && <RenderError raw={live.error} />}
         </div>
       ) : (
         <Button className="w-full" size="lg" variant="gradient" onClick={render} loading={loading} disabled={!hasScript || credits < cost}>
@@ -139,14 +155,40 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
                       <Button asChild size="icon-sm" variant="ghost"><Link href="/exports"><Send /></Link></Button>
                     </>
                   )}
+                  {r.status !== "QUEUED" && r.status !== "PROCESSING" && (
+                    <Button size="icon-sm" variant="ghost" className="text-muted-foreground hover:text-red-300" aria-label="Retirer de l'historique" onClick={() => removeRender(r.id)} disabled={removing === r.id}>
+                      {removing === r.id ? <Loader2 className="animate-spin" /> : <Trash2 />}
+                    </Button>
+                  )}
                 </div>
-                {r.status === "FAILED" && r.error && <p className="mt-2 whitespace-pre-wrap break-words rounded border border-red-500/30 bg-red-500/10 p-2 text-[11px] text-red-200">{r.error}</p>}
+                {r.status === "FAILED" && r.error && <RenderError raw={r.error} />}
                 {r.timings && <RenderTimings t={r.timings} />}
               </li>
             ))}
           </ul>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * A failed render, explained.
+ *
+ * The raw text is a Lambda stack trace: useful when something needs diagnosing,
+ * unreadable otherwise, and — being one unbroken several-hundred-character
+ * string — able to stretch the page wider than a phone screen. Show the plain
+ * summary; keep the original one tap away, hard-wrapped and height-capped so it
+ * can never set the layout's width again.
+ */
+function RenderError({ raw }: { raw: string }) {
+  return (
+    <div className="mt-2 min-w-0 overflow-hidden rounded border border-red-500/30 bg-red-500/10 p-2">
+      <p className="text-[11px] text-red-200">{summarizeRenderError(raw)}</p>
+      <details className="mt-1.5">
+        <summary className="cursor-pointer text-[11px] text-red-200/60">Détail technique</summary>
+        <pre className="mt-1.5 max-h-40 overflow-auto whitespace-pre-wrap break-all text-[10px] leading-snug text-red-200/70">{raw}</pre>
+      </details>
     </div>
   );
 }

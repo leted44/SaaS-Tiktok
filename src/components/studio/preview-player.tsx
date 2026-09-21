@@ -32,6 +32,11 @@ export const PreviewPlayer = forwardRef<PlayerRef, Props>(function PreviewPlayer
         clickToPlay
         spaceKeyToPlayOrPause
         showVolumeControls
+        // A phone has no pointer to move, so the control bar's idle-hide timer
+        // fires and never resets: playback starts and there is then no visible
+        // way to stop it. Pin the bar open instead.
+        alwaysShowControls
+        hideControlsWhenPointerDoesntMove={false}
         acknowledgeRemotionLicense
       />
     </div>

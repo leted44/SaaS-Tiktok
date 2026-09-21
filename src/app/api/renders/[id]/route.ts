@@ -57,3 +57,23 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   const stepLabel = RENDER_STEPS.find((s) => s.key === job.step)?.label ?? job.step;
   return NextResponse.json({ ...job, stepLabel });
 }
+
+/**
+ * Remove a render from the history. Only a finished one: deleting a job that a
+ * Lambda render is still writing to would orphan that render with nothing left
+ * to record its result.
+ */
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await params;
+
+  const job = await prisma.renderJob.findFirst({ where: { id, userId: session.user.id }, select: { id: true, status: true } });
+  if (!job) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
+  if (job.status === "QUEUED" || job.status === "PROCESSING") {
+    return NextResponse.json({ error: "Ce rendu est encore en cours — attendez qu'il se termine." }, { status: 409 });
+  }
+
+  await prisma.renderJob.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
+}
