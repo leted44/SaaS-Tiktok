@@ -269,6 +269,13 @@ model Project {
   thumbnailUrl   String?
   activeScriptId String?
 
+  // A multi-part series. Each episode is its own project, because the editor
+  // state a video needs (visual layers, captions, music) lives here and is not
+  // shared between episodes — they have different scenes of different lengths.
+  seriesId      String?
+  episodeNumber Int?
+  episodeTotal  Int?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -281,6 +288,7 @@ model Project {
 
   @@index([workspaceId])
   @@index([userId, updatedAt])
+  @@index([seriesId, episodeNumber])
 }
 
 model Script {

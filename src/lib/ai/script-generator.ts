@@ -6,7 +6,7 @@ import type { GenerateScriptInput } from "@/lib/validations";
 import { normalizeSocialCopy, socialCopyFields } from "@/lib/ai/caption-generator";
 import { countWords } from "@/lib/utils";
 
-const scriptOutputSchema = z.object({
+export const scriptOutputSchema = z.object({
   title: z.string().describe("Short, punchy internal title for the video (max 8 words)"),
   hook: z.string().describe("The first 1-2 sentences spoken. Must stop the scroll in under 3 seconds."),
   alternativeHooks: z.array(z.string()).describe("3 alternative hooks with different angles"),
@@ -46,7 +46,7 @@ export interface ScriptGenerationResult {
   outputTokens: number;
 }
 
-const SYSTEM_PROMPT = `You are ClipForge's short-form video strategist. You write scripts for TikTok, Instagram Reels and YouTube Shorts that maximize watch-time and shares.
+export const SCRIPT_SYSTEM_PROMPT = `You are ClipForge's short-form video strategist. You write scripts for TikTok, Instagram Reels and YouTube Shorts that maximize watch-time and shares.
 
 Principles you always apply:
 - The hook is spoken in the first 3 seconds and creates an open loop, a bold claim, or a specific curiosity gap. No "Hey guys", no "In this video".
@@ -103,7 +103,7 @@ export async function generateScript(
     response = await anthropic.messages.parse({
       model,
       max_tokens: 16000,
-      system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+      system: [{ type: "text", text: SCRIPT_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: buildUserPrompt(input, brand) }],
       output_config: { format: zodOutputFormat(scriptOutputSchema), effort: "medium" },
     });
@@ -138,7 +138,7 @@ function clampScore(n: number) {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
-function normalizeScript(s: GeneratedScript): GeneratedScript {
+export function normalizeScript(s: GeneratedScript): GeneratedScript {
   return {
     ...s,
     hashtags: s.hashtags.map((h) => h.replace(/^#/, "").replace(/\s+/g, "")).filter(Boolean).slice(0, 12),

@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { ScoreRing } from "@/components/shared/score-ring";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { saveScriptEdits, setActiveScript } from "@/server/actions/projects";
+import { SeriesDialog } from "@/components/studio/series-dialog";
 import type { StudioScript } from "@/components/studio/types";
 import { countWords, cn } from "@/lib/utils";
 import { nanoid } from "nanoid";
@@ -23,9 +24,11 @@ interface Props {
   selectedScene: number | null;
   onSelectScene: (i: number | null) => void;
   aiConfigured: boolean;
+  /** Credit price of one generated script — zero for accounts that aren't charged. */
+  scriptCost: number;
 }
 
-export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene, onSelectScene, aiConfigured }: Props) {
+export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene, onSelectScene, aiConfigured, scriptCost }: Props) {
   const router = useRouter();
   const active = scripts.find((s) => s.id === activeScriptId) ?? scripts[0] ?? null;
   const [draft, setDraft] = useState(active);
@@ -83,8 +86,9 @@ export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene,
           <SelectTrigger className="w-40"><History className="mr-1 h-3.5 w-3.5 text-muted-foreground" /><SelectValue /></SelectTrigger>
           <SelectContent>{scripts.map((s) => <SelectItem key={s.id} value={s.id}>v{s.version} · {new Date(s.createdAt).toLocaleDateString("fr-FR")} · ⚡{s.viralityScore}</SelectItem>)}</SelectContent>
         </Select>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button asChild size="sm" variant="secondary" disabled={!aiConfigured}><Link href={`/scripts?project=${projectId}&topic=${encodeURIComponent(draft.title)}`}><RefreshCw /> Régénérer</Link></Button>
+          <SeriesDialog scriptId={active.id} costPerEpisode={scriptCost} aiConfigured={aiConfigured} />
           <Button size="sm" variant="gradient" onClick={save} loading={saving} disabled={!dirty}><Save /> Enregistrer la version</Button>
         </div>
       </div>

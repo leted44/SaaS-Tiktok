@@ -84,7 +84,7 @@ export interface StudioProps {
   renders: StudioRender[];
   previewProps: ShortVideoProps | null;
   user: { credits: number; plan: string };
-  planLimits: { watermark: boolean; maxResolution: "720p" | "1080p" | "4K"; premiumVoices: boolean; voiceCloning: boolean; costs: { "720p": number; "1080p": number; "4K": number; voicePer30s: number; voiceClone: number; socialCopy: number } };
+  planLimits: { watermark: boolean; maxResolution: "720p" | "1080p" | "4K"; premiumVoices: boolean; voiceCloning: boolean; costs: { "720p": number; "1080p": number; "4K": number; voicePer30s: number; voiceClone: number; socialCopy: number; script: number } };
   voices: { id: string; name: string; style: string; gender: string; language: string; premium: boolean }[];
   customVoice: { name: string; sampleUrl: string } | null;
   tracks: { id: string; name: string; mood: string; url: string; premium: boolean }[];
