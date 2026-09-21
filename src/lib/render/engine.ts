@@ -45,6 +45,16 @@ export interface RenderEngine {
   render(job: RenderJob, props: ShortVideoProps, opts?: RenderOptions): Promise<RenderOutput | null>;
 }
 
+/**
+ * Encoding settings shared by both engines. CRF 21 with the `faster` x264 preset
+ * is a deliberate trade: every target platform (TikTok, Reels, Shorts) re-encodes
+ * the upload anyway, so the extra bitrate and encoder passes that CRF 18 at the
+ * `medium` preset buys are thrown away downstream while costing render time on
+ * every single chunk.
+ */
+const SOCIAL_CRF = 21;
+const SOCIAL_X264_PRESET = "faster" as const;
+
 let cachedBundle: { serveUrl: string; builtAt: number } | null = null;
 
 /**
@@ -88,7 +98,8 @@ export const localRemotionEngine: RenderEngine = {
       codec: "h264",
       outputLocation: outPath,
       inputProps,
-      crf: 18,
+      crf: SOCIAL_CRF,
+      x264Preset: SOCIAL_X264_PRESET,
       audioBitrate: "192k",
       chromiumOptions: { gl: "angle" },
       onProgress: ({ progress }) => {
@@ -205,13 +216,17 @@ export const lambdaRemotionEngine: RenderEngine = {
         composition: job.compositionId,
         inputProps,
         codec: "h264",
-        crf: 18,
+        crf: SOCIAL_CRF,
+        x264Preset: SOCIAL_X264_PRESET,
         privacy: "public",
         maxRetries: 1,
-        // Chunk size trades two failure modes against each other: too many chunks
-        // trips a new AWS account's low concurrency quota, too few makes a single
-        // chunk outlast the function timeout. ~6 chunks for a 35s video sits between.
-        framesPerLambda: 200,
+        // framesPerLambda is deliberately left unset. Remotion sizes chunks from
+        // the frame count (~20 frames each, so ~51 lambdas for a 34s video); the
+        // 200 that used to be hardcoded here collapsed that to 6, and since the
+        // wall-clock time of a render is the time of its *slowest* chunk, one
+        // expensive scene landing inside a 200-frame chunk held the whole render
+        // hostage — measured at 317s out of 323s on a 34s video. Chunks are
+        // cheap: assembly of those 6 took 0.2s, and retries were zero.
         outName: `${job.id}.mp4`,
       });
       renderId = started.renderId;

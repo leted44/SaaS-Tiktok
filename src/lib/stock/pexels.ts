@@ -49,14 +49,26 @@ interface PexelsVideo {
 }
 
 /**
- * Pick the smallest mp4 rendition at least as tall as the target, so Lambda
- * downloads the least data that still fills a 9:16 frame without upscaling.
+ * Pick the smallest mp4 rendition tall enough to fill a 9:16 frame, but never a
+ * 4K one.
+ *
+ * The ceiling is the point: Pexels lists landscape clips at 1280/1440/2160, and
+ * "smallest at least 1280 tall" alone is satisfied by 1280 for portrait footage
+ * but forces UHD for landscape footage, whose height is the long side. Every
+ * frame of that UHD clip then has to be decoded on a Lambda's single vCPU to
+ * produce one 1080-wide frame — eight times the pixels of the output, thrown
+ * away immediately by the `cover` crop.
  */
-function pickVideoFile(files: PexelsVideoFile[], minHeight: number): PexelsVideoFile | null {
+function pickVideoFile(files: PexelsVideoFile[], minHeight: number, maxHeight: number): PexelsVideoFile | null {
   const mp4 = files.filter((f) => f.file_type === "video/mp4" && f.link);
   if (!mp4.length) return null;
   const sorted = [...mp4].sort((a, b) => (a.height ?? 0) - (b.height ?? 0));
-  return sorted.find((f) => (f.height ?? 0) >= minHeight) ?? sorted[sorted.length - 1];
+  const inRange = sorted.filter((f) => (f.height ?? 0) >= minHeight && (f.height ?? 0) <= maxHeight);
+  if (inRange.length) return inRange[0];
+  // Nothing in the window: prefer the largest rendition under the ceiling over
+  // an oversized one, and only fall back upwards when there is nothing below.
+  const under = sorted.filter((f) => (f.height ?? 0) <= maxHeight);
+  return under.length ? under[under.length - 1] : sorted[0];
 }
 
 async function pexels<T>(path: string, params: Record<string, string>): Promise<T> {
@@ -71,6 +83,10 @@ async function pexels<T>(path: string, params: Record<string, string>): Promise<
 
 /** Smallest rendition that still fills a 1080×1920 frame without upscaling. */
 const TARGET_HEIGHT = 1280;
+
+/** Hard ceiling on the source: renders output at most 2160 tall, and decoding a
+ * UHD source frame by frame is the single most expensive thing a render does. */
+const MAX_SOURCE_HEIGHT = 1920;
 
 /** Below this many portrait hits, the vertical pool is too thin to be relevant. */
 const MIN_PORTRAIT_RESULTS = 3;
@@ -101,7 +117,7 @@ export async function searchStock(query: string, type: "video" | "image", limit 
 
   const data = await pexels<{ videos: PexelsVideo[] }>("/videos/search", params);
   return data.videos.flatMap((v) => {
-    const file = pickVideoFile(v.video_files, TARGET_HEIGHT);
+    const file = pickVideoFile(v.video_files, TARGET_HEIGHT, MAX_SOURCE_HEIGHT);
     if (!file) return [];
     return [{
       id: `pexels-video-${v.id}`,
