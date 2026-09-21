@@ -27,12 +27,29 @@ export const VisualLayers: React.FC<{ layers: VisualLayer[] }> = ({ layers }) =>
           <Sequence key={layer.id} from={from} durationInFrames={duration} layout="none">
             <KenBurns layer={layer} durationInFrames={duration}>
               {layer.type === "image" && layer.src && (
-                <Img src={layer.src} style={{ width: "100%", height: "100%", objectFit: layer.fit }} />
+                <Img
+                  src={layer.src}
+                  style={{ width: "100%", height: "100%", objectFit: layer.fit }}
+                  // A user's own upload is fetched from Supabase Storage, not a CDN
+                  // built for hundreds of parallel readers — one Lambda invocation
+                  // hitting a slow response looks identical to a broken file, so a
+                  // single stalled fetch used to fail the whole render. Retrying
+                  // it here costs nothing when the file is fine.
+                  delayRenderRetries={3}
+                  delayRenderTimeoutInMilliseconds={15000}
+                />
               )}
               {layer.type === "video" && layer.src && (
                 // Phone cameras record HDR, and Remotion tone-maps every extracted
                 // frame by default — far too slow to finish inside a Lambda timeout.
-                <OffthreadVideo src={layer.src} muted toneMapped={false} style={{ width: "100%", height: "100%", objectFit: layer.fit }} />
+                <OffthreadVideo
+                  src={layer.src}
+                  muted
+                  toneMapped={false}
+                  style={{ width: "100%", height: "100%", objectFit: layer.fit }}
+                  delayRenderRetries={3}
+                  delayRenderTimeoutInMilliseconds={15000}
+                />
               )}
               {layer.type === "color" && <AbsoluteFill style={{ background: layer.color ?? "#000" }} />}
               {layer.type === "gradient" && (

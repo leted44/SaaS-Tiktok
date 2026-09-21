@@ -219,7 +219,11 @@ export const lambdaRemotionEngine: RenderEngine = {
         crf: SOCIAL_CRF,
         x264Preset: SOCIAL_X264_PRESET,
         privacy: "public",
-        maxRetries: 1,
+        // A chunk that still fails after OffthreadVideo/Img already retried the
+        // fetch internally (see VisualLayers.tsx) is worth one more full attempt
+        // — a fresh Lambda invocation is a fresh network path — before giving up
+        // and refunding the user's credits.
+        maxRetries: 2,
         // framesPerLambda is deliberately left unset. Remotion sizes chunks from
         // the frame count (~20 frames each, so ~51 lambdas for a 34s video); the
         // 200 that used to be hardcoded here collapsed that to 6, and since the
