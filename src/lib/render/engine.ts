@@ -259,7 +259,16 @@ export const lambdaRemotionEngine: RenderEngine = {
         // inside a 200-frame chunk. Widened only when an uploaded visual is
         // present, trading some of that speed for fewer chunks independently
         // fetching the same Supabase-hosted file — see hasOwnStorageVisual above.
-        framesPerLambda: hasOwnStorageVisual(props) ? 150 : undefined,
+        //
+        // 150 was too wide: a real render on 8×150-frame chunks hit the
+        // function's own 400s ceiling with 5 of 8 chunks still unfinished —
+        // framesPerLambda widens every chunk in the render, not just the one
+        // overlapping the uploaded clip, so it multiplied by eight the one
+        // thing this was meant to shrink. 50 still roughly halves the
+        // concurrent downloads of the same file (about 3 chunks touch a
+        // typical clip instead of up to 9), while keeping any one chunk's
+        // total work — its own download plus decode — small next to 400s.
+        framesPerLambda: hasOwnStorageVisual(props) ? 50 : undefined,
         outName: `${job.id}.mp4`,
       });
       renderId = started.renderId;
