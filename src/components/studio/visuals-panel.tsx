@@ -12,6 +12,7 @@ import type { VisualLayer, VisualPoolItem, BackgroundStyle } from "@/lib/validat
 import type { ShortVideoProps } from "@/lib/render/props";
 import { Progress } from "@/components/ui/progress";
 import { uploadAsset } from "@/lib/assets/upload-client";
+import { probeVideo, convertVideo, canConvert } from "@/lib/assets/video-compat";
 import { cn } from "@/lib/utils";
 import { nanoid } from "nanoid";
 
@@ -36,7 +37,7 @@ interface Props {
 export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, stockConfigured, selectedScene, onLayersChange, onPoolChange, onBackgroundChange }: Props) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [uploading, setUploading] = useState<{ name: string; done: number; total: number; fraction: number } | null>(null);
+  const [uploading, setUploading] = useState<{ name: string; done: number; total: number; fraction: number; phase: "converting" | "uploading" } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [autoFilling, setAutoFilling] = useState(false);
   const [stockQuery, setStockQuery] = useState("");
@@ -50,20 +51,47 @@ export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, s
     fetch("/api/assets/upload").then((r) => r.json()).then((j) => setAssets((j.assets ?? []).filter((a: Asset) => a.type === "IMAGE" || a.type === "VIDEO"))).catch(() => undefined);
   }, []);
 
+  /**
+   * Convert a recording the render pipeline cannot read, using the phone's own
+   * decoder. Returns the original untouched when it is already fine, and also
+   * when conversion is impossible — an upload that might fail at render time
+   * is still better than refusing the file outright.
+   */
+  async function makeRenderable(file: File, report: (fraction: number) => void): Promise<File> {
+    if (!file.type.startsWith("video/")) return file;
+    const probe = await probeVideo(file).catch(() => null);
+    if (!probe || probe.renderable) return file;
+
+    if (!canConvert()) {
+      toast.warning(`${file.name} est en ${probe.label}, que le moteur de rendu ne sait pas lire, et ce navigateur ne peut pas le convertir. Le rendu échouera probablement sur ce clip.`);
+      return file;
+    }
+
+    toast.info(`${file.name} est en ${probe.label} — conversion en cours, cela prend à peu près la durée du clip.`);
+    try {
+      return await convertVideo(file, report);
+    } catch (err) {
+      toast.warning(`Conversion impossible (${err instanceof Error ? err.message : "erreur"}). Le fichier est envoyé tel quel.`);
+      return file;
+    }
+  }
+
   async function upload(files: FileList | File[]) {
     const list = Array.from(files);
     // Serial on purpose: a phone's upstream is the bottleneck, so uploading in
     // parallel only splits the same bandwidth and makes every file slower.
-    for (const [i, file] of list.entries()) {
-      setUploading({ name: file.name, done: i, total: list.length, fraction: 0 });
+    for (const [i, original] of list.entries()) {
+      const track = (phase: "converting" | "uploading") => (fraction: number) =>
+        setUploading({ name: original.name, done: i, total: list.length, fraction, phase });
+      track("converting")(0);
       try {
-        const asset = await uploadAsset(file, {
-          onProgress: (fraction) => setUploading({ name: file.name, done: i, total: list.length, fraction }),
-        });
+        const file = await makeRenderable(original, track("converting"));
+        track("uploading")(0);
+        const asset = await uploadAsset(file, { onProgress: track("uploading") });
         setAssets((a) => [asset, ...a]);
         addLayer(asset);
       } catch (err) {
-        toast.error(`${file.name} : ${err instanceof Error ? err.message : "échec de l'envoi"}`);
+        toast.error(`${original.name} : ${err instanceof Error ? err.message : "échec de l'envoi"}`);
       }
     }
     setUploading(null);
@@ -343,7 +371,7 @@ export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, s
               <Progress value={Math.round(uploading.fraction * 100)} className="h-1.5" indicatorClassName="bg-brand-gradient" />
               <p className="mt-1.5 truncate text-[11px] text-muted-foreground">
                 {uploading.total > 1 && `${uploading.done + 1}/${uploading.total} · `}
-                {uploading.name} · {Math.round(uploading.fraction * 100)} %
+                {uploading.phase === "converting" ? "Conversion" : "Envoi"} · {uploading.name} · {Math.round(uploading.fraction * 100)} %
               </p>
             </div>
           )}
