@@ -8,11 +8,25 @@ import { putFile, storageKey } from "@/lib/storage";
 import { updateRenderProgress } from "@/lib/render/queue";
 import { shortVideoPropsSchema, type ShortVideoProps } from "@/lib/render/props";
 
+/** Where a Lambda render actually spent its time, as reported by Remotion itself. */
+export interface RenderTimings {
+  totalMs: number | null;
+  renderFramesMs: number | null;
+  encodeMs: number | null;
+  combineMs: number | null;
+  chunks: number;
+  lambdasInvoked: number;
+  retries: number;
+  /** Frame range that took longest, which is what sets the wall-clock time. */
+  slowestChunk: { frames: [number, number]; ms: number } | null;
+}
+
 export interface RenderOutput {
   outputUrl: string;
   thumbnailUrl: string | null;
   sizeBytes: number;
   durationMs: number;
+  timings?: RenderTimings;
 }
 
 export interface RenderOptions {
@@ -108,6 +122,38 @@ interface LambdaRenderState {
   bucketName: string;
 }
 
+/** The subset of Remotion's progress payload this engine reads. */
+interface LambdaProgress {
+  done: boolean;
+  overallProgress: number;
+  fatalErrorEncountered: boolean;
+  errors: { message: string }[];
+  outputFile: string | null;
+  outputSizeInBytes: number | null;
+  timeToFinish: number | null;
+  timeToRenderFrames: number | null;
+  timeToEncode: number | null;
+  timeToCombine: number | null;
+  chunks: number;
+  lambdasInvoked: number;
+  retriesInfo: unknown[];
+  mostExpensiveFrameRanges: { frameRange: [number, number]; timeInMilliseconds: number }[] | null;
+}
+
+function readTimings(progress: LambdaProgress): RenderTimings {
+  const slowest = progress.mostExpensiveFrameRanges?.[0] ?? null;
+  return {
+    totalMs: progress.timeToFinish,
+    renderFramesMs: progress.timeToRenderFrames,
+    encodeMs: progress.timeToEncode,
+    combineMs: progress.timeToCombine,
+    chunks: progress.chunks,
+    lambdasInvoked: progress.lambdasInvoked,
+    retries: progress.retriesInfo?.length ?? 0,
+    slowestChunk: slowest ? { frames: slowest.frameRange, ms: slowest.timeInMilliseconds } : null,
+  };
+}
+
 const POLL_INTERVAL_MS = 3000;
 /** Safely under any realistic serverless function timeout (Vercel Hobby caps around 60s). */
 const POLL_BUDGET_MS = 45_000;
@@ -139,7 +185,7 @@ export const lambdaRemotionEngine: RenderEngine = {
     // the env config carries.
     const lambda = (await import("@remotion/lambda/client")) as unknown as {
       renderMediaOnLambda: (args: Record<string, unknown>) => Promise<{ renderId: string; bucketName: string }>;
-      getRenderProgress: (args: Record<string, unknown>) => Promise<{ done: boolean; overallProgress: number; fatalErrorEncountered: boolean; errors: { message: string }[]; outputFile: string | null; outputSizeInBytes: number | null }>;
+      getRenderProgress: (args: Record<string, unknown>) => Promise<LambdaProgress>;
     };
 
     const state = job.logs as unknown as LambdaRenderState | null;
@@ -186,7 +232,13 @@ export const lambdaRemotionEngine: RenderEngine = {
       if (progress.fatalErrorEncountered) throw new Error(progress.errors.map((e) => e.message).join("; ") || "Lambda render failed");
       await updateRenderProgress(job.id, "rendering", 25 + progress.overallProgress * 70);
       if (progress.done && progress.outputFile) {
-        return { outputUrl: progress.outputFile, thumbnailUrl: null, sizeBytes: progress.outputSizeInBytes ?? 0, durationMs: Math.round((job.durationInFrames / job.fps) * 1000) };
+        return {
+          outputUrl: progress.outputFile,
+          thumbnailUrl: null,
+          sizeBytes: progress.outputSizeInBytes ?? 0,
+          durationMs: Math.round((job.durationInFrames / job.fps) * 1000),
+          timings: readTimings(progress),
+        };
       }
       if (Date.now() >= deadline) return null;
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));

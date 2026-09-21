@@ -13,7 +13,7 @@ import { enqueueRender } from "@/server/actions/renders";
 import { RENDER_STEPS } from "@/lib/render/queue";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
 import type { SocialCopy } from "@/lib/social/captions";
-import type { StudioRender, StudioProps } from "@/components/studio/types";
+import type { StudioRender, StudioProps, RenderTimingsView } from "@/components/studio/types";
 import { cn, relativeTime } from "@/lib/utils";
 
 interface Props {
@@ -141,11 +141,34 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
                   )}
                 </div>
                 {r.status === "FAILED" && r.error && <p className="mt-2 whitespace-pre-wrap rounded border border-red-500/30 bg-red-500/10 p-2 text-[11px] text-red-200">{r.error}</p>}
+                {r.timings && <RenderTimings t={r.timings} />}
               </li>
             ))}
           </ul>
         </div>
       )}
     </div>
+  );
+}
+
+const secs = (ms: number | null) => (ms === null ? "—" : `${(ms / 1000).toFixed(1)}s`);
+
+/** Remotion's own breakdown of where a render spent its time. */
+function RenderTimings({ t }: { t: RenderTimingsView }) {
+  return (
+    <details className="mt-2 rounded border border-white/[0.06] bg-white/[0.02] p-2">
+      <summary className="cursor-pointer text-[11px] text-muted-foreground">Détail du temps · total {secs(t.totalMs)}</summary>
+      <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground">
+        <li>Rendu des images : <span className="text-foreground">{secs(t.renderFramesMs)}</span></li>
+        <li>Encodage : <span className="text-foreground">{secs(t.encodeMs)}</span></li>
+        <li>Assemblage : <span className="text-foreground">{secs(t.combineMs)}</span></li>
+        <li>Morceaux : <span className="text-foreground">{t.chunks}</span> · Lambdas : <span className="text-foreground">{t.lambdasInvoked}</span> · Relances : <span className={t.retries > 0 ? "text-amber-300" : "text-foreground"}>{t.retries}</span></li>
+        {t.slowestChunk && (
+          <li>
+            Morceau le plus lent : <span className="text-foreground">images {t.slowestChunk.frames[0]}–{t.slowestChunk.frames[1]} en {secs(t.slowestChunk.ms)}</span>
+          </li>
+        )}
+      </ul>
+    </details>
   );
 }

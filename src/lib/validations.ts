@@ -164,6 +164,18 @@ export const publishRequestSchema = z.object({
   scheduledAt: z.string().datetime().optional(),
 });
 
+/** Timing breakdown a finished Lambda render stores on the job, for diagnosing slow renders. */
+export const renderTimingsSchema = z.object({
+  totalMs: z.number().nullable(),
+  renderFramesMs: z.number().nullable(),
+  encodeMs: z.number().nullable(),
+  combineMs: z.number().nullable(),
+  chunks: z.number(),
+  lambdasInvoked: z.number(),
+  retries: z.number(),
+  slowestChunk: z.object({ frames: z.tuple([z.number(), z.number()]), ms: z.number() }).nullable(),
+});
+
 export const projectEditorStateSchema = z.object({
   captionStyle: captionStyleSchema,
   visualLayers: visualLayersSchema,

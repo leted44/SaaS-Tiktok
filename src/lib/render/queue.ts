@@ -77,10 +77,23 @@ export async function updateRenderProgress(jobId: string, step: RenderStepKey, p
   });
 }
 
-export async function completeRenderJob(jobId: string, result: { outputUrl: string; thumbnailUrl: string | null; sizeBytes: number; durationMs: number }) {
+export async function completeRenderJob(jobId: string, result: { outputUrl: string; thumbnailUrl: string | null; sizeBytes: number; durationMs: number; timings?: unknown }) {
+  const { timings, ...stored } = result;
   const job = await prisma.renderJob.update({
     where: { id: jobId },
-    data: { status: RenderStatus.COMPLETED, progress: 100, step: "done", completedAt: new Date(), lockedAt: null, lockedBy: null, ...result },
+    data: {
+      status: RenderStatus.COMPLETED,
+      progress: 100,
+      step: "done",
+      completedAt: new Date(),
+      lockedAt: null,
+      lockedBy: null,
+      // Replaces the engine state the job no longer needs: a finished job is
+      // never resumed, and this is what makes a slow render diagnosable
+      // without digging through CloudWatch.
+      logs: timings ? (timings as Prisma.InputJsonValue) : Prisma.DbNull,
+      ...stored,
+    },
   });
   await prisma.project.update({ where: { id: job.projectId }, data: { status: "RENDERED", thumbnailUrl: result.thumbnailUrl ?? undefined } });
   return job;

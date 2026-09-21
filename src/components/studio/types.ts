@@ -49,9 +49,21 @@ export interface StudioVoiceover {
   createdAt: string;
 }
 
+export interface RenderTimingsView {
+  totalMs: number | null;
+  renderFramesMs: number | null;
+  encodeMs: number | null;
+  combineMs: number | null;
+  chunks: number;
+  lambdasInvoked: number;
+  retries: number;
+  slowestChunk: { frames: [number, number]; ms: number } | null;
+}
+
 export interface StudioRender {
   id: string;
   status: string;
+  timings: RenderTimingsView | null;
   progress: number;
   step: string;
   outputUrl: string | null;

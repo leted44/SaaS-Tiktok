@@ -8,7 +8,7 @@ import { sortVoices, VOICES } from "@/lib/tts/voices";
 import { customVoiceDefinition, CUSTOM_VOICE_ID } from "@/lib/tts/resolve-voice";
 import { MUSIC_TRACKS } from "@/lib/music/library";
 import { integrations } from "@/lib/env";
-import { parseJson, scenesSchema, captionStyleSchema, visualLayersSchema, backgroundStyleSchema } from "@/lib/validations";
+import { parseJson, scenesSchema, captionStyleSchema, visualLayersSchema, backgroundStyleSchema, renderTimingsSchema } from "@/lib/validations";
 import { fallbackSocialCopy, socialCopySchema } from "@/lib/social/captions";
 import { presetStyle } from "@/lib/captions/presets";
 
@@ -73,7 +73,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
       }))}
       activeScriptId={activeScript?.id ?? null}
       voiceover={activeVoiceover ? { id: activeVoiceover.id, audioUrl: activeVoiceover.audioUrl, durationMs: activeVoiceover.durationMs, voiceId: activeVoiceover.voiceId, provider: activeVoiceover.provider, createdAt: activeVoiceover.createdAt.toISOString() } : null}
-      renders={project.renderJobs.map((r) => ({ id: r.id, status: r.status, progress: r.progress, step: r.step, outputUrl: r.outputUrl, thumbnailUrl: r.thumbnailUrl, error: r.error, createdAt: r.createdAt.toISOString(), width: r.width, height: r.height, creditsCharged: r.creditsCharged }))}
+      renders={project.renderJobs.map((r) => ({ id: r.id, status: r.status, progress: r.progress, step: r.step, outputUrl: r.outputUrl, thumbnailUrl: r.thumbnailUrl, error: r.error, createdAt: r.createdAt.toISOString(), width: r.width, height: r.height, creditsCharged: r.creditsCharged, timings: parseJson(renderTimingsSchema.nullable(), r.logs, null) }))}
       previewProps={previewProps}
       user={{ credits: user.credits, plan: user.plan }}
       planLimits={{
