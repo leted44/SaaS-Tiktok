@@ -46,6 +46,24 @@ export const visualLayerSchema = z.object({
 export type VisualLayer = z.infer<typeof visualLayerSchema>;
 export const visualLayersSchema = z.array(visualLayerSchema);
 
+/**
+ * A visual the project has chosen but is not showing on any scene right now.
+ *
+ * Stock clips exist nowhere else in the app — an uploaded file is listed under
+ * the user's assets, but a Pexels pick is only ever a URL inside a layer. Take
+ * that layer off a scene and the clip is unreachable, which is why moving a
+ * visual between scenes used to mean losing it.
+ */
+export const visualPoolItemSchema = z.object({
+  id: z.string().min(1),
+  type: z.enum(["image", "video"]),
+  src: z.string().min(1),
+  thumbnailUrl: z.string().nullable().default(null),
+  label: z.string().max(120).nullable().default(null),
+});
+export type VisualPoolItem = z.infer<typeof visualPoolItemSchema>;
+export const visualPoolSchema = z.array(visualPoolItemSchema);
+
 export const backgroundStyleSchema = z.object({
   type: z.enum(["gradient", "solid", "grain"]).default("gradient"),
   colors: z.array(z.string()).min(1).max(3).default(["#0F0A1F", "#3B0F7A"]),
@@ -179,6 +197,7 @@ export const renderTimingsSchema = z.object({
 export const projectEditorStateSchema = z.object({
   captionStyle: captionStyleSchema,
   visualLayers: visualLayersSchema,
+  visualPool: visualPoolSchema,
   backgroundStyle: backgroundStyleSchema,
   musicTrackId: z.string().nullable(),
   musicUrl: z.string().nullable(),

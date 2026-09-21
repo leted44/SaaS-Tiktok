@@ -36,6 +36,7 @@ export function Studio(props: StudioProps) {
   const [state, setState] = useState<EditorState>({
     captionStyle: project.captionStyle,
     visualLayers: project.visualLayers,
+    visualPool: project.visualPool,
     backgroundStyle: project.backgroundStyle,
     musicTrackId: project.musicTrackId,
     musicUrl: project.musicUrl,
@@ -154,7 +155,7 @@ export function Studio(props: StudioProps) {
                   <CaptionsPanel style={state.captionStyle} onChange={(s) => patch("captionStyle", s)} />
                 </TabsContent>
                 <TabsContent value="visuals" className="mt-0">
-                  <VisualsPanel layers={state.visualLayers} background={state.backgroundStyle} scenes={liveProps.scenes} sceneQueries={sceneQueries} stockConfigured={integrations.stock} selectedScene={selectedScene} onLayersChange={(l) => patch("visualLayers", l)} onBackgroundChange={(b) => patch("backgroundStyle", b)} />
+                  <VisualsPanel layers={state.visualLayers} background={state.backgroundStyle} scenes={liveProps.scenes} sceneQueries={sceneQueries} stockConfigured={integrations.stock} selectedScene={selectedScene} pool={state.visualPool} onPoolChange={(p) => patch("visualPool", p)} onLayersChange={(l) => patch("visualLayers", l)} onBackgroundChange={(b) => patch("backgroundStyle", b)} />
                 </TabsContent>
                 <TabsContent value="audio" className="mt-0">
                   <AudioPanel

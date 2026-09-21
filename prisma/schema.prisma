@@ -47,8 +47,8 @@ enum ProjectStatus {
 }
 
 enum AspectRatio {
-  VERTICAL   // 9:16  1080x1920
-  SQUARE     // 1:1   1080x1080
+  VERTICAL // 9:16  1080x1920
+  SQUARE // 1:1   1080x1080
   HORIZONTAL // 16:9  1920x1080
 }
 
@@ -122,13 +122,13 @@ model User {
   cancelAtPeriodEnd    Boolean            @default(false)
 
   // Credits
-  credits           Int      @default(0)
-  lifetimeCredits   Int      @default(0)
-  creditsResetAt    DateTime?
+  credits         Int       @default(0)
+  lifetimeCredits Int       @default(0)
+  creditsResetAt  DateTime?
 
   onboardedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   accounts           Account[]
   sessions           Session[]
@@ -208,21 +208,21 @@ model Workspace {
   slug    String @unique
 
   // Brand kit
-  primaryColor     String  @default("#7C3AED")
-  secondaryColor   String  @default("#FFFFFF")
-  accentColor      String  @default("#F59E0B")
-  fontFamily       String  @default("Inter")
-  captionPreset    String  @default("hormozi")
-  logoUrl          String?
-  watermarkUrl     String?
-  watermarkOpacity Float   @default(0.8)
-  watermarkPosition String @default("bottom-right")
-  defaultVoiceId   String  @default("rachel")
-  defaultLanguage  String  @default("fr")
-  defaultAspect    AspectRatio @default(VERTICAL)
-  defaultMusicId   String?
-  toneOfVoice      String? @db.Text
-  targetAudience   String? @db.Text
+  primaryColor      String      @default("#7C3AED")
+  secondaryColor    String      @default("#FFFFFF")
+  accentColor       String      @default("#F59E0B")
+  fontFamily        String      @default("Inter")
+  captionPreset     String      @default("hormozi")
+  logoUrl           String?
+  watermarkUrl      String?
+  watermarkOpacity  Float       @default(0.8)
+  watermarkPosition String      @default("bottom-right")
+  defaultVoiceId    String      @default("rachel")
+  defaultLanguage   String      @default("fr")
+  defaultAspect     AspectRatio @default(VERTICAL)
+  defaultMusicId    String?
+  toneOfVoice       String?     @db.Text
+  targetAudience    String?     @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -238,32 +238,35 @@ model Workspace {
 // ───────────────────────────── Projects ─────────────────────────────
 
 model Project {
-  id          String        @id @default(cuid())
-  workspaceId String
-  userId      String
-  title       String
-  topic       String?       @db.Text
-  niche       String?
-  sourceUrl   String?
-  status      ProjectStatus @default(DRAFT)
-  aspectRatio AspectRatio   @default(VERTICAL)
-  targetDurationSec Int     @default(45)
-  language    String        @default("en")
+  id                String        @id @default(cuid())
+  workspaceId       String
+  userId            String
+  title             String
+  topic             String?       @db.Text
+  niche             String?
+  sourceUrl         String?
+  status            ProjectStatus @default(DRAFT)
+  aspectRatio       AspectRatio   @default(VERTICAL)
+  targetDurationSec Int           @default(45)
+  language          String        @default("en")
 
-  voiceId         String?
-  musicTrackId    String?
+  voiceId      String?
+  musicTrackId String?
   // A track uploaded by the user. Takes precedence over musicTrackId so the
   // bundled library stays selectable without losing a custom upload.
-  musicUrl        String?
-  musicName       String?
-  musicVolume     Float   @default(0.18)
+  musicUrl     String?
+  musicName    String?
+  musicVolume  Float   @default(0.18)
 
   // Editor state — caption styling + visual layers (validated by zod in src/lib/validations)
   captionStyle    Json?
   visualLayers    Json?
+  // Chosen visuals not currently placed on a scene. Keeps a stock clip
+  // reachable after it is taken off a scene — the URL exists nowhere else.
+  visualPool      Json?
   backgroundStyle Json?
 
-  thumbnailUrl String?
+  thumbnailUrl   String?
   activeScriptId String?
 
   createdAt DateTime @default(now())
@@ -286,23 +289,23 @@ model Script {
   userId    String
   version   Int    @default(1)
 
-  title            String
-  hook             String   @db.Text
-  scenes           Json     // Array<{ id, text, visualDescription, brollQuery, durationSec, emphasis[] }>
-  callToAction     String   @db.Text
-  fullText         String   @db.Text
-  hashtags         String[]
-  socialCopy       Json?    // { tiktok: string, instagram: string }
-  viralityScore    Int      @default(0)
-  hookScore        Int      @default(0)
-  retentionScore   Int      @default(0)
-  clarityScore     Int      @default(0)
-  scoreRationale   String?  @db.Text
-  estimatedDurationSec Int  @default(0)
-  wordCount        Int      @default(0)
-  alternativeHooks String[]
+  title                String
+  hook                 String   @db.Text
+  scenes               Json // Array<{ id, text, visualDescription, brollQuery, durationSec, emphasis[] }>
+  callToAction         String   @db.Text
+  fullText             String   @db.Text
+  hashtags             String[]
+  socialCopy           Json? // { tiktok: string, instagram: string }
+  viralityScore        Int      @default(0)
+  hookScore            Int      @default(0)
+  retentionScore       Int      @default(0)
+  clarityScore         Int      @default(0)
+  scoreRationale       String?  @db.Text
+  estimatedDurationSec Int      @default(0)
+  wordCount            Int      @default(0)
+  alternativeHooks     String[]
 
-  model      String?
+  model        String?
   inputTokens  Int?
   outputTokens Int?
 
@@ -316,21 +319,21 @@ model Script {
 }
 
 model Voiceover {
-  id        String          @id @default(cuid())
-  projectId String
-  scriptId  String
-  userId    String
-  provider  String          @default("elevenlabs")
-  voiceId   String
-  status    VoiceoverStatus @default(PENDING)
-  audioUrl  String?
-  durationMs Int?
-  wordTimings Json?         // Array<{ word, startMs, endMs, sceneIndex }>
-  stability  Float          @default(0.5)
-  similarity Float          @default(0.75)
-  speed      Float          @default(1.0)
-  error     String?         @db.Text
-  createdAt DateTime        @default(now())
+  id          String          @id @default(cuid())
+  projectId   String
+  scriptId    String
+  userId      String
+  provider    String          @default("elevenlabs")
+  voiceId     String
+  status      VoiceoverStatus @default(PENDING)
+  audioUrl    String?
+  durationMs  Int?
+  wordTimings Json? // Array<{ word, startMs, endMs, sceneIndex }>
+  stability   Float           @default(0.5)
+  similarity  Float           @default(0.75)
+  speed       Float           @default(1.0)
+  error       String?         @db.Text
+  createdAt   DateTime        @default(now())
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   script  Script  @relation(fields: [scriptId], references: [id], onDelete: Cascade)
@@ -363,32 +366,32 @@ model Asset {
 // ───────────────────────────── Rendering ─────────────────────────────
 
 model RenderJob {
-  id        String       @id @default(cuid())
-  projectId String
-  userId    String
-  status    RenderStatus @default(QUEUED)
-  progress  Int          @default(0)   // 0-100
-  step      String       @default("queued")
-  engine    String       @default("local")
-  priority  Int          @default(0)
-  attempts  Int          @default(0)
-  maxAttempts Int        @default(3)
+  id          String       @id @default(cuid())
+  projectId   String
+  userId      String
+  status      RenderStatus @default(QUEUED)
+  progress    Int          @default(0) // 0-100
+  step        String       @default("queued")
+  engine      String       @default("local")
+  priority    Int          @default(0)
+  attempts    Int          @default(0)
+  maxAttempts Int          @default(3)
 
-  inputProps    Json      // Full Remotion composition props snapshot
-  compositionId String    @default("ShortVideo")
-  width         Int       @default(1080)
-  height        Int       @default(1920)
-  fps           Int       @default(30)
-  durationInFrames Int    @default(0)
-  watermark     Boolean   @default(false)
+  inputProps       Json // Full Remotion composition props snapshot
+  compositionId    String  @default("ShortVideo")
+  width            Int     @default(1080)
+  height           Int     @default(1920)
+  fps              Int     @default(30)
+  durationInFrames Int     @default(0)
+  watermark        Boolean @default(false)
 
-  outputUrl    String?
-  thumbnailUrl String?
-  sizeBytes    Int?
-  durationMs   Int?
-  creditsCharged Int      @default(0)
-  error        String?    @db.Text
-  logs         Json?
+  outputUrl      String?
+  thumbnailUrl   String?
+  sizeBytes      Int?
+  durationMs     Int?
+  creditsCharged Int     @default(0)
+  error          String? @db.Text
+  logs           Json?
 
   lockedAt    DateTime?
   lockedBy    String?
@@ -469,10 +472,10 @@ model CreditTransaction {
   id           String       @id @default(cuid())
   userId       String
   type         CreditTxType
-  amount       Int          // positive = grant, negative = consumption
+  amount       Int // positive = grant, negative = consumption
   balanceAfter Int
   description  String
-  referenceId  String?      // projectId / renderJobId / stripe invoice id
+  referenceId  String? // projectId / renderJobId / stripe invoice id
   createdAt    DateTime     @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

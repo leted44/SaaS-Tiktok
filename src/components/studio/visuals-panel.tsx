@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Upload, Image as ImageIcon, Film, Trash2, Layers, Palette, Loader2, Sparkles, Search } from "lucide-react";
+import { Upload, Image as ImageIcon, Film, Trash2, Layers, Palette, Loader2, Sparkles, Search, Ban, LibraryBig } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import type { VisualLayer, BackgroundStyle } from "@/lib/validations";
+import type { VisualLayer, VisualPoolItem, BackgroundStyle } from "@/lib/validations";
 import type { ShortVideoProps } from "@/lib/render/props";
 import { Progress } from "@/components/ui/progress";
 import { uploadAsset } from "@/lib/assets/upload-client";
@@ -20,6 +20,8 @@ interface StockResult { id: string; type: "image" | "video"; url: string; thumbn
 
 interface Props {
   layers: VisualLayer[];
+  /** Visuals this project has chosen, whether or not they sit on a scene. */
+  pool: VisualPoolItem[];
   background: BackgroundStyle;
   scenes: ShortVideoProps["scenes"];
   /** Stock search terms suggested by the AI, one per composition scene. */
@@ -27,10 +29,11 @@ interface Props {
   stockConfigured: boolean;
   selectedScene: number | null;
   onLayersChange: (l: VisualLayer[]) => void;
+  onPoolChange: (p: VisualPoolItem[]) => void;
   onBackgroundChange: (b: BackgroundStyle) => void;
 }
 
-export function VisualsPanel({ layers, background, scenes, sceneQueries, stockConfigured, selectedScene, onLayersChange, onBackgroundChange }: Props) {
+export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, stockConfigured, selectedScene, onLayersChange, onPoolChange, onBackgroundChange }: Props) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [uploading, setUploading] = useState<{ name: string; done: number; total: number; fraction: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -66,6 +69,34 @@ export function VisualsPanel({ layers, background, scenes, sceneQueries, stockCo
   }
 
   const sceneLabel = (i: number) => (i === 0 ? "au hook" : i === scenes.length - 1 ? "au CTA" : `à la scène ${i}`);
+  /** Bare name, for anything that is not a sentence fragment (dropdowns, chips). */
+  const sceneName = (i: number) => (i === 0 ? "Hook" : i === scenes.length - 1 ? "CTA" : `Scène ${i}`);
+
+  /**
+   * Remember visuals for this project, keyed by src.
+   *
+   * Takes a list rather than one item on purpose: every caller builds its new
+   * pool from the `pool` of the current render, so two separate calls in one
+   * handler would each start from the same array and the second would discard
+   * the first. One call, one commit.
+   */
+  function remember(...items: (Omit<VisualPoolItem, "id"> & { id?: string })[]) {
+    const seen = new Set(pool.map((p) => p.src));
+    const fresh: VisualPoolItem[] = [];
+    for (const item of items) {
+      if (!item.src || seen.has(item.src)) continue;
+      seen.add(item.src);
+      fresh.push({ ...item, id: item.id ?? nanoid(8) });
+    }
+    if (fresh.length) onPoolChange([...fresh, ...pool]);
+  }
+
+  /** What currently sits on a scene, as a pool entry — so replacing it never loses it. */
+  function occupantOf(sceneIdx: number): (Omit<VisualPoolItem, "id"> & { id?: string })[] {
+    const current = layers.find((l) => l.sceneIndex === sceneIdx);
+    if (!current?.src || (current.type !== "image" && current.type !== "video")) return [];
+    return [{ type: current.type, src: current.src, thumbnailUrl: null, label: null }];
+  }
 
   function buildLayer(src: string, type: "image" | "video", sceneIdx: number): VisualLayer | null {
     const scene = scenes[sceneIdx];
@@ -76,8 +107,10 @@ export function VisualsPanel({ layers, background, scenes, sceneQueries, stockCo
 
   function addLayer(asset: Asset) {
     const sceneIdx = selectedScene ?? 0;
-    const layer = buildLayer(asset.url, asset.type === "VIDEO" ? "video" : "image", sceneIdx);
+    const type = asset.type === "VIDEO" ? "video" : "image";
+    const layer = buildLayer(asset.url, type, sceneIdx);
     if (!layer) return toast.error("Générez d'abord un script pour que les scènes existent.");
+    remember(...occupantOf(sceneIdx), { type, src: asset.url, thumbnailUrl: null, label: asset.name });
     onLayersChange([...layers.filter((l) => l.sceneIndex !== sceneIdx), layer]);
     toast.success(`B-roll ajouté ${sceneLabel(sceneIdx)}`);
   }
@@ -86,8 +119,46 @@ export function VisualsPanel({ layers, background, scenes, sceneQueries, stockCo
     const sceneIdx = selectedScene ?? 0;
     const layer = buildLayer(result.url, result.type, sceneIdx);
     if (!layer) return toast.error("Générez d'abord un script pour que les scènes existent.");
+    remember(...occupantOf(sceneIdx), { type: result.type, src: result.url, thumbnailUrl: result.thumbnailUrl, label: result.author });
     onLayersChange([...layers.filter((l) => l.sceneIndex !== sceneIdx), layer]);
     toast.success(`Visuel ajouté ${sceneLabel(sceneIdx)}`);
+  }
+
+  /** Place a remembered visual on the selected scene, replacing what is there. */
+  function placeFromPool(item: VisualPoolItem) {
+    const sceneIdx = selectedScene ?? 0;
+    const layer = buildLayer(item.src, item.type, sceneIdx);
+    if (!layer) return toast.error("Générez d'abord un script pour que les scènes existent.");
+    remember(...occupantOf(sceneIdx));
+    onLayersChange([...layers.filter((l) => l.sceneIndex !== sceneIdx), layer]);
+    toast.success(`Visuel placé ${sceneLabel(sceneIdx)}`);
+  }
+
+  /**
+   * Send a layer to another scene, swapping with whatever is already there
+   * rather than overwriting it — a swap loses nothing, and getting a visual
+   * onto the right scene should never cost you the one it displaces.
+   */
+  function moveLayer(id: string, target: number) {
+    const layer = layers.find((l) => l.id === id);
+    const to = scenes[target];
+    if (!layer || !to || layer.sceneIndex === target) return;
+    const from = layer.sceneIndex;
+    const occupant = layers.find((l) => l.sceneIndex === target && l.id !== id);
+    const origin = from === undefined ? null : scenes[from];
+
+    onLayersChange(
+      layers.map((l) => {
+        if (l.id === id) return { ...l, sceneIndex: target, startMs: to.startMs, endMs: to.endMs };
+        if (occupant && l.id === occupant.id && origin && from !== undefined) {
+          return { ...l, sceneIndex: from, startMs: origin.startMs, endMs: origin.endMs };
+        }
+        return l;
+      }),
+    );
+
+    if (occupant && origin && from !== undefined) toast.success(`${sceneName(from)} ↔ ${sceneName(target)} échangés`);
+    else toast.success(`Visuel déplacé vers ${sceneName(target)}`);
   }
 
   async function searchStock(query: string) {
@@ -122,17 +193,21 @@ export function VisualsPanel({ layers, background, scenes, sceneQueries, stockCo
 
       const used = new Set([...layers.map((l) => l.src), ...rejected]);
       const added: VisualLayer[] = [];
+      // Auto-filled picks are remembered too: without this they exist only as a
+      // URL inside a layer, and taking one off a scene puts it out of reach.
+      const remembered: VisualPoolItem[] = [];
       (json.matches as StockResult[][]).forEach((candidates, k) => {
         const fresh = candidates.filter((c) => !used.has(c.url));
         if (!fresh.length) return;
         const pick = fresh[0];
         used.add(pick.url);
         const layer = buildLayer(pick.url, pick.type, empty[k]);
-        if (layer) added.push(layer);
+        if (layer) { added.push(layer); remembered.push({ id: nanoid(8), type: pick.type, src: pick.url, thumbnailUrl: pick.thumbnailUrl, label: pick.author }); }
       });
 
       if (!added.length) return toast.error("Plus de visuel inédit pour ces scènes. Utilisez la recherche manuelle ci-dessus.");
       onLayersChange([...layers, ...added]);
+      remember(...remembered);
       const missing = empty.length - added.length;
       toast.success(
         `${added.length} visuel${added.length > 1 ? "s" : ""} ajouté${added.length > 1 ? "s" : ""}.` +
@@ -145,10 +220,26 @@ export function VisualsPanel({ layers, background, scenes, sceneQueries, stockCo
 
   const update = (id: string, patch: Partial<VisualLayer>) => onLayersChange(layers.map((l) => (l.id === id ? { ...l, ...patch } : l)));
 
+  /**
+   * Take a visual off its scene. Deliberately does NOT blacklist it: this used
+   * to be the only way to move a clip, so refusing it here meant the auto-fill
+   * actively avoided the very clip you were trying to reuse.
+   */
   function remove(id: string) {
-    const src = layers.find((l) => l.id === id)?.src;
-    if (src) setRejected((r) => new Set(r).add(src));
+    const layer = layers.find((l) => l.id === id);
+    if (layer?.src && (layer.type === "image" || layer.type === "video")) {
+      remember({ type: layer.type, src: layer.src, thumbnailUrl: null, label: null });
+    }
     onLayersChange(layers.filter((l) => l.id !== id));
+    toast.success("Retiré de la scène — le visuel reste dans la bibliothèque du projet.");
+  }
+
+  /** The explicit "not this one": drop it and stop the auto-fill proposing it. */
+  function banish(item: VisualPoolItem) {
+    setRejected((r) => new Set(r).add(item.src));
+    onPoolChange(pool.filter((p) => p.id !== item.id));
+    onLayersChange(layers.filter((l) => l.src !== item.src));
+    toast.success("Visuel écarté — il ne sera plus proposé automatiquement.");
   }
 
   return (
@@ -244,6 +335,49 @@ export function VisualsPanel({ layers, background, scenes, sceneQueries, stockCo
         )}
       </div>
 
+      {pool.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between">
+            <Label className="inline-flex items-center gap-1"><LibraryBig className="h-3 w-3" /> Bibliothèque du projet ({pool.length})</Label>
+            <span className="text-[11px] text-muted-foreground">Touchez pour placer sur la scène choisie</span>
+          </div>
+          <ul className="mt-2 grid grid-cols-4 gap-2">
+            {pool.map((item) => {
+              const inUse = layers.some((l) => l.src === item.src);
+              return (
+                <li key={item.id} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => placeFromPool(item)}
+                    title={item.label ?? item.src}
+                    className={cn("group relative block aspect-[9/16] w-full overflow-hidden rounded-lg border bg-white/5", inUse ? "border-primary/60" : "border-white/10 hover:border-white/25")}
+                  >
+                    {item.thumbnailUrl ? (
+                      <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+                    ) : item.type === "video" ? (
+                      <video src={item.src} muted preload="metadata" className="h-full w-full object-cover" />
+                    ) : (
+                      <img src={item.src} alt="" className="h-full w-full object-cover" />
+                    )}
+                    <span className="absolute bottom-1 right-1 rounded bg-black/60 p-0.5 text-white">{item.type === "video" ? <Film className="h-3 w-3" /> : <ImageIcon className="h-3 w-3" />}</span>
+                    {inUse && <span className="absolute bottom-1 left-1 h-2 w-2 rounded-full bg-primary" title="Déjà placé sur une scène" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => banish(item)}
+                    aria-label="Écarter ce visuel"
+                    title="Écarter : le retire et cesse de le proposer"
+                    className="absolute -right-1 -top-1 rounded-full border border-white/10 bg-background p-1 text-muted-foreground hover:text-red-300"
+                  >
+                    <Ban className="h-3 w-3" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       <div>
         <Label className="inline-flex items-center gap-1"><Layers className="h-3 w-3" /> Calques ({layers.length})</Label>
         {layers.length === 0 ? (
@@ -254,7 +388,17 @@ export function VisualsPanel({ layers, background, scenes, sceneQueries, stockCo
               <li key={l.id} className="flex items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-2">
                 <div className="h-12 w-8 shrink-0 overflow-hidden rounded bg-white/5">{l.type === "video" ? <video src={l.src} muted className="h-full w-full object-cover" /> : l.src ? <img src={l.src} alt="" className="h-full w-full object-cover" /> : null}</div>
                 <div className="min-w-0 flex-1 space-y-1">
-                  <p className="truncate text-xs font-medium">{l.sceneIndex === 0 ? "Hook" : l.sceneIndex === scenes.length - 1 ? "CTA" : `Scène ${l.sceneIndex}`} · {(l.startMs / 1000).toFixed(1)}–{(l.endMs / 1000).toFixed(1)}s</p>
+                  <div className="flex items-center gap-1">
+                    <Select value={String(l.sceneIndex ?? 0)} onValueChange={(v) => moveLayer(l.id, Number(v))}>
+                      <SelectTrigger className="h-7 w-28 text-[11px]" aria-label="Scène du visuel"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {scenes.map((_, i) => (
+                          <SelectItem key={i} value={String(i)}>{sceneName(i)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="shrink-0 text-[11px] text-muted-foreground">{(l.startMs / 1000).toFixed(1)}–{(l.endMs / 1000).toFixed(1)}s</span>
+                  </div>
                   <div className="flex gap-1">
                     <Select value={l.kenBurns} onValueChange={(v) => update(l.id, { kenBurns: v as VisualLayer["kenBurns"] })}>
                       <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>

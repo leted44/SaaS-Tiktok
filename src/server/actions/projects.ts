@@ -72,6 +72,7 @@ export async function saveEditorState(projectId: string, input: unknown): Promis
       data: {
         captionStyle: state.captionStyle,
         visualLayers: state.visualLayers,
+        visualPool: state.visualPool,
         backgroundStyle: state.backgroundStyle,
         musicTrackId: state.musicTrackId,
         musicUrl: state.musicUrl,

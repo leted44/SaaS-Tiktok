@@ -1,4 +1,4 @@
-import type { CaptionStyle, VisualLayer, BackgroundStyle, Scene } from "@/lib/validations";
+import type { CaptionStyle, VisualLayer, VisualPoolItem, BackgroundStyle, Scene } from "@/lib/validations";
 import type { ShortVideoProps } from "@/lib/render/props";
 import type { SocialCopy } from "@/lib/social/captions";
 
@@ -17,6 +17,7 @@ export interface StudioProject {
   musicVolume: number;
   captionStyle: CaptionStyle;
   visualLayers: VisualLayer[];
+  visualPool: VisualPoolItem[];
   backgroundStyle: BackgroundStyle;
 }
 
@@ -93,6 +94,7 @@ export interface StudioProps {
 export interface EditorState {
   captionStyle: CaptionStyle;
   visualLayers: VisualLayer[];
+  visualPool: VisualPoolItem[];
   backgroundStyle: BackgroundStyle;
   musicTrackId: string | null;
   musicUrl: string | null;

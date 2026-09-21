@@ -8,7 +8,7 @@ import { sortVoices, VOICES } from "@/lib/tts/voices";
 import { customVoiceDefinition, CUSTOM_VOICE_ID } from "@/lib/tts/resolve-voice";
 import { MUSIC_TRACKS } from "@/lib/music/library";
 import { integrations } from "@/lib/env";
-import { parseJson, scenesSchema, captionStyleSchema, visualLayersSchema, backgroundStyleSchema, renderTimingsSchema } from "@/lib/validations";
+import { parseJson, scenesSchema, captionStyleSchema, visualLayersSchema, visualPoolSchema, backgroundStyleSchema, renderTimingsSchema } from "@/lib/validations";
 import { fallbackSocialCopy, socialCopySchema } from "@/lib/social/captions";
 import { presetStyle } from "@/lib/captions/presets";
 
@@ -50,6 +50,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         musicVolume: project.musicVolume,
         captionStyle: parseJson(captionStyleSchema, project.captionStyle, presetStyle(project.workspace.captionPreset)),
         visualLayers: parseJson(visualLayersSchema, project.visualLayers, []),
+        visualPool: parseJson(visualPoolSchema, project.visualPool, []),
         backgroundStyle: parseJson(backgroundStyleSchema, project.backgroundStyle, { type: "gradient", colors: [project.workspace.primaryColor, "#0B0714"], vignette: true, grain: true }),
       }}
       scripts={project.scripts.map((s) => ({
