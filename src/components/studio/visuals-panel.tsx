@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Upload, Image as ImageIcon, Film, Trash2, Layers, Palette, Loader2, Sparkles, Search, Ban, LibraryBig } from "lucide-react";
+import { Upload, Image as ImageIcon, Film, Trash2, Layers, Palette, Loader2, Sparkles, Search, Ban, LibraryBig, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,7 @@ interface Props {
 
 export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, stockConfigured, selectedScene, onLayersChange, onPoolChange, onBackgroundChange }: Props) {
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [uploading, setUploading] = useState<{ name: string; done: number; total: number; fraction: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [autoFilling, setAutoFilling] = useState(false);
@@ -66,6 +67,30 @@ export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, s
       }
     }
     setUploading(null);
+  }
+
+  /**
+   * Delete an uploaded file for good — the storage object and its record, not
+   * just this project's use of it. Removed from this project's own scenes and
+   * library right away; a *different* project that already placed the same
+   * clip on a scene keeps that reference and will show a broken visual there,
+   * since cleaning that up would mean scanning every project the user has.
+   */
+  async function deleteAsset(asset: Asset) {
+    if (!window.confirm(`Supprimer définitivement "${asset.name}" ? Il disparaîtra de votre bibliothèque. S'il est utilisé dans un autre projet, il n'y sera plus visible.`)) return;
+    setDeleting(asset.id);
+    try {
+      const res = await fetch(`/api/assets/${asset.id}`, { method: "DELETE" });
+      if (!res.ok) { const body = await res.json().catch(() => ({})); throw new Error(body.error ?? "Échec de la suppression"); }
+      setAssets((a) => a.filter((x) => x.id !== asset.id));
+      onLayersChange(layers.filter((l) => l.src !== asset.url));
+      onPoolChange(pool.filter((p) => p.src !== asset.url));
+      toast.success(`"${asset.name}" supprimé`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Échec de la suppression");
+    } finally {
+      setDeleting(null);
+    }
   }
 
   const sceneLabel = (i: number) => (i === 0 ? "au hook" : i === scenes.length - 1 ? "au CTA" : `à la scène ${i}`);
@@ -326,10 +351,22 @@ export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, s
         {assets.length > 0 && (
           <div className="mt-3 grid grid-cols-4 gap-2">
             {assets.slice(0, 16).map((a) => (
-              <button key={a.id} onClick={() => addLayer(a)} className="group relative aspect-square overflow-hidden rounded-lg border border-white/10 bg-white/5" title={a.name}>
-                {a.type === "VIDEO" ? <video src={a.url} muted className="h-full w-full object-cover" /> : <img src={a.url} alt="" className="h-full w-full object-cover" />}
-                <span className="absolute bottom-1 right-1 rounded bg-black/60 p-0.5 text-white">{a.type === "VIDEO" ? <Film className="h-3 w-3" /> : <ImageIcon className="h-3 w-3" />}</span>
-              </button>
+              <div key={a.id} className="relative">
+                <button onClick={() => addLayer(a)} disabled={deleting === a.id} className="group relative aspect-square w-full overflow-hidden rounded-lg border border-white/10 bg-white/5 disabled:opacity-40" title={a.name}>
+                  {a.type === "VIDEO" ? <video src={a.url} muted className="h-full w-full object-cover" /> : <img src={a.url} alt="" className="h-full w-full object-cover" />}
+                  <span className="absolute bottom-1 right-1 rounded bg-black/60 p-0.5 text-white">{a.type === "VIDEO" ? <Film className="h-3 w-3" /> : <ImageIcon className="h-3 w-3" />}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); void deleteAsset(a); }}
+                  disabled={deleting === a.id}
+                  aria-label={`Supprimer ${a.name}`}
+                  title="Supprimer définitivement"
+                  className="absolute -right-1 -top-1 rounded-full border border-white/10 bg-background p-1 text-muted-foreground hover:text-red-300 disabled:opacity-40"
+                >
+                  {deleting === a.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+                </button>
+              </div>
             ))}
           </div>
         )}
