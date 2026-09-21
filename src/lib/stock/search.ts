@@ -34,6 +34,32 @@ export async function searchStock(query: string, type: "video" | "image", limit 
   return results;
 }
 
+function dedupe(lists: StockResult[][], limit: number): StockResult[] {
+  const seen = new Set<string>();
+  return lists.flat().filter((r) => !seen.has(r.id) && seen.add(r.id)).slice(0, limit);
+}
+
+/**
+ * A search that widens itself instead of returning what a first, narrow pass
+ * found — the behaviour a person browsing manually expects (try harder before
+ * giving up), as opposed to `stockCandidates` below, which is tuned for
+ * unattended auto-fill and stops widening sooner. Kept as its own function
+ * because the two callers disagree on when "good enough" is reached, not
+ * because the widening logic itself differs.
+ */
+export async function browseStock(query: string, type: "video" | "image", limit = 16): Promise<StockResult[]> {
+  const portrait = await searchStock(query, type, limit, true);
+  if (portrait.length >= 6) return dedupe([portrait], limit);
+
+  // Both catalogs carry far less portrait footage than landscape, and a thin
+  // portrait result set is where off-topic matches come from. Widening the
+  // orientation keeps the subject right; `cover` crops the frame. Media type
+  // is left alone here — a person who picked "video" typed a query expecting
+  // video back, unlike auto-fill, which just needs any usable visual.
+  const wide = await searchStock(query, type, limit, false);
+  return dedupe([portrait, wide], limit);
+}
+
 /**
  * Top candidates for one scene, searching both catalogs and falling back to
  * the other media type when the preferred one comes up thin. Several are
@@ -41,23 +67,15 @@ export async function searchStock(query: string, type: "video" | "image", limit 
  * scene. A dead query yields an empty list rather than failing the whole batch.
  */
 export async function stockCandidates(query: string, prefer: "video" | "image" = "video", limit = 3): Promise<StockResult[]> {
-  const dedupe = (lists: StockResult[][]) => {
-    const seen = new Set<string>();
-    return lists.flat().filter((r) => !seen.has(r.id) && seen.add(r.id)).slice(0, limit);
-  };
-
   try {
     const portrait = await searchStock(query, prefer, limit, true);
-    if (portrait.length >= 3) return dedupe([portrait]);
+    if (portrait.length >= 3) return dedupe([portrait], limit);
 
-    // Both catalogs carry far less portrait footage than landscape, and a thin
-    // portrait result set is where off-topic matches come from. Widening the
-    // orientation keeps the subject right; `cover` crops the frame.
     const wide = await searchStock(query, prefer, limit, false);
-    const merged = dedupe([portrait, wide]);
+    const merged = dedupe([portrait, wide], limit);
     if (merged.length) return merged;
 
-    return dedupe([await searchStock(query, prefer === "video" ? "image" : "video", limit, false)]);
+    return dedupe([await searchStock(query, prefer === "video" ? "image" : "video", limit, false)], limit);
   } catch (err) {
     if (err instanceof StockError && err.code === "NOT_CONFIGURED") throw err;
     return [];

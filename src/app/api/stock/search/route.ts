@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { searchStock, stockCandidates, StockError } from "@/lib/stock/search";
+import { browseStock, stockCandidates, StockError } from "@/lib/stock/search";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,7 +27,7 @@ export async function GET(req: Request) {
   const type = searchParams.get("type") === "image" ? "image" : "video";
 
   try {
-    return NextResponse.json({ results: await searchStock(query, type) });
+    return NextResponse.json({ results: await browseStock(query, type) });
   } catch (err) {
     return errorResponse(err);
   }

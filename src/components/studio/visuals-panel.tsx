@@ -222,7 +222,7 @@ export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, s
       const json = await res.json();
       if (!res.ok) return toast.error(json.error ?? "Recherche impossible");
       setStockResults(json.results ?? []);
-      if (!json.results?.length) toast.info("Aucun résultat pour cette recherche.");
+      if (!json.results?.length) toast.info("Aucun résultat. Un terme très spécifique (un mouvement, une technique précise) n'existe souvent dans aucune banque d'images généraliste — essayez un mot plus large (ex. « callisthénie » plutôt que le nom exact d'une figure).");
     } finally {
       setSearching(false);
     }
