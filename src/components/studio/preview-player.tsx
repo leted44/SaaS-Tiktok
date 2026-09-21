@@ -37,6 +37,12 @@ export const PreviewPlayer = forwardRef<PlayerRef, Props>(function PreviewPlayer
         // way to stop it. Pin the bar open instead.
         alwaysShowControls
         hideControlsWhenPointerDoesntMove={false}
+        // Remotion's default deliberately registers a pause button with the
+        // OS/lock-screen media widget that does nothing when pressed — its own
+        // "prevent" mode. On Android that widget appears the moment preview
+        // audio plays, so its pause button looking real but doing nothing is
+        // exactly the dead-end this was. Wire it to the player's own pause.
+        browserMediaControlsBehavior={{ mode: "register-media-session" }}
         acknowledgeRemotionLicense
       />
     </div>
