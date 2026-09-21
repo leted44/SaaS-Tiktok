@@ -19,6 +19,11 @@ export const env = {
   elevenLabsModelId: read("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2"),
 
   pexelsApiKey: read("PEXELS_API_KEY"),
+  // A second, independent catalog. Pexels alone is thin on specific,
+  // non-generic subjects (a named gymnastics move, a niche craft) — Pixabay's
+  // library is curated differently and fills gaps Pexels leaves empty, not
+  // just duplicates it. Optional: stock search works with Pexels alone.
+  pixabayApiKey: read("PIXABAY_API_KEY"),
 
   storageDriver: read("STORAGE_DRIVER", "local") as "local" | "s3",
   s3: {

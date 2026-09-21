@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { searchStock, stockCandidates, StockError } from "@/lib/stock/pexels";
+import { searchStock, stockCandidates, StockError } from "@/lib/stock/search";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
