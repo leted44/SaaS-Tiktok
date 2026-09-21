@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles, Save, History, Plus, Trash2, GripVertical, Lightbulb, RefreshCw } from "lucide-react";
+import { Sparkles, Save, History, Plus, Trash2, GripVertical, Lightbulb, RefreshCw, ChevronDown, Hash, Gauge } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Section } from "@/components/ui/section";
 import { ScoreRing } from "@/components/shared/score-ring";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { saveScriptEdits, setActiveScript } from "@/server/actions/projects";
@@ -16,6 +17,8 @@ import { SeriesDialog } from "@/components/studio/series-dialog";
 import type { StudioScript } from "@/components/studio/types";
 import { countWords, cn } from "@/lib/utils";
 import { nanoid } from "nanoid";
+
+type Scene = StudioScript["scenes"][number];
 
 interface Props {
   projectId: string;
@@ -49,7 +52,7 @@ export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene,
   const dirty = JSON.stringify(draft) !== JSON.stringify(active);
   const words = countWords([draft.hook, ...draft.scenes.map((s) => s.text), draft.callToAction].join(" "));
 
-  const updateScene = (i: number, patch: Partial<StudioScript["scenes"][number]>) => setDraft({ ...draft, scenes: draft.scenes.map((s, k) => (k === i ? { ...s, ...patch } : s)) });
+  const updateScene = (i: number, patch: Partial<Scene>) => setDraft({ ...draft, scenes: draft.scenes.map((s, k) => (k === i ? { ...s, ...patch } : s)) });
   const removeScene = (i: number) => setDraft({ ...draft, scenes: draft.scenes.filter((_, k) => k !== i) });
   const addScene = (after: number) => {
     const scenes = [...draft.scenes];
@@ -80,26 +83,12 @@ export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene,
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Select value={active.id} onValueChange={switchVersion}>
-          <SelectTrigger className="w-40"><History className="mr-1 h-3.5 w-3.5 text-muted-foreground" /><SelectValue /></SelectTrigger>
-          <SelectContent>{scripts.map((s) => <SelectItem key={s.id} value={s.id}>v{s.version} · {new Date(s.createdAt).toLocaleDateString("fr-FR")} · ⚡{s.viralityScore}</SelectItem>)}</SelectContent>
-        </Select>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild size="sm" variant="secondary" disabled={!aiConfigured}><Link href={`/scripts?project=${projectId}&topic=${encodeURIComponent(draft.title)}`}><RefreshCw /> Régénérer</Link></Button>
-          <SeriesDialog scriptId={active.id} costPerEpisode={scriptCost} aiConfigured={aiConfigured} />
-          <Button size="sm" variant="gradient" onClick={save} loading={saving} disabled={!dirty}><Save /> Enregistrer la version</Button>
-        </div>
+    <div className="space-y-3">
+      {/* The writing surface comes first; Enregistrer stays reachable at all times because it is the only way the edits survive. */}
+      <div className="flex items-center gap-2">
+        <span className="min-w-0 truncate text-[11px] text-muted-foreground">v{active.version} · {words} mots · ~{Math.round(words / 2.6)}s</span>
+        <Button size="sm" variant="gradient" onClick={save} loading={saving} disabled={!dirty} className="ml-auto shrink-0"><Save /> Enregistrer</Button>
       </div>
-
-      <div className="surface flex items-center justify-around p-4">
-        <ScoreRing value={active.viralityScore} size={72} label="Viralité" />
-        <ScoreRing value={active.hookScore} size={56} label="Hook" />
-        <ScoreRing value={active.retentionScore} size={56} label="Rétention" />
-        <ScoreRing value={active.clarityScore} size={56} label="Clarté" />
-      </div>
-      {active.scoreRationale && <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-xs leading-relaxed text-muted-foreground"><Lightbulb className="mr-1 inline h-3.5 w-3.5 text-amber-300" />{active.scoreRationale}</p>}
 
       <div className="space-y-1.5"><Label>Titre</Label><Input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></div>
 
@@ -107,35 +96,25 @@ export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene,
         <Label className="text-brand-300">Hook · 3 premières secondes</Label>
         <Textarea value={draft.hook} onChange={(e) => setDraft({ ...draft, hook: e.target.value })} rows={2} className="font-medium" />
         {active.alternativeHooks.length > 0 && (
-          <div className="space-y-1 pt-1">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Alternatives</p>
-            {active.alternativeHooks.map((h) => (
-              <button key={h} type="button" onClick={() => setDraft({ ...draft, hook: h })} className="block w-full rounded-md border border-white/[0.06] px-2.5 py-1.5 text-left text-xs text-muted-foreground transition hover:border-primary/40 hover:text-foreground">{h}</button>
-            ))}
-          </div>
+          <AlternativeHooks hooks={active.alternativeHooks} onPick={(h) => setDraft({ ...draft, hook: h })} />
         )}
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between"><Label>Scènes ({draft.scenes.length})</Label><span className="text-xs text-muted-foreground">{words} mots · ~{Math.round(words / 2.6)}s</span></div>
+      <div className="space-y-2 pt-1">
+        <Label>Scènes ({draft.scenes.length})</Label>
         {draft.scenes.map((s, i) => (
-          <div key={s.id} onClick={() => onSelectScene(i + 1)} className={cn("group rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 transition", selectedScene === i + 1 && "border-primary/50 bg-primary/10")}>
-            <div className="mb-2 flex items-center justify-between">
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><GripVertical className="h-3.5 w-3.5" /> Scène {i + 1}</span>
-              <div className="flex gap-0.5 opacity-0 transition group-hover:opacity-100">
-                <Button size="icon-sm" variant="ghost" onClick={(e) => { e.stopPropagation(); move(i, -1); }} disabled={i === 0}>↑</Button>
-                <Button size="icon-sm" variant="ghost" onClick={(e) => { e.stopPropagation(); move(i, 1); }} disabled={i === draft.scenes.length - 1}>↓</Button>
-                <Button size="icon-sm" variant="ghost" onClick={(e) => { e.stopPropagation(); addScene(i); }}><Plus /></Button>
-                <Button size="icon-sm" variant="ghost" className="text-red-300" onClick={(e) => { e.stopPropagation(); removeScene(i); }} disabled={draft.scenes.length <= 1}><Trash2 /></Button>
-              </div>
-            </div>
-            <Textarea value={s.text} onChange={(e) => updateScene(i, { text: e.target.value })} rows={2} placeholder="Narration…" />
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <Input value={s.brollQuery} onChange={(e) => updateScene(i, { brollQuery: e.target.value })} placeholder="Recherche de b-roll" className="h-8 text-xs" />
-              <Input value={s.onScreenText ?? ""} onChange={(e) => updateScene(i, { onScreenText: e.target.value || null })} placeholder="Texte à l'écran (optionnel)" className="h-8 text-xs" />
-            </div>
-            <p className="mt-1.5 text-[11px] italic text-muted-foreground">{s.visualDescription}</p>
-          </div>
+          <SceneRow
+            key={s.id}
+            scene={s}
+            index={i}
+            total={draft.scenes.length}
+            selected={selectedScene === i + 1}
+            onSelect={() => onSelectScene(i + 1)}
+            onPatch={(patch) => updateScene(i, patch)}
+            onMove={(dir) => move(i, dir)}
+            onAdd={() => addScene(i)}
+            onRemove={() => removeScene(i)}
+          />
         ))}
       </div>
 
@@ -144,11 +123,127 @@ export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene,
         <Textarea value={draft.callToAction} onChange={(e) => setDraft({ ...draft, callToAction: e.target.value })} rows={2} />
       </div>
 
-      <div className="space-y-1.5">
-        <Label>Hashtags</Label>
-        <Input value={draft.hashtags.map((h) => `#${h}`).join(" ")} onChange={(e) => setDraft({ ...draft, hashtags: e.target.value.split(/[\s,]+/).map((h) => h.replace(/^#/, "")).filter(Boolean) })} />
-        <p className="text-[11px] text-muted-foreground">Réserve générale. Les hashtags prêts à publier, adaptés à TikTok et Instagram, sont dans l'onglet Export.</p>
+      <div className="space-y-3 pt-2">
+        <Section title="Hashtags" icon={Hash} count={draft.hashtags.length} summary={draft.hashtags.length ? draft.hashtags.slice(0, 3).map((h) => `#${h}`).join(" ") : "Aucun"}>
+          <div className="space-y-1.5">
+            <Input value={draft.hashtags.map((h) => `#${h}`).join(" ")} onChange={(e) => setDraft({ ...draft, hashtags: e.target.value.split(/[\s,]+/).map((h) => h.replace(/^#/, "")).filter(Boolean) })} />
+            <p className="text-[11px] text-muted-foreground">Réserve générale. Les hashtags prêts à publier, adaptés à TikTok et Instagram, sont dans l&apos;onglet Export.</p>
+          </div>
+        </Section>
+
+        <Section title="Score IA" icon={Gauge} summary={`Viralité ${active.viralityScore}/100`}>
+          <div className="flex items-center justify-around">
+            <ScoreRing value={active.viralityScore} size={72} label="Viralité" />
+            <ScoreRing value={active.hookScore} size={56} label="Hook" />
+            <ScoreRing value={active.retentionScore} size={56} label="Rétention" />
+            <ScoreRing value={active.clarityScore} size={56} label="Clarté" />
+          </div>
+          {active.scoreRationale && (
+            <p className="mt-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-xs leading-relaxed text-muted-foreground">
+              <Lightbulb className="mr-1 inline h-3.5 w-3.5 text-amber-300" />{active.scoreRationale}
+            </p>
+          )}
+        </Section>
+
+        <Section title="Versions et variantes" icon={History} summary={`${scripts.length} version${scripts.length > 1 ? "s" : ""}`}>
+          <div className="space-y-2">
+            <Select value={active.id} onValueChange={switchVersion}>
+              <SelectTrigger className="w-full"><History className="mr-1 h-3.5 w-3.5 shrink-0 text-muted-foreground" /><SelectValue /></SelectTrigger>
+              <SelectContent>{scripts.map((s) => <SelectItem key={s.id} value={s.id}>v{s.version} · {new Date(s.createdAt).toLocaleDateString("fr-FR")} · ⚡{s.viralityScore}</SelectItem>)}</SelectContent>
+            </Select>
+            <div className="grid grid-cols-2 gap-2">
+              <Button asChild size="sm" variant="secondary" disabled={!aiConfigured}><Link href={`/scripts?project=${projectId}&topic=${encodeURIComponent(draft.title)}`}><RefreshCw /> Régénérer</Link></Button>
+              <SeriesDialog scriptId={active.id} costPerEpisode={scriptCost} aiConfigured={aiConfigured} />
+            </div>
+          </div>
+        </Section>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The AI's spare hooks.
+ *
+ * Three full sentences stacked under the hook pushed the scenes off the first
+ * screen for something most edits never touch — one tap away is enough.
+ */
+function AlternativeHooks({ hooks, onPick }: { hooks: string[]; onPick: (h: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="pt-0.5">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+        className="inline-flex items-center gap-1 text-[11px] text-muted-foreground transition hover:text-foreground"
+      >
+        <ChevronDown className={cn("h-3 w-3 transition-transform", open && "rotate-180")} />
+        {hooks.length} accroche{hooks.length > 1 ? "s" : ""} alternative{hooks.length > 1 ? "s" : ""}
+      </button>
+      {open && (
+        <div className="mt-1.5 space-y-1">
+          {hooks.map((h) => (
+            <button key={h} type="button" onClick={(e) => { e.stopPropagation(); onPick(h); }} className="block w-full rounded-md border border-white/[0.06] px-2.5 py-1.5 text-left text-xs text-muted-foreground transition hover:border-primary/40 hover:text-foreground">{h}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * One scene.
+ *
+ * Only the narration is edited on every pass, so the b-roll query, the
+ * on-screen text and the AI's visual note fold away — and the row's actions no
+ * longer hide behind `group-hover`, which a touch screen can never trigger.
+ */
+function SceneRow({ scene, index, total, selected, onSelect, onPatch, onMove, onAdd, onRemove }: {
+  scene: Scene;
+  index: number;
+  total: number;
+  selected: boolean;
+  onSelect: () => void;
+  onPatch: (patch: Partial<Scene>) => void;
+  onMove: (dir: -1 | 1) => void;
+  onAdd: () => void;
+  onRemove: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const stop = (fn: () => void) => (e: MouseEvent) => { e.stopPropagation(); fn(); };
+
+  return (
+    <div onClick={onSelect} className={cn("rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 transition", selected && "border-primary/50 bg-primary/10")}>
+      <div className="mb-2 flex items-center justify-between gap-1">
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><GripVertical className="h-3.5 w-3.5" /> Scène {index + 1}</span>
+        <div className="flex gap-0.5">
+          <Button size="icon-sm" variant="ghost" aria-label="Monter" onClick={stop(() => onMove(-1))} disabled={index === 0}>↑</Button>
+          <Button size="icon-sm" variant="ghost" aria-label="Descendre" onClick={stop(() => onMove(1))} disabled={index === total - 1}>↓</Button>
+          <Button size="icon-sm" variant="ghost" aria-label="Ajouter une scène" onClick={stop(onAdd)}><Plus /></Button>
+          <Button size="icon-sm" variant="ghost" aria-label="Supprimer la scène" className="text-red-300" onClick={stop(onRemove)} disabled={total <= 1}><Trash2 /></Button>
+        </div>
+      </div>
+
+      <Textarea value={scene.text} onChange={(e) => onPatch({ text: e.target.value })} rows={2} placeholder="Narration…" />
+
+      <button
+        type="button"
+        onClick={stop(() => setOpen((o) => !o))}
+        className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground transition hover:text-foreground"
+      >
+        <ChevronDown className={cn("h-3 w-3 transition-transform", open && "rotate-180")} />
+        Visuel et texte à l&apos;écran
+      </button>
+
+      {open && (
+        <div className="mt-2 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <Input value={scene.brollQuery} onChange={(e) => onPatch({ brollQuery: e.target.value })} placeholder="Recherche de b-roll" className="h-8 text-xs" />
+            <Input value={scene.onScreenText ?? ""} onChange={(e) => onPatch({ onScreenText: e.target.value || null })} placeholder="Texte à l'écran" className="h-8 text-xs" />
+          </div>
+          {scene.visualDescription && <p className="text-[11px] italic text-muted-foreground">{scene.visualDescription}</p>}
+        </div>
+      )}
     </div>
   );
 }

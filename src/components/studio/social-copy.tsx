@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Check, Copy, Hash, Music2, Instagram, RefreshCw, Coins } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { regenerateSocialCopyAction } from "@/server/actions/scripts";
 import { formatForPaste, platformHashtags, type Platform, type SocialCopy } from "@/lib/social/captions";
 import { cn } from "@/lib/utils";
@@ -54,8 +53,8 @@ export function SocialCopyBlock({ scriptId, copy, hashtags, cost, aiConfigured }
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label>Description du post</Label>
+      {/* The title lives on the enclosing section header, so this row only has to pick the platform. */}
+      <div className="flex items-center justify-end">
         <div className="flex gap-1">
           {PLATFORMS.map((p) => (
             <button

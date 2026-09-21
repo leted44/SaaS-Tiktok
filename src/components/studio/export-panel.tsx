@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Film, Download, Send, Lock, Coins, Subtitles, AlertTriangle, Trash2, Loader2 } from "lucide-react";
+import { Film, Download, Send, Lock, Coins, Subtitles, AlertTriangle, Trash2, Loader2, MessageSquareText, History } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Section } from "@/components/ui/section";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { enqueueRender } from "@/server/actions/renders";
 import { RENDER_STEPS } from "@/lib/render/queue";
@@ -87,8 +88,13 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
     router.refresh();
   }
 
+  // Once a render lands, the history is the only place to grab the file — so it
+  // opens itself exactly then, and stays folded the rest of the time.
+  const latest = renders[0] ?? null;
+  const showHistory = !activeRender && latest?.status === "COMPLETED";
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
         <Label>Résolution</Label>
         <div className="mt-2 grid grid-cols-3 gap-2">
@@ -136,13 +142,14 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
       {hasVoiceover && <Button asChild variant="outline" className="w-full"><a href={`/api/projects/${projectId}/captions`}><Subtitles /> Télécharger les sous-titres (.srt)</a></Button>}
 
       {socialCopy && scriptId && (
-        <SocialCopyBlock scriptId={scriptId} copy={socialCopy} hashtags={hashtags} cost={planLimits.costs.socialCopy} aiConfigured={aiConfigured} />
+        <Section title="Description du post" icon={MessageSquareText} summary="TikTok & Instagram">
+          <SocialCopyBlock scriptId={scriptId} copy={socialCopy} hashtags={hashtags} cost={planLimits.costs.socialCopy} aiConfigured={aiConfigured} />
+        </Section>
       )}
 
       {renders.length > 0 && (
-        <div>
-          <Label>Rendus récents</Label>
-          <ul className="mt-2 space-y-2">
+        <Section title="Rendus récents" icon={History} count={renders.length} defaultOpen={showHistory} summary={latest ? `${relativeTime(latest.createdAt)} · ${latest.status === "COMPLETED" ? "prêt" : latest.status === "FAILED" ? "échec" : "en cours"}` : undefined}>
+          <ul className="space-y-2">
             {renders.map((r) => (
               <li key={r.id} className="min-w-0 overflow-hidden rounded-lg border border-white/[0.06] bg-white/[0.02] p-2">
                 <div className="flex items-center gap-3">
@@ -166,7 +173,7 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
               </li>
             ))}
           </ul>
-        </div>
+        </Section>
       )}
     </div>
   );
