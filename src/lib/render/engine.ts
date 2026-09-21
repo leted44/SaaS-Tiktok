@@ -165,6 +165,35 @@ function readTimings(progress: LambdaProgress): RenderTimings {
   };
 }
 
+/**
+ * True when a render's own visuals depend on this app's storage rather than a
+ * CDN.
+ *
+ * Remotion downloads a video/image source in full — once per Lambda
+ * invocation, not once per render (@remotion/renderer's downloadMap is
+ * per-process, and each chunk runs in its own isolated Lambda). A clip
+ * spanning N chunks is downloaded by Supabase Storage N times, concurrently:
+ * a plain storage bucket, not a video CDN, and that concurrency is what a
+ * render kept failing on even after the per-frame retry in VisualLayers.tsx —
+ * the same fetch failed on every retry because every retry still competed
+ * with the other chunks hammering the same object. Pexels' CDN absorbs this
+ * without trouble, which is why only uploads were affected.
+ */
+function hasOwnStorageVisual(props: ShortVideoProps): boolean {
+  const ownHost = safeHost(env.s3.publicUrl) ?? safeHost(env.s3.endpoint);
+  if (!ownHost) return false;
+  return props.visualLayers.some((l) => (l.type === "video" || l.type === "image") && safeHost(l.src) === ownHost);
+}
+
+function safeHost(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).host;
+  } catch {
+    return null;
+  }
+}
+
 const POLL_INTERVAL_MS = 3000;
 /** Safely under any realistic serverless function timeout (Vercel Hobby caps around 60s). */
 const POLL_BUDGET_MS = 45_000;
@@ -224,13 +253,13 @@ export const lambdaRemotionEngine: RenderEngine = {
         // — a fresh Lambda invocation is a fresh network path — before giving up
         // and refunding the user's credits.
         maxRetries: 2,
-        // framesPerLambda is deliberately left unset. Remotion sizes chunks from
-        // the frame count (~20 frames each, so ~51 lambdas for a 34s video); the
-        // 200 that used to be hardcoded here collapsed that to 6, and since the
-        // wall-clock time of a render is the time of its *slowest* chunk, one
-        // expensive scene landing inside a 200-frame chunk held the whole render
-        // hostage — measured at 317s out of 323s on a 34s video. Chunks are
-        // cheap: assembly of those 6 took 0.2s, and retries were zero.
+        // Left unset (Remotion's own ~20-frame default, ~51 chunks for a 34s
+        // video) so scenes stay parallel and fast — that default is what fixed
+        // the earlier measured 317s bottleneck from one expensive scene held
+        // inside a 200-frame chunk. Widened only when an uploaded visual is
+        // present, trading some of that speed for fewer chunks independently
+        // fetching the same Supabase-hosted file — see hasOwnStorageVisual above.
+        framesPerLambda: hasOwnStorageVisual(props) ? 150 : undefined,
         outName: `${job.id}.mp4`,
       });
       renderId = started.renderId;
