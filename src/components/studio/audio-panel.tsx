@@ -3,9 +3,10 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Mic2, Music2, Lock, Wand2, CheckCircle2, Play, Pause, Loader2, Upload, Trash2 } from "lucide-react";
+import { Mic2, Music2, Lock, Wand2, CheckCircle2, Play, Pause, Loader2, Upload, Trash2, SlidersHorizontal, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { uploadAsset } from "@/lib/assets/upload-client";
+import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -58,6 +59,8 @@ export function AudioPanel(p: Props) {
   const preview = useVoicePreview(p.previewText.trim().slice(0, 280) || VOICE_PREVIEW_TEXT, speed);
   const estCost = Math.max(p.costPer30s, Math.ceil((p.estimatedDurationSec / speed) / 30) * p.costPer30s);
   const stale = p.voiceover && p.voiceover.voiceId !== p.voiceId;
+  const selectedVoice = p.voices.find((v) => v.id === p.voiceId) ?? null;
+  const musicSummary = p.musicUrl ? (p.musicName ?? "Ma musique") : (p.tracks.find((t) => t.id === p.musicTrackId)?.name ?? "Aucune");
 
   async function uploadMusic(file: File) {
     setUploading(true);
@@ -87,8 +90,8 @@ export function AudioPanel(p: Props) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center justify-between"><Label className="inline-flex items-center gap-1"><Mic2 className="h-3 w-3" /> Voix</Label><Link href="/voices" className="text-[11px] text-muted-foreground hover:text-foreground">Catalogue complet →</Link></div>
+      <Section title="Voix" icon={Mic2} summary={selectedVoice?.name ?? "Aucune voix"} defaultOpen={!selectedVoice}>
+        <div className="flex items-center justify-end"><Link href="/voices" className="text-[11px] text-muted-foreground hover:text-foreground">Catalogue complet →</Link></div>
         <div className="mt-2 space-y-1.5">
           {p.voices.map((v, i) => {
             const locked = v.premium && !p.premiumAllowed;
@@ -120,14 +123,7 @@ export function AudioPanel(p: Props) {
           })}
         </div>
         <p className="mt-2 text-[11px] text-muted-foreground">Toutes les voix sont écoutables, y compris les voix Pro.</p>
-      </div>
-
-      <VoiceCloneCard customVoice={p.customVoice} allowed={p.voiceCloningAllowed} cost={p.voiceCloneCost} credits={p.credits} onChange={p.onCustomVoiceChange} />
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2"><div className="flex justify-between"><Label>Stabilité</Label><span className="text-xs">{Math.round(stability * 100)}%</span></div><Slider value={[stability]} min={0} max={1} step={0.05} onValueChange={([v]) => setStability(v)} /></div>
-        <div className="space-y-2"><div className="flex justify-between"><Label>Vitesse</Label><span className="text-xs">{speed.toFixed(2)}×</span></div><Slider value={[speed]} min={0.7} max={1.3} step={0.05} onValueChange={([v]) => setSpeed(v)} /></div>
-      </div>
+      </Section>
 
       <div className="surface p-3">
         {p.voiceover?.audioUrl ? (
@@ -149,9 +145,19 @@ export function AudioPanel(p: Props) {
         {p.credits < estCost && <p className="mt-2 text-[11px] text-red-300">Crédits insuffisants ({p.credits}). <Link href="/billing" className="underline">Recharger</Link>.</p>}
       </div>
 
-      <div>
-        <div className="flex items-center justify-between">
-          <Label className="inline-flex items-center gap-1"><Music2 className="h-3 w-3" /> Musique de fond</Label>
+      <Section title="Réglages de la voix" icon={SlidersHorizontal} summary={`${Math.round(stability * 100)}% · ${speed.toFixed(2)}×`}>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2"><div className="flex justify-between"><Label>Stabilité</Label><span className="text-xs">{Math.round(stability * 100)}%</span></div><Slider value={[stability]} min={0} max={1} step={0.05} onValueChange={([v]) => setStability(v)} /></div>
+          <div className="space-y-2"><div className="flex justify-between"><Label>Vitesse</Label><span className="text-xs">{speed.toFixed(2)}×</span></div><Slider value={[speed]} min={0.7} max={1.3} step={0.05} onValueChange={([v]) => setSpeed(v)} /></div>
+        </div>
+      </Section>
+
+      <Section title="Votre voix" icon={UserRound} summary={p.customVoice ? p.customVoice.name : "Non configurée"}>
+        <VoiceCloneCard customVoice={p.customVoice} allowed={p.voiceCloningAllowed} cost={p.voiceCloneCost} credits={p.credits} onChange={p.onCustomVoiceChange} />
+      </Section>
+
+      <Section title="Musique de fond" icon={Music2} summary={musicSummary}>
+        <div className="flex items-center justify-end">
           <Button size="sm" variant="ghost" className="h-7 text-[11px]" loading={uploading} onClick={() => musicFileRef.current?.click()}><Upload /> {uploading ? `${uploadPct} %` : "Importer un fichier"}</Button>
           <input ref={musicFileRef} type="file" accept="audio/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadMusic(e.target.files[0])} />
         </div>
@@ -187,7 +193,7 @@ export function AudioPanel(p: Props) {
         {(p.musicUrl || p.musicTrackId) && (
           <div className="mt-3 space-y-2"><div className="flex justify-between"><Label>Volume musique</Label><span className="text-xs">{Math.round(p.musicVolume * 100)}%</span></div><Slider value={[p.musicVolume]} min={0} max={0.6} step={0.02} onValueChange={([v]) => p.onVolumeChange(v)} /></div>
         )}
-      </div>
+      </Section>
     </div>
   );
 }
