@@ -30,7 +30,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
   const customVoice = await getCustomVoice(user.id);
 
   const previewProps = activeScript
-    ? buildShortVideoProps({ project, script: activeScript, voiceover: activeVoiceover, workspace: project.workspace, resolution: "1080p", watermark: plan.watermark, absolute: false })
+    ? buildShortVideoProps({ project, script: activeScript, voiceover: activeVoiceover, workspace: project.workspace, resolution: "1080p", watermark: plan.watermark, absolute: false, snapCuts: false })
     : null;
 
   return (
@@ -48,6 +48,9 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         musicUrl: project.musicUrl,
         musicName: project.musicName,
         musicVolume: project.musicVolume,
+        musicBpm: project.musicBpm,
+        musicBeatOffsetMs: project.musicBeatOffsetMs,
+        beatSync: project.beatSync,
         captionStyle: parseJson(captionStyleSchema, project.captionStyle, presetStyle(project.workspace.captionPreset)),
         visualLayers: parseJson(visualLayersSchema, project.visualLayers, []),
         visualPool: parseJson(visualPoolSchema, project.visualPool, []),

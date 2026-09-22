@@ -67,6 +67,10 @@ export async function saveEditorState(projectId: string, input: unknown): Promis
   return guard(async () => {
     const user = await requireUser();
     const state = projectEditorStateSchema.parse(input);
+    // A tempo only means anything alongside the track it was measured from.
+    // Dropping the music drops the grid with it, so cuts can never stay snapped
+    // to a beat nothing plays any more.
+    const hasMusic = Boolean(state.musicUrl || state.musicTrackId);
     await prisma.project.update({
       where: { id: projectId, userId: user.id },
       data: {
@@ -78,6 +82,9 @@ export async function saveEditorState(projectId: string, input: unknown): Promis
         musicUrl: state.musicUrl,
         musicName: state.musicName,
         musicVolume: state.musicVolume,
+        musicBpm: hasMusic ? state.musicBpm : null,
+        musicBeatOffsetMs: hasMusic ? state.musicBeatOffsetMs : null,
+        beatSync: state.beatSync,
         voiceId: state.voiceId,
       },
     });

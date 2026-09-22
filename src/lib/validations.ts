@@ -203,6 +203,11 @@ export const projectEditorStateSchema = z.object({
   musicUrl: z.string().nullable(),
   musicName: z.string().nullable(),
   musicVolume: z.number().min(0).max(1),
+  // Tempo of the chosen track, measured in the browser. Null whenever no track
+  // is set or none could be found — never carried over from a previous track.
+  musicBpm: z.number().positive().max(300).nullable().default(null),
+  musicBeatOffsetMs: z.number().min(0).max(60_000).nullable().default(null),
+  beatSync: z.boolean().default(true),
   voiceId: z.string().nullable(),
 });
 export type ProjectEditorState = z.infer<typeof projectEditorStateSchema>;

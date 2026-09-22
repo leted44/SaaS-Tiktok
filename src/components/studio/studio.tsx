@@ -22,6 +22,7 @@ import { getTrack } from "@/lib/music/library";
 import type { EditorState, StudioProps } from "@/components/studio/types";
 import type { ShortVideoProps } from "@/lib/render/props";
 import { DEFAULT_PREVIEW_PROPS } from "@/lib/render/props";
+import { applyBeatSync } from "@/lib/render/beat-grid";
 import { cn } from "@/lib/utils";
 
 export function Studio(props: StudioProps) {
@@ -41,6 +42,9 @@ export function Studio(props: StudioProps) {
     musicUrl: project.musicUrl,
     musicName: project.musicName,
     musicVolume: project.musicVolume,
+    musicBpm: project.musicBpm,
+    musicBeatOffsetMs: project.musicBeatOffsetMs,
+    beatSync: project.beatSync,
     voiceId: project.voiceId,
   });
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -68,10 +72,27 @@ export function Studio(props: StudioProps) {
   const activeScript = scripts.find((s) => s.id === activeScriptId) ?? scripts[0] ?? null;
 
   // Live composition props: server-built base + client-side editor overrides.
+  //
+  // The server deliberately leaves the cuts unsnapped here (snapCuts: false):
+  // the music can change without the page reloading, and the preview has to
+  // show the new timing at once. The snap itself is the same pure function the
+  // render uses, so what plays is what exports.
   const liveProps: ShortVideoProps = useMemo(() => {
     const base = previewProps ?? { ...DEFAULT_PREVIEW_PROPS, title: project.title };
     const track = getTrack(state.musicTrackId);
-    return { ...base, captionStyle: state.captionStyle, visualLayers: state.visualLayers, backgroundStyle: state.backgroundStyle, musicUrl: state.musicUrl || track?.url || null, musicVolume: state.musicVolume };
+    const musicUrl = state.musicUrl || track?.url || null;
+    const grid = musicUrl && state.beatSync && state.musicBpm ? { bpm: state.musicBpm, offsetMs: state.musicBeatOffsetMs ?? 0 } : null;
+    const synced = applyBeatSync(base.scenes, state.visualLayers, grid, base.durationMs);
+    return {
+      ...base,
+      captionStyle: state.captionStyle,
+      scenes: synced.scenes,
+      visualLayers: synced.layers,
+      backgroundStyle: state.backgroundStyle,
+      musicUrl,
+      musicVolume: state.musicVolume,
+      beatGrid: grid,
+    };
   }, [previewProps, state, project.title]);
 
   // Stock search term per composition scene. The hook and CTA have no b-roll
@@ -188,8 +209,11 @@ export function Studio(props: StudioProps) {
                     credits={user.credits}
                     onVoiceChange={(id) => patch("voiceId", id)}
                     onCustomVoiceChange={() => router.refresh()}
-                    onMusicChange={(id) => setState((s) => ({ ...s, musicTrackId: id, musicUrl: null, musicName: null }))}
-                    onCustomMusicChange={(url, name) => setState((s) => ({ ...s, musicUrl: url, musicName: name, musicTrackId: url ? null : s.musicTrackId }))}
+                    onMusicChange={(id, grid) => setState((s) => ({ ...s, musicTrackId: id, musicUrl: null, musicName: null, musicBpm: grid?.bpm ?? null, musicBeatOffsetMs: grid?.offsetMs ?? null }))}
+                    onCustomMusicChange={(url, name, grid) => setState((s) => ({ ...s, musicUrl: url, musicName: name, musicTrackId: url ? null : s.musicTrackId, musicBpm: grid?.bpm ?? null, musicBeatOffsetMs: grid?.offsetMs ?? null }))}
+                    beatSync={state.beatSync}
+                    musicBpm={state.musicBpm}
+                    onBeatSyncChange={(v) => patch("beatSync", v)}
                     onVolumeChange={(v) => patch("musicVolume", v)}
                   />
                 </TabsContent>

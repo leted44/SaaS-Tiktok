@@ -5,6 +5,7 @@ import { getTrack } from "@/lib/music/library";
 import { estimateWordTimings } from "@/lib/captions/align";
 import { absoluteUrl } from "@/lib/storage";
 import { ASPECT_DIMENSIONS, type ShortVideoProps } from "@/lib/render/props";
+import { applyBeatSync, type BeatGridSpec } from "@/lib/render/beat-grid";
 import { z } from "zod";
 
 interface BuildArgs {
@@ -16,10 +17,26 @@ interface BuildArgs {
   watermark: boolean;
   /** When true, relative storage URLs are made absolute (the render worker needs them). */
   absolute?: boolean;
+  /**
+   * The studio passes false and snaps in the browser instead: its music can
+   * change between two renders of the same page, and the preview has to follow
+   * that immediately rather than wait for a save and a reload.
+   */
+  snapCuts?: boolean;
+}
+
+/**
+ * Does the project still play the track its tempo was measured from?
+ *
+ * The tempo is cleared whenever the music changes, so its mere presence is the
+ * signal — but a project with no music at all must never inherit a stale grid.
+ */
+function musicIsPlaying(project: Project): boolean {
+  return Boolean(project.musicUrl || project.musicTrackId);
 }
 
 /** Assemble the exact composition props for preview or rendering. Pure and deterministic. */
-export function buildShortVideoProps({ project, script, voiceover, workspace, resolution, watermark, absolute = false }: BuildArgs): ShortVideoProps {
+export function buildShortVideoProps({ project, script, voiceover, workspace, resolution, watermark, absolute = false, snapCuts = true }: BuildArgs): ShortVideoProps {
   const scenes = parseJson(scenesSchema, script.scenes, []);
   const segments = [script.hook, ...scenes.map((s) => s.text), script.callToAction].map((t) => t.trim()).filter(Boolean);
 
@@ -50,8 +67,19 @@ export function buildShortVideoProps({ project, script, voiceover, workspace, re
     sceneRanges[i].endMs = i < sceneRanges.length - 1 ? sceneRanges[i + 1].startMs : durationMs;
   }
 
+  // Put the cuts on the beat, when the track has one and the project wants it.
+  // Boundaries move by under a fifth of a second, so the narration still lands
+  // on its own scene; visual layers follow the boundary they were cut to.
+  const beatGrid: BeatGridSpec | null =
+    project.beatSync && project.musicBpm && musicIsPlaying(project)
+      ? { bpm: project.musicBpm, offsetMs: project.musicBeatOffsetMs ?? 0 }
+      : null;
+
+
   const captionStyle = parseJson(captionStyleSchema, project.captionStyle, presetStyle(workspace.captionPreset));
-  const visualLayers = parseJson(visualLayersSchema, project.visualLayers, []).map((l) => ({ ...l, src: l.src && absolute ? absoluteUrl(l.src) : l.src }));
+  const rawLayers = parseJson(visualLayersSchema, project.visualLayers, []).map((l) => ({ ...l, src: l.src && absolute ? absoluteUrl(l.src) : l.src }));
+  const synced = applyBeatSync(sceneRanges, rawLayers, snapCuts ? beatGrid : null, durationMs);
+  const visualLayers = synced.layers;
   const backgroundStyle = parseJson(backgroundStyleSchema, project.backgroundStyle, { type: "gradient", colors: [workspace.primaryColor, "#0B0714"], vignette: true, grain: true });
 
   const [width, height] = ASPECT_DIMENSIONS[project.aspectRatio][resolution];
@@ -69,8 +97,9 @@ export function buildShortVideoProps({ project, script, voiceover, workspace, re
     voiceoverUrl,
     musicUrl,
     musicVolume: project.musicVolume,
+    beatGrid: musicUrl ? beatGrid : null,
     words,
-    scenes: sceneRanges,
+    scenes: synced.scenes,
     captionStyle,
     visualLayers,
     backgroundStyle,

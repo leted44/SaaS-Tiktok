@@ -258,6 +258,13 @@ model Project {
   musicName    String?
   musicVolume  Float   @default(0.18)
 
+  // Tempo of the chosen track, detected in the browser when it is picked, so
+  // scene cuts can be nudged onto the beat. Two numbers describe the whole
+  // grid; null means no pulse clear enough was found.
+  musicBpm          Float?
+  musicBeatOffsetMs Int?
+  beatSync          Boolean @default(true)
+
   // Editor state — caption styling + visual layers (validated by zod in src/lib/validations)
   captionStyle    Json?
   visualLayers    Json?

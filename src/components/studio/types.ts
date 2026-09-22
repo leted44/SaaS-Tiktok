@@ -15,6 +15,9 @@ export interface StudioProject {
   musicUrl: string | null;
   musicName: string | null;
   musicVolume: number;
+  musicBpm: number | null;
+  musicBeatOffsetMs: number | null;
+  beatSync: boolean;
   captionStyle: CaptionStyle;
   visualLayers: VisualLayer[];
   visualPool: VisualPoolItem[];
@@ -100,5 +103,8 @@ export interface EditorState {
   musicUrl: string | null;
   musicName: string | null;
   musicVolume: number;
+  musicBpm: number | null;
+  musicBeatOffsetMs: number | null;
+  beatSync: boolean;
   voiceId: string | null;
 }

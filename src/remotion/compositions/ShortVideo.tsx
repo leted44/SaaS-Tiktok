@@ -27,7 +27,7 @@ export const ShortVideo: React.FC<ShortVideoProps> = (props) => {
   return (
     <AbsoluteFill style={{ backgroundColor: "#000", opacity: fadeOut }}>
       <Background style={props.backgroundStyle} />
-      <VisualLayers layers={props.visualLayers} />
+      <VisualLayers layers={props.visualLayers} beatGrid={props.beatGrid} />
       <OnScreenText scenes={props.scenes} accent={props.brand.accentColor} fontFamily={props.brand.fontFamily} scale={scale} captionPosition={props.captionStyle.position} />
       <KineticCaptions words={props.words} style={props.captionStyle} scale={scale} />
       <ProgressBar color={props.brand.primaryColor} scale={scale} />
