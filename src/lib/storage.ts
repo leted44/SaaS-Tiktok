@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { PutObjectCommand, S3Client, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, S3Client, DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "@/lib/env";
 
@@ -107,6 +107,47 @@ export async function deleteObject(key: string): Promise<void> {
     return;
   }
   await fs.rm(path.join(LOCAL_ROOT, key), { force: true });
+}
+
+/** Every kind of object `storageKey` can produce. */
+const STORAGE_KINDS = ["audio", "video", "thumb", "asset"] as const;
+
+/**
+ * Erase everything a user owns, for real.
+ *
+ * `storageKey` puts the owner's id in the second path segment of every object
+ * it writes, so a prefix listing finds all of them — including files whose
+ * database row is already gone, which chasing each model's URL column would
+ * miss. Called when an account is deleted: the privacy policy promises the
+ * files go, and deleting the rows alone would leave them behind.
+ */
+export async function deleteUserObjects(userId: string): Promise<number> {
+  let removed = 0;
+  for (const kind of STORAGE_KINDS) {
+    const prefix = `${kind}/${userId}/`;
+
+    if (env.storageDriver !== "s3" || !env.s3.accessKeyId) {
+      const dir = localPathFor(prefix);
+      if (dir) {
+        const existed = await fs.readdir(dir).catch(() => null);
+        if (existed) removed += existed.length;
+        await fs.rm(dir, { recursive: true, force: true });
+      }
+      continue;
+    }
+
+    let token: string | undefined;
+    do {
+      const page = await s3().send(new ListObjectsV2Command({ Bucket: env.s3.bucket, Prefix: prefix, ContinuationToken: token }));
+      const keys = (page.Contents ?? []).map((o) => o.Key).filter((k): k is string => Boolean(k));
+      if (keys.length > 0) {
+        await s3().send(new DeleteObjectsCommand({ Bucket: env.s3.bucket, Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true } }));
+        removed += keys.length;
+      }
+      token = page.IsTruncated ? page.NextContinuationToken : undefined;
+    } while (token);
+  }
+  return removed;
 }
 
 /** Resolve a stored URL to something fetchable from the render worker (absolute). */

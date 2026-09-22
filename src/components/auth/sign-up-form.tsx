@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -56,7 +57,12 @@ export function SignUpForm({ googleEnabled }: { googleEnabled: boolean }) {
           {errors.password && <p className="text-xs text-red-400">{errors.password}</p>}
         </div>
         <Button type="submit" className="w-full" variant="gradient" loading={loading}>Créer un compte</Button>
-        <p className="text-center text-[11px] text-muted-foreground">En continuant, vous acceptez les Conditions d'utilisation et la Politique de confidentialité.</p>
+        <p className="text-center text-[11px] text-muted-foreground">
+          En continuant, vous acceptez les{" "}
+          <Link href="/terms" className="underline underline-offset-2 hover:text-foreground">Conditions d&apos;utilisation</Link>
+          {" "}et la{" "}
+          <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">Politique de confidentialité</Link>.
+        </p>
       </form>
     </div>
   );

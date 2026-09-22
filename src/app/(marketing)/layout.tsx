@@ -34,9 +34,12 @@ export default async function MarketingLayout({ children }: { children: React.Re
         <div className="container flex flex-col items-center justify-between gap-4 text-sm text-muted-foreground md:flex-row">
           <Logo compact />
           <p>© {new Date().getFullYear()} ClipForge. Conçu pour les créateurs qui publient chaque jour.</p>
-          <div className="flex gap-6">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
             <Link href="/sign-in" className="hover:text-foreground">Connexion</Link>
             <Link href="#pricing" className="hover:text-foreground">Tarifs</Link>
+            <Link href="/legal" className="hover:text-foreground">Mentions légales</Link>
+            <Link href="/terms" className="hover:text-foreground">CGU</Link>
+            <Link href="/privacy" className="hover:text-foreground">Confidentialité</Link>
           </div>
         </div>
       </footer>
