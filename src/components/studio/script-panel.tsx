@@ -14,6 +14,7 @@ import { ScoreRing } from "@/components/shared/score-ring";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { saveScriptEdits, setActiveScript } from "@/server/actions/projects";
 import { SeriesDialog } from "@/components/studio/series-dialog";
+import { CarouselLink } from "@/components/carousel/carousel-link";
 import type { StudioScript } from "@/components/studio/types";
 import { countWords, cn } from "@/lib/utils";
 import { nanoid } from "nanoid";
@@ -123,6 +124,10 @@ export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene,
       <div className={cn("space-y-1.5 rounded-lg p-2 -m-2 transition", selectedScene === draft.scenes.length + 1 && "bg-primary/10")} onClick={() => onSelectScene(draft.scenes.length + 1)}>
         <Label className="text-pink-300">Appel à l'action</Label>
         <Textarea value={draft.callToAction} onChange={(e) => setDraft({ ...draft, callToAction: e.target.value })} rows={2} />
+      </div>
+
+      <div className="pt-2">
+        <CarouselLink projectId={projectId} />
       </div>
 
       <div className="space-y-3 pt-2">

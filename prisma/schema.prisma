@@ -142,6 +142,7 @@ model User {
   publishJobs        PublishJob[]
   creditTransactions CreditTransaction[]
   customVoice        CustomVoice?
+  carousels          Carousel[]
 
   @@index([stripeCustomerId])
 }
@@ -292,6 +293,7 @@ model Project {
   voiceovers  Voiceover[]
   renderJobs  RenderJob[]
   publishJobs PublishJob[]
+  carousel    Carousel?
 
   @@index([workspaceId])
   @@index([userId, updatedAt])
@@ -376,6 +378,31 @@ model Asset {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, type])
+}
+
+// ───────────────────────────── Carousels ─────────────────────────────
+
+// A photo carousel made from the project's script — the same idea as the
+// video, rewritten to be read slide by slide instead of heard. One per
+// project: regenerating replaces it, and it outlives edits to the script
+// version it came from, since its text is edited on its own.
+model Carousel {
+  id        String   @id @default(cuid())
+  projectId String   @unique
+  userId    String
+  scriptId  String?
+  template  String   @default("minimal")
+  format    String   @default("portrait")
+  // Signature shown on every slide, e.g. "@moncompte".
+  handle    String?
+  slides    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ───────────────────────────── Rendering ─────────────────────────────

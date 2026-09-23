@@ -68,6 +68,18 @@ export async function getProjectForStudio(projectId: string) {
   return { project, user, activeScript, activeVoiceover };
 }
 
+/** Everything the carousel editor needs: the project, its active script, its brand and the carousel itself. */
+export async function getProjectForCarousel(projectId: string) {
+  const user = await getCurrentUser();
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId: user.id },
+    include: { workspace: true, scripts: { orderBy: { version: "desc" } }, carousel: true },
+  });
+  if (!project) return null;
+  const activeScript = project.scripts.find((s) => s.id === project.activeScriptId) ?? project.scripts[0] ?? null;
+  return { project, user, activeScript };
+}
+
 export async function getExportsData() {
   const user = await getCurrentUser();
   const workspace = await getCurrentWorkspace();

@@ -139,6 +139,8 @@ export const CREDIT_COSTS = {
   RENDER_1080P: 12,
   RENDER_4K: 24,
   VOICE_CLONE: 50,
+  // No voice and no video render: a few still images, so a fraction of a video's price.
+  CAROUSEL: 2,
 } as const;
 
 export interface CreditPack {

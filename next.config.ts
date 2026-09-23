@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**" },
     ],
   },
+  // The carousel renderer reads its fonts from disk at request time, which the
+  // bundler cannot see — list them so they are copied into that function.
+  outputFileTracingIncludes: {
+    "/api/carousels/[projectId]/slides/[index]": ["./src/assets/fonts/**"],
+  },
   experimental: {
     serverActions: { bodySizeLimit: "10mb" },
   },
