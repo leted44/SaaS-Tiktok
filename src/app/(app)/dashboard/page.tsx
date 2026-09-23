@@ -40,14 +40,17 @@ export default async function DashboardPage() {
     <div className="mx-auto max-w-[1440px] space-y-10 sm:space-y-14">
       {/* ── Hero + quick create */}
       <section className="relative isolate -mx-4 -mt-6 overflow-hidden px-4 pb-2 pt-8 sm:pt-12 md:-mx-8 md:px-8">
-        <div aria-hidden className="absolute inset-0 -z-10">
-          <div className="absolute -left-40 -top-40 h-[520px] w-[520px] rounded-full bg-violet-700/30 blur-[120px]" />
-          <div className="absolute -top-24 right-[-10%] h-[420px] w-[420px] rounded-full bg-fuchsia-600/20 blur-[120px]" />
-          <div className="absolute bottom-[-30%] left-1/3 h-[380px] w-[380px] rounded-full bg-orange-500/10 blur-[120px]" />
-          <div className="dot-grid absolute inset-0 opacity-60 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" />
+        {/* Glow faded out on every side, so it never ends on a visible edge on wide screens. */}
+        <div aria-hidden className="absolute inset-0 -z-10 [mask-image:linear-gradient(to_right,transparent,black_18%,black_82%,transparent)]">
+          <div className="absolute inset-0 [mask-image:linear-gradient(to_bottom,black_50%,transparent)]">
+            <div className="absolute -top-40 left-[5%] h-[520px] w-[520px] rounded-full bg-violet-700/30 blur-[120px]" />
+            <div className="absolute -top-24 right-[5%] h-[420px] w-[420px] rounded-full bg-fuchsia-600/20 blur-[120px]" />
+            <div className="absolute bottom-[-30%] left-1/3 h-[380px] w-[380px] rounded-full bg-orange-500/10 blur-[120px]" />
+            <div className="dot-grid absolute inset-0 opacity-60 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" />
+          </div>
         </div>
 
-        <div className="grid items-center gap-10 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-10 xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="min-w-0">
             <p style={reveal(0).style} className={cn("inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur", reveal(0).className)}>
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gradient-to-r from-fuchsia-400 to-orange-300" />
@@ -115,26 +118,28 @@ export default async function DashboardPage() {
             hint="Reprends une vidéo là où tu l'as laissée."
             action={<Link href="/projects" className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground transition hover:text-foreground">Tout voir <ArrowRight className="h-3.5 w-3.5" /></Link>}
           />
-          <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-3 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 md:grid-cols-4 xl:grid-cols-6 [&::-webkit-scrollbar]:hidden">
+          <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-3 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 md:grid-cols-4 xl:grid-cols-6 [&::-webkit-scrollbar]:hidden">
             {d.recent.slice(0, 6).map((p, i) => <ProjectCard key={p.id} project={p} style={{ animationDelay: `${i * 60}ms` }} />)}
           </div>
         </section>
       )}
 
-      {/* ── Numbers */}
-      <section>
-        <SectionTitle title="Ton studio en chiffres" />
-        <StatGrid totals={d.totals} />
-        {d.scores && <div className="mt-3 sm:mt-4"><ScoreSummary scores={d.scores} /></div>}
-      </section>
+      {/* ── Numbers (once there is something to count) */}
+      {returning && (
+        <section>
+          <SectionTitle title="Ton studio en chiffres" />
+          <StatGrid totals={d.totals} />
+          {d.scores && <div className="mt-3 sm:mt-4"><ScoreSummary scores={d.scores} /></div>}
+        </section>
+      )}
 
       {/* ── What else, and what's next */}
-      <section className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6">
+      <section className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6">
         <div className="min-w-0">
           <SectionTitle title="Ce que tu peux créer" hint="Tout ce que le studio sait faire, à un clic." />
           <CreateCards data={d} />
         </div>
-        <div className="space-y-4 lg:pt-[52px]">
+        <div className="min-w-0 space-y-4 lg:pt-[52px]">
           <Agenda entries={d.agenda} />
           <CreditsCard data={d} />
         </div>

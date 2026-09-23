@@ -80,7 +80,7 @@ export function CreateCards({ data }: { data: DashboardData }) {
     { icon: Mic2, title: "Voix off", body: data.plan.voiceCloning ? "Voix IA par langue, et ta propre voix clonée." : "Voix IA par langue, écoutables avant de choisir.", href: "/voices", cta: "Écouter les voix", badge: null, disabled: false },
   ];
   return (
-    <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 [&::-webkit-scrollbar]:hidden">
+    <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 [&::-webkit-scrollbar]:hidden">
       {cards.map((c, i) => {
         const r = reveal(i);
         return (
@@ -182,20 +182,23 @@ export function ScoreSummary({ scores }: { scores: NonNullable<DashboardData["sc
 /** Covers of the latest projects, fanned out — the hero's visual on large screens. */
 export function HeroPosters({ posters }: { posters: DashboardData["posters"] }) {
   if (posters.length === 0) return null;
+  // Position and tilt live on the outer box, the float on the inner one: both are transforms.
   const layout = [
-    "left-[6%] top-[14%] -rotate-[9deg] motion-safe:animate-float [animation-delay:-2s]",
-    "left-1/2 top-[4%] z-10 -translate-x-1/2 motion-safe:animate-float",
-    "right-[6%] top-[16%] rotate-[9deg] motion-safe:animate-float [animation-delay:-4s]",
+    ["left-[2%] top-[14%] -rotate-[9deg]", "[animation-delay:-2s]"],
+    ["left-[calc(50%-75px)] top-[4%] z-10", ""],
+    ["right-[2%] top-[16%] rotate-[9deg]", "[animation-delay:-4s]"],
   ];
   const ordered = posters.length === 1 ? [null, posters[0], null] : posters.length === 2 ? [posters[1], posters[0], null] : [posters[1], posters[0], posters[2]];
   return (
     <div aria-hidden className="relative h-[330px] w-full">
       {ordered.map((p, i) =>
         p ? (
-          <div key={p.id} className={cn("absolute w-[150px]", layout[i])}>
+          <div key={p.id} className={cn("absolute w-[150px]", layout[i][0])}>
+            <div className={cn("motion-safe:animate-float", layout[i][1])}>
             <Poster id={p.id} title={p.title} thumbnailUrl={p.thumbnailUrl} showTitle className="aspect-[9/16] rounded-2xl border border-white/15 shadow-[0_30px_60px_-20px_rgba(0,0,0,0.9),0_0_40px_-10px_rgba(168,85,247,0.45)]">
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
             </Poster>
+            </div>
           </div>
         ) : null,
       )}
