@@ -14,7 +14,6 @@ import { enqueueRender } from "@/server/actions/renders";
 import { RENDER_STEPS } from "@/lib/render/queue";
 import { summarizeRenderError } from "@/lib/render/errors";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
-import { CarouselLink } from "@/components/carousel/carousel-link";
 import type { SocialCopy } from "@/lib/social/captions";
 import type { StudioRender, StudioProps, RenderTimingsView } from "@/components/studio/types";
 import { cn, relativeTime } from "@/lib/utils";
@@ -147,8 +146,6 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
           <SocialCopyBlock scriptId={scriptId} copy={socialCopy} hashtags={hashtags} cost={planLimits.costs.socialCopy} aiConfigured={aiConfigured} />
         </Section>
       )}
-
-      {hasScript && <CarouselLink projectId={projectId} />}
 
       {renders.length > 0 && (
         <Section title="Rendus récents" icon={History} count={renders.length} defaultOpen={showHistory} summary={latest ? `${relativeTime(latest.createdAt)} · ${latest.status === "COMPLETED" ? "prêt" : latest.status === "FAILED" ? "échec" : "en cours"}` : undefined}>
