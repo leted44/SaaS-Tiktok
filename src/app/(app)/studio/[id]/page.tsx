@@ -86,6 +86,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         maxResolution: plan.maxResolution,
         premiumVoices: plan.premiumVoices,
         voiceCloning: plan.voiceCloning,
+        autopilot: plan.autopilotQueue > 0,
         costs: admin
           ? { "720p": 0, "1080p": 0, "4K": 0, voicePer30s: 0, voiceClone: 0, socialCopy: 0, script: 0 }
           : { "720p": renderCost("720p"), "1080p": renderCost("1080p"), "4K": renderCost("4K"), voicePer30s: CREDIT_COSTS.VOICEOVER_PER_30S, voiceClone: CREDIT_COSTS.VOICE_CLONE, socialCopy: CREDIT_COSTS.SOCIAL_COPY, script: CREDIT_COSTS.SCRIPT_GENERATION },

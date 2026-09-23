@@ -4,6 +4,9 @@ import { getVoice, type VoiceDefinition } from "@/lib/tts/voices";
 /** The single reserved id a user's own cloned voice is selected and stored under. */
 export const CUSTOM_VOICE_ID = "custom";
 
+/** The voice can't be used by this account (no clone yet, or not in the plan): retrying won't help. */
+export class VoiceUnavailableError extends Error {}
+
 export function customVoiceDefinition(name: string): VoiceDefinition {
   return {
     id: CUSTOM_VOICE_ID,
@@ -27,7 +30,7 @@ export function customVoiceDefinition(name: string): VoiceDefinition {
 export async function resolveVoice(id: string, userId: string): Promise<VoiceDefinition> {
   if (id === CUSTOM_VOICE_ID) {
     const custom = await prisma.customVoice.findUnique({ where: { userId } });
-    if (!custom) throw new Error("Vous n'avez pas encore de voix clonée. Enregistrez-en une dans l'onglet Audio.");
+    if (!custom) throw new VoiceUnavailableError("Vous n'avez pas encore de voix clonée. Enregistrez-en une dans l'onglet Audio.");
     return { ...customVoiceDefinition(custom.name), providerVoiceId: custom.providerVoiceId };
   }
   return getVoice(id);

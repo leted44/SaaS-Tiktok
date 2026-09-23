@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { PlayerRef } from "@remotion/player";
-import { FileText, Captions, Layers, Music2, Film, GalleryHorizontalEnd, ArrowLeft, Check, Loader2, Pencil } from "lucide-react";
+import { FileText, Captions, Layers, Music2, Film, GalleryHorizontalEnd, ArrowLeft, Check, Loader2, Pencil, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -111,6 +111,23 @@ export function Studio(props: StudioProps) {
 
   const patch = useCallback(<K extends keyof EditorState>(k: K, v: EditorState[K]) => setState((s) => ({ ...s, [k]: v })), []);
 
+  const [templating, setTemplating] = useState(false);
+
+  /** Turn this video's look into an autopilot template — saving pending edits first, so the template gets exactly what is on screen. */
+  async function saveAsTemplate() {
+    setTemplating(true);
+    if (dirty) {
+      const snapshot = JSON.stringify(state);
+      const res = await saveEditorState(project.id, state);
+      if (!res.ok) {
+        setTemplating(false);
+        return toast.error(res.error);
+      }
+      lastSaved.current = snapshot;
+    }
+    router.push(`/autopilot/templates/new?from=${project.id}`);
+  }
+
   async function commitTitle() {
     setEditingTitle(false);
     if (title.trim() === project.title) return;
@@ -140,6 +157,11 @@ export function Studio(props: StudioProps) {
             {saveStatus === "saving" ? <><Loader2 className="h-3 w-3 animate-spin" /> Enregistrement…</> : saveStatus === "saved" ? <><Check className="h-3 w-3 text-emerald-400" /> Enregistré</> : saveStatus === "error" ? "Échec de l'enregistrement" : "Toutes les modifications sont enregistrées"}
           </span>
           <StatusBadge status={project.status} />
+          {planLimits.autopilot && (
+            <Button variant="secondary" size="sm" loading={templating} onClick={saveAsTemplate} title="Enregistrer la voix, les sous-titres, la musique, le fond et le format de cette vidéo comme modèle du pilote automatique">
+              {!templating && <Wand2 />} <span className="sm:hidden">Modèle</span><span className="hidden sm:inline">Enregistrer comme modèle</span>
+            </Button>
+          )}
           <Button variant="gradient" size="sm" onClick={() => setTab("export")}><Film /> Rendu</Button>
         </div>
       </div>
@@ -227,8 +249,8 @@ export function Studio(props: StudioProps) {
                     credits={user.credits}
                     onVoiceChange={(id) => patch("voiceId", id)}
                     onCustomVoiceChange={() => router.refresh()}
-                    onMusicChange={(id, grid) => setState((s) => ({ ...s, musicTrackId: id, musicUrl: null, musicName: null, musicStartMs: 0, musicBpm: grid?.bpm ?? null, musicBeatOffsetMs: grid?.offsetMs ?? null }))}
-                    onCustomMusicChange={(url, name, grid) => setState((s) => ({ ...s, musicUrl: url, musicName: name, musicTrackId: url ? null : s.musicTrackId, musicStartMs: 0, musicBpm: grid?.bpm ?? null, musicBeatOffsetMs: grid?.offsetMs ?? null }))}
+                    onMusicChange={(id, grid) => setState((s) => ({ ...s, musicTrackId: id, musicUrl: null, musicName: null, musicStartMs: id === s.musicTrackId && !s.musicUrl ? s.musicStartMs : 0, musicBpm: grid?.bpm ?? null, musicBeatOffsetMs: grid?.offsetMs ?? null }))}
+                    onCustomMusicChange={(url, name, grid) => setState((s) => ({ ...s, musicUrl: url, musicName: name, musicTrackId: url ? null : s.musicTrackId, musicStartMs: url && url === s.musicUrl ? s.musicStartMs : 0, musicBpm: grid?.bpm ?? null, musicBeatOffsetMs: grid?.offsetMs ?? null }))}
                     beatSync={state.beatSync}
                     musicBpm={state.musicBpm}
                     onBeatSyncChange={(v) => patch("beatSync", v)}

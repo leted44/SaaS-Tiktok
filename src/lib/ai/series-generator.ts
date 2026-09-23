@@ -114,7 +114,7 @@ export async function generateSeries(source: SeriesSource, parts: number): Promi
     });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) throw new ScriptGenerationError("L'IA est occupée en ce moment. Réessayez dans quelques secondes.", "UPSTREAM");
-    if (err instanceof Anthropic.APIError) throw new ScriptGenerationError(`La requête IA a échoué (${err.status}) : ${err.message}`, "UPSTREAM");
+    if (err instanceof Anthropic.APIError) throw new ScriptGenerationError(err.status ? `La requête IA a échoué (${err.status}) : ${err.message}` : `L'IA est injoignable pour le moment (${err.message}).`, "UPSTREAM");
     throw err;
   }
 

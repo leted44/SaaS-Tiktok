@@ -61,13 +61,26 @@ async function runRenderJob(job: RenderJobWithRelations, opts?: RenderOptions): 
 }
 
 export async function runWorkerTick(workerId: string) {
-  // Autopilot first: a render it queues this tick is then picked up just below.
-  // Isolated so a problem there never holds up renders and posts people started by hand.
-  const autopilot = await advanceAutopilot().catch((err) => {
-    console.error("[autopilot] tick failed:", err);
-    return 0;
-  });
-  const render = await processOneRenderJob(workerId);
-  const published = await processDuePublishJobs(5);
-  return { autopilot, render, published };
+  const startedAt = new Date();
+  let error: string | null = null;
+  try {
+    // Autopilot first: a render it queues this tick is then picked up just below.
+    // Isolated so a problem there never holds up renders and posts people started by hand.
+    const autopilot = await advanceAutopilot().catch((err) => {
+      error = `autopilot: ${err instanceof Error ? err.message : String(err)}`;
+      console.error("[autopilot] tick failed:", err);
+      return 0;
+    });
+    const render = await processOneRenderJob(workerId);
+    const published = await processDuePublishJobs(5);
+    return { autopilot, render, published };
+  } catch (err) {
+    error = err instanceof Error ? err.message : String(err);
+    throw err;
+  } finally {
+    // The app shows when the worker last ran, so a stopped scheduler is noticed.
+    await prisma.workerHeartbeat
+      .upsert({ where: { id: "worker" }, create: { id: "worker", tickAt: startedAt, durationMs: Date.now() - startedAt.getTime(), error }, update: { tickAt: startedAt, durationMs: Date.now() - startedAt.getTime(), error } })
+      .catch((err) => console.error("[worker] heartbeat failed:", err));
+  }
 }

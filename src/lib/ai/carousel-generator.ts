@@ -115,7 +115,7 @@ export async function generateCarousel(input: CarouselInput): Promise<CarouselSl
     });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) throw new CarouselGenerationError("L'IA est occupée en ce moment. Réessayez dans quelques secondes.", "UPSTREAM");
-    if (err instanceof Anthropic.APIError) throw new CarouselGenerationError(`La requête IA a échoué (${err.status}) : ${err.message}`, "UPSTREAM");
+    if (err instanceof Anthropic.APIError) throw new CarouselGenerationError(err.status ? `La requête IA a échoué (${err.status}) : ${err.message}` : `L'IA est injoignable pour le moment (${err.message}).`, "UPSTREAM");
     throw err;
   }
 

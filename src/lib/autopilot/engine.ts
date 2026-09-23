@@ -1,41 +1,43 @@
-import { AutopilotStatus, type AutopilotItem, type Prisma } from "@prisma/client";
+import type { AutopilotItem, AutopilotStatus, Prisma, User } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { generateScriptSchema, voiceoverRequestSchema } from "@/lib/validations";
 import { InsufficientCreditsError } from "@/lib/credits";
 import { effectivePlanDef } from "@/lib/plans";
+import { ScriptGenerationError } from "@/lib/ai/script-generator";
+import { TTSError } from "@/lib/tts";
+import { VoiceUnavailableError } from "@/lib/tts/resolve-voice";
 import { createScript } from "@/lib/pipeline/script";
 import { createVoiceover } from "@/lib/pipeline/voiceover";
 import { fillProjectVisuals } from "@/lib/pipeline/visuals";
 import { queueRender } from "@/lib/pipeline/render";
+import { applyTemplateToProject, TemplateError, templateToInput } from "@/lib/autopilot/templates";
+import { appliedTemplateSchema, type AppliedTemplate } from "@/lib/autopilot/template-shared";
 import { sendPush } from "@/lib/push";
 
 /**
  * The autopilot: videos made and handed over on a schedule, with nobody at the
  * controls.
  *
- * Every worker tick (once a minute, from cron-job.org) moves each due item one
- * step: script → voice → visuals → render → ready → delivered. One step per
- * tick keeps every call short enough for a serverless function and lets a
- * crash resume exactly where it stopped. Production starts PRODUCTION_LEAD_MS
- * before the delivery time, so the video is normally ready — and reviewable in
- * the studio — well before it is due; an item scheduled closer than that
- * starts at once.
+ * It replays, in order, the steps a user takes in the studio — write the
+ * script, voice it, dress each scene, render — using a saved template for every
+ * choice the studio would ask for. Every worker tick (once a minute) moves each
+ * due item one step, so every call stays short and a crash resumes exactly
+ * where it stopped. Each step is safe to run twice: the project is created
+ * once, an existing voice-over or render is reused rather than paid for again.
  *
- * Delivery today means a push notification with the video, ready to share.
- * Publishing straight to TikTok/Instagram slots in at that step once the
- * platform keys exist.
+ * Production starts PRODUCTION_LEAD_MS before the delivery time (at once when
+ * closer), so the video is normally ready — and reviewable in the studio — well
+ * before it is due. Delivery today is a push notification with the video ready
+ * to share; direct publishing to TikTok/Instagram slots in at that step once
+ * the platform keys exist.
  */
 
 export const PRODUCTION_LEAD_MS = 6 * 3600_000;
-/**
- * `lockedAt` is a lease: a tick holds it while working on an item. A lease
- * older than this is treated as abandoned (the tick crashed or timed out).
- * After a failed attempt the lease is kept rather than cleared, so the item
- * rests for one full lease before it is tried again instead of failing again
- * a minute later.
- */
+/** A claim older than this is treated as abandoned (the tick crashed or was cut off). */
 export const LEASE_MS = 10 * 60_000;
-export const MAX_ATTEMPTS = 3;
+/** Wait before the 2nd and 3rd attempt of a failed step. */
+export const RETRY_DELAYS_MS = [60_000, 3 * 60_000];
+export const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
 /** Items started per tick, and the time after which a tick stops starting new ones. */
 const MAX_ITEMS_PER_TICK = 3;
 const TICK_BUDGET_MS = 120_000;
@@ -43,7 +45,7 @@ const TICK_BUDGET_MS = 120_000;
 const IN_PRODUCTION: AutopilotStatus[] = ["SCRIPTING", "VOICING", "VISUALS", "RENDERING"];
 export const ACTIVE_STATUSES: AutopilotStatus[] = ["SCHEDULED", ...IN_PRODUCTION, "READY"];
 
-/** Items with work to do now, whose lease is free. */
+/** Items with work to do now: in their window, not claimed by another tick, not resting after a failure. */
 export function dueWhere(now: Date): Prisma.AutopilotItemWhereInput {
   return {
     OR: [
@@ -51,7 +53,10 @@ export function dueWhere(now: Date): Prisma.AutopilotItemWhereInput {
       { status: { in: IN_PRODUCTION } },
       { status: "READY", deliverAt: { lte: now } },
     ],
-    AND: [{ OR: [{ lockedAt: null }, { lockedAt: { lt: new Date(now.getTime() - LEASE_MS) } }] }],
+    AND: [
+      { OR: [{ lockedAt: null }, { lockedAt: { lt: new Date(now.getTime() - LEASE_MS) } }] },
+      { OR: [{ retryAt: null }, { retryAt: { lte: now } }] },
+    ],
   };
 }
 
@@ -64,7 +69,7 @@ export async function advanceAutopilot(now = new Date()): Promise<number> {
   let advanced = 0;
   for (const candidate of due) {
     if (Date.now() - started > TICK_BUDGET_MS) break;
-    // Claim atomically: another tick running in parallel sees the lease and skips it.
+    // Claim atomically: a tick running in parallel sees the claim and skips the item.
     const claimed = await prisma.autopilotItem.updateMany({
       where: { id: candidate.id, status: candidate.status, lockedAt: candidate.lockedAt },
       data: { lockedAt: new Date(), status: candidate.status === "SCHEDULED" ? "SCRIPTING" : candidate.status },
@@ -88,7 +93,7 @@ async function runStep(item: AutopilotItem): Promise<void> {
       await prisma.autopilotItem.updateMany({ where: stillHere, data: { lockedAt: null } });
       return;
     }
-    const { count } = await prisma.autopilotItem.updateMany({ where: stillHere, data: { ...result.next, attempts: 0, error: null, lockedAt: null } });
+    const { count } = await prisma.autopilotItem.updateMany({ where: stillHere, data: { ...result.next, attempts: 0, error: null, retryAt: null, lockedAt: null } });
     if (count && result.next.status === "DELIVERED") await notifyDelivered(await prisma.autopilotItem.findUniqueOrThrow({ where: { id: item.id } }));
   } catch (err) {
     const message = (err instanceof Error ? err.message : String(err)).slice(0, 2000);
@@ -96,54 +101,124 @@ async function runStep(item: AutopilotItem): Promise<void> {
     const final = attempts >= MAX_ATTEMPTS || isPermanent(err);
     const { count } = await prisma.autopilotItem.updateMany({
       where: stillHere,
-      // A retry keeps the lease (see LEASE_MS); a final failure releases it.
-      data: final ? { status: "FAILED", failedStep: item.status, attempts, error: message, lockedAt: null } : { attempts, error: message },
+      data: final
+        ? { status: "FAILED", failedStep: item.status, attempts, error: message, lockedAt: null, retryAt: null }
+        : { attempts, error: message, lockedAt: null, retryAt: new Date(Date.now() + RETRY_DELAYS_MS[attempts - 1]) },
     });
-    console.error(`[autopilot:${item.id}] ${item.status} failed (attempt ${attempts}):`, message);
+    console.error(`[autopilot:${item.id}] ${item.status} failed (attempt ${attempts}${final ? ", final" : ""}):`, message);
     if (count && final) await notifyFailed({ ...item, error: message });
   }
 }
 
-/** Errors that another attempt cannot fix. */
-function isPermanent(err: unknown): boolean {
-  return err instanceof InsufficientCreditsError || err instanceof PermanentError;
+export class PermanentError extends Error {}
+
+/** HTTP status quoted in an upstream error message, if any. */
+function quotedStatus(message: string): number | null {
+  const m = /\b(4\d\d|5\d\d)\b/.exec(message);
+  return m ? Number(m[1]) : null;
 }
 
-export class PermanentError extends Error {}
+/**
+ * Errors another attempt cannot fix: missing keys, exhausted quotas, refused
+ * content, invalid requests. Retrying those only delays the message the user
+ * needs to see. Rate limits, timeouts and server errors are worth retrying.
+ */
+export function isPermanent(err: unknown): boolean {
+  if (err instanceof InsufficientCreditsError || err instanceof PermanentError || err instanceof TemplateError || err instanceof VoiceUnavailableError) return true;
+  if (err instanceof ScriptGenerationError) {
+    if (err.code === "NOT_CONFIGURED" || err.code === "REFUSED") return true;
+    const status = quotedStatus(err.message);
+    return status !== null && status >= 400 && status < 500 && status !== 408 && status !== 429;
+  }
+  if (err instanceof TTSError) {
+    if (err.code === "NOT_CONFIGURED" || err.code === "QUOTA") return true;
+    const status = quotedStatus(err.message);
+    return status !== null && status >= 400 && status < 500 && status !== 408 && status !== 429;
+  }
+  return false;
+}
+
+/**
+ * The settings this production uses. Frozen on the item when production
+ * starts, so editing or deleting the template afterwards never changes a video
+ * already being made.
+ */
+async function appliedFor(item: AutopilotItem): Promise<AppliedTemplate> {
+  const frozen = item.applied ? appliedTemplateSchema.safeParse(item.applied) : null;
+  if (frozen?.success) return frozen.data;
+  const template =
+    (item.templateId ? await prisma.videoTemplate.findFirst({ where: { id: item.templateId, userId: item.userId } }) : null) ??
+    (await prisma.videoTemplate.findFirst({ where: { userId: item.userId, isDefault: true } })) ??
+    (await prisma.videoTemplate.findFirst({ where: { userId: item.userId }, orderBy: { createdAt: "asc" } }));
+  if (!template) throw new PermanentError("Aucun modèle de vidéo : crée un modèle dans Pilote automatique, puis relance cette vidéo.");
+  try {
+    return { ...templateToInput(template), templateId: template.id };
+  } catch {
+    throw new PermanentError(`Le modèle « ${template.name} » n'est plus lisible : crée un nouveau modèle, puis relance cette vidéo.`);
+  }
+}
+
+/**
+ * The settings for the step about to run. The first step that needs them
+ * freezes them on the item. An item that already has a project by then (one
+ * scheduled before templates existed, relaunched mid-way) also gets the
+ * template's look on that project, so the rest of the video follows the
+ * template rather than the old defaults.
+ */
+async function ensureApplied(item: AutopilotItem): Promise<AppliedTemplate> {
+  const applied = await appliedFor(item);
+  if (!item.applied) {
+    await prisma.autopilotItem.updateMany({ where: { id: item.id, status: item.status }, data: { applied } });
+    if (item.projectId) await applyTemplateToProject(item.projectId, { ...applied, targetDurationSec: item.targetDurationSec });
+  }
+  return applied;
+}
+
+function titleFromTopic(topic: string): string {
+  const oneLine = topic.replace(/\s+/g, " ").trim();
+  return oneLine.length > 80 ? `${oneLine.slice(0, 77).trimEnd()}…` : oneLine;
+}
 
 async function step(item: AutopilotItem): Promise<StepResult> {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: item.userId } });
 
   switch (item.status) {
-    case "SCRIPTING": {
-      if (effectivePlanDef(user).autopilotQueue === 0) throw new PermanentError("Le pilote automatique est réservé aux forfaits Pro et Agence.");
-      const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: item.workspaceId } });
-      const data = generateScriptSchema.parse({ topic: item.topic, tone: item.tone, targetDurationSec: item.targetDurationSec, language: item.language });
-      const script = await createScript(user, workspace, data);
-      return { next: { projectId: script.projectId, status: "VOICING" } };
-    }
+    case "SCRIPTING":
+      return scriptStep(item, user);
 
     case "VOICING": {
+      const applied = await ensureApplied(item);
       const project = await requireProject(item);
       const scriptId = project.activeScriptId;
       if (!scriptId) throw new PermanentError("Le projet n'a plus de script.");
-      const voiceId = project.voiceId ?? project.workspace.defaultVoiceId;
-      await createVoiceover(user, voiceoverRequestSchema.parse({ projectId: project.id, scriptId, voiceId }));
+      // Already voiced (a previous attempt finished but was cut off before recording it): don't pay twice.
+      const existing = await prisma.voiceover.findFirst({ where: { projectId: project.id, scriptId, status: "READY" } });
+      if (!existing) {
+        const voiceId = project.voiceId ?? applied.voiceId;
+        await createVoiceover(user, voiceoverRequestSchema.parse({ projectId: project.id, scriptId, voiceId, stability: applied.voiceStability, speed: applied.voiceSpeed }));
+      }
       return { next: { status: "VISUALS" } };
     }
 
     case "VISUALS": {
+      const applied = await ensureApplied(item);
       const project = await requireProject(item);
-      const script = await prisma.script.findUniqueOrThrow({ where: { id: project.activeScriptId! } });
-      const voiceover = await prisma.voiceover.findFirst({ where: { projectId: project.id, scriptId: script.id, status: "READY" }, orderBy: { createdAt: "desc" } });
-      await fillProjectVisuals(project, script, voiceover);
+      if (applied.stockVisuals) {
+        const script = await prisma.script.findUniqueOrThrow({ where: { id: project.activeScriptId! } });
+        const voiceover = await prisma.voiceover.findFirst({ where: { projectId: project.id, scriptId: script.id, status: "READY" }, orderBy: { createdAt: "desc" } });
+        await fillProjectVisuals(project, script, voiceover);
+      }
       return { next: { status: "RENDERING" } };
     }
 
     case "RENDERING": {
       const project = await requireProject(item);
       if (!item.renderJobId) {
-        const queued = await queueRender(user, project.id, "1080p");
+        // A render already under way or done for this project (an earlier attempt, or one started from the studio) is adopted.
+        const existing = await prisma.renderJob.findFirst({ where: { projectId: project.id, status: { in: ["QUEUED", "PROCESSING", "COMPLETED"] } }, orderBy: { createdAt: "desc" } });
+        if (existing) return { next: { renderJobId: existing.id } };
+        const applied = await ensureApplied(item);
+        const queued = await queueRender(user, project.id, applied.resolution);
         // The render itself runs in this same tick, right after the autopilot.
         return { next: { renderJobId: queued.renderJobId } };
       }
@@ -168,6 +243,42 @@ async function step(item: AutopilotItem): Promise<StepResult> {
     default:
       return "wait";
   }
+}
+
+/**
+ * Step 1 — the project and its script, as "Générer" does in the studio, then
+ * the template's look applied as the studio's panels would. The project is
+ * created and recorded before the script is paid for, so an attempt cut off
+ * halfway resumes on the same project instead of starting a duplicate.
+ */
+async function scriptStep(item: AutopilotItem, user: User): Promise<StepResult> {
+  if (effectivePlanDef(user).autopilotQueue === 0) throw new PermanentError("Le pilote automatique est réservé aux forfaits Pro et Agence.");
+  const stillHere = { id: item.id, status: item.status };
+
+  const applied = await ensureApplied(item);
+
+  let projectId = item.projectId;
+  if (!projectId) {
+    const project = await prisma.project.create({
+      data: { userId: user.id, workspaceId: item.workspaceId, title: titleFromTopic(item.topic), topic: item.topic, language: applied.language, targetDurationSec: item.targetDurationSec, aspectRatio: applied.aspectRatio },
+    });
+    projectId = project.id;
+    const { count } = await prisma.autopilotItem.updateMany({ where: stillHere, data: { projectId } });
+    if (!count) return "wait"; // cancelled meanwhile: leave the empty project, spend nothing
+  }
+  // The duration chosen when scheduling overrides the template's.
+  await applyTemplateToProject(projectId, { ...applied, targetDurationSec: item.targetDurationSec });
+
+  const project = await prisma.project.findUniqueOrThrow({ where: { id: projectId } });
+  if (!project.activeScriptId) {
+    const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: item.workspaceId } });
+    const data = generateScriptSchema.parse({ projectId, topic: item.topic, tone: item.tone, targetDurationSec: item.targetDurationSec, language: applied.language });
+    const summary = await createScript(user, workspace, data);
+    const script = await prisma.script.findUniqueOrThrow({ where: { id: summary.scriptId }, select: { title: true } });
+    // The studio names a project after its script; do the same.
+    await prisma.project.update({ where: { id: projectId }, data: { title: script.title } });
+  }
+  return { next: { projectId, status: "VOICING" } };
 }
 
 async function requireProject(item: AutopilotItem) {

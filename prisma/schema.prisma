@@ -145,6 +145,7 @@ model User {
   carousels          Carousel[]
   autopilotItems     AutopilotItem[]
   pushSubscriptions  PushSubscription[]
+  videoTemplates     VideoTemplate[]
 
   @@index([stripeCustomerId])
 }
@@ -235,6 +236,7 @@ model Workspace {
   assets         Asset[]
   socialAccounts SocialAccount[]
   autopilotItems AutopilotItem[]
+  videoTemplates VideoTemplate[]
 
   @@index([ownerId])
 }
@@ -577,14 +579,22 @@ model AutopilotItem {
   attempts          Int              @default(0)
   // The step a FAILED item stopped at, so "Relancer" resumes there.
   failedStep        AutopilotStatus?
+  // Not before this time: a step that failed rests here before its next try.
+  retryAt           DateTime?
+  // The template the video is made from, and the exact settings copied from
+  // it when production started — later edits to the template never change a
+  // video already in production.
+  templateId        String?
+  applied           Json?
   lockedAt          DateTime?
   deliveredAt       DateTime?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  project   Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  template  VideoTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
 
   @@index([status, deliverAt])
   @@index([userId, deliverAt])
@@ -603,4 +613,55 @@ model PushSubscription {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// Everything the autopilot needs to make a video the way the user wants it,
+// saved once and reused: the same choices a video gets in the studio, step by
+// step — voice, captions, music, visuals, background, format and quality.
+model VideoTemplate {
+  id                String      @id @default(cuid())
+  userId            String
+  workspaceId       String
+  name              String
+  isDefault         Boolean     @default(false)
+  // What each video says, unless the schedule overrides it
+  language          String      @default("fr")
+  tone              String      @default("energetic")
+  targetDurationSec Int         @default(45)
+  // Who says it
+  voiceId           String
+  voiceStability    Float       @default(0.5)
+  voiceSpeed        Float       @default(1)
+  // How it looks
+  aspectRatio       AspectRatio @default(VERTICAL)
+  resolution        String      @default("1080p")
+  captionStyle      Json
+  backgroundStyle   Json
+  // A stock clip on every scene, or the animated background alone
+  stockVisuals      Boolean     @default(true)
+  // What plays under it
+  musicTrackId      String?
+  musicUrl          String?
+  musicName         String?
+  musicVolume       Float       @default(0.18)
+  musicStartMs      Int         @default(0)
+  musicBpm          Float?
+  musicBeatOffsetMs Int?
+  beatSync          Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  autopilotItems AutopilotItem[]
+
+  @@index([userId])
+}
+
+// When the worker last ran, so the app can tell whether automation is alive.
+model WorkerHeartbeat {
+  id         String   @id
+  tickAt     DateTime
+  durationMs Int      @default(0)
+  error      String?  @db.Text
 }

@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import type { VisualLayer, VisualPoolItem, BackgroundStyle } from "@/lib/validations";
 import type { ShortVideoProps } from "@/lib/render/props";
 import { Progress } from "@/components/ui/progress";
@@ -15,6 +14,7 @@ import { probeVideo, convertVideo, canConvert } from "@/lib/assets/video-compat"
 import { Section } from "@/components/ui/section";
 import { cn } from "@/lib/utils";
 import { nanoid } from "nanoid";
+import { BackgroundControls, backgroundLabel } from "@/components/studio/background-controls";
 
 interface Asset { id: string; type: string; url: string; name: string; mimeType: string }
 interface StockResult { id: string; type: "image" | "video"; url: string; thumbnailUrl: string; author: string; durationSec: number | null }
@@ -450,23 +450,8 @@ export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, s
         )}
       </Section>
 
-      <Section title="Fond" icon={Palette} summary={background.type === "gradient" ? "Dégradé" : background.type === "solid" ? "Uni" : "Grain"}>
-        <div className="grid grid-cols-3 gap-2">
-          {([["gradient", "Dégradé"], ["solid", "Uni"], ["grain", "Grain"]] as const).map(([t, label]) => (
-            <button key={t} onClick={() => onBackgroundChange({ ...background, type: t })} className={cn("rounded-lg border px-2 py-1.5 text-xs transition", background.type === t ? "border-primary/60 bg-primary/10" : "border-white/10")}>{label}</button>
-          ))}
-        </div>
-        <div className="mt-3 flex items-center gap-2">
-          {background.colors.map((c, i) => (
-            <input key={i} type="color" value={c} onChange={(e) => onBackgroundChange({ ...background, colors: background.colors.map((x, k) => (k === i ? e.target.value : x)) })} className="h-8 w-10 cursor-pointer rounded border border-white/10 bg-transparent p-0.5" />
-          ))}
-          {background.colors.length < 3 && <Button size="sm" variant="ghost" onClick={() => onBackgroundChange({ ...background, colors: [...background.colors, "#DB2777"] })}><Palette /> Ajouter</Button>}
-          {background.colors.length > 1 && <Button size="sm" variant="ghost" onClick={() => onBackgroundChange({ ...background, colors: background.colors.slice(0, -1) })}>Retirer</Button>}
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <label className="flex items-center justify-between rounded-lg border border-white/[0.06] px-3 py-2 text-sm"><span>Vignettage</span><Switch checked={background.vignette} onCheckedChange={(v) => onBackgroundChange({ ...background, vignette: v })} /></label>
-          <label className="flex items-center justify-between rounded-lg border border-white/[0.06] px-3 py-2 text-sm"><span>Grain de film</span><Switch checked={background.grain} onCheckedChange={(v) => onBackgroundChange({ ...background, grain: v })} /></label>
-        </div>
+      <Section title="Fond" icon={Palette} summary={backgroundLabel(background)}>
+        <BackgroundControls value={background} onChange={onBackgroundChange} />
       </Section>
     </div>
   );

@@ -2,7 +2,7 @@ import type { User } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { scenesSchema, parseJson, type voiceoverRequestSchema } from "@/lib/validations";
 import { synthesizeSpeech } from "@/lib/tts";
-import { resolveVoice, CUSTOM_VOICE_ID } from "@/lib/tts/resolve-voice";
+import { resolveVoice, CUSTOM_VOICE_ID, VoiceUnavailableError } from "@/lib/tts/resolve-voice";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, effectivePlanDef, voiceoverCost } from "@/lib/plans";
 import { putObject, storageKey } from "@/lib/storage";
@@ -26,9 +26,9 @@ export async function createVoiceover(user: User, data: z.output<typeof voiceove
   const voice = await resolveVoice(data.voiceId, user.id);
   const plan = effectivePlanDef(user);
   if (voice.id === CUSTOM_VOICE_ID && !plan.voiceCloning) {
-    throw new Error("Le clonage vocal est réservé aux forfaits Pro et Agence.");
+    throw new VoiceUnavailableError("Le clonage vocal est réservé aux forfaits Pro et Agence.");
   } else if (voice.premium && voice.id !== CUSTOM_VOICE_ID && !plan.premiumVoices) {
-    throw new Error(`${voice.name} est une voix premium. Passez au forfait Créateur ou supérieur pour l'utiliser.`);
+    throw new VoiceUnavailableError(`${voice.name} est une voix premium. Passez au forfait Créateur ou supérieur pour l'utiliser.`);
   }
 
   const scenes = parseJson(scenesSchema, script.scenes, []);

@@ -10,9 +10,11 @@ interface Props {
   inputProps: ShortVideoProps;
   className?: string;
   autoPlay?: boolean;
+  /** Frame shown before playback starts (defaults to the first). */
+  initialFrame?: number;
 }
 
-export const PreviewPlayer = forwardRef<PlayerRef, Props>(function PreviewPlayer({ inputProps, className, autoPlay = false }, ref) {
+export const PreviewPlayer = forwardRef<PlayerRef, Props>(function PreviewPlayer({ inputProps, className, autoPlay = false, initialFrame }, ref) {
   const durationInFrames = useMemo(() => Math.max(1, Math.round((inputProps.durationMs / 1000) * inputProps.fps)), [inputProps.durationMs, inputProps.fps]);
   const aspect = inputProps.width / inputProps.height;
   return (
@@ -28,6 +30,7 @@ export const PreviewPlayer = forwardRef<PlayerRef, Props>(function PreviewPlayer
         style={{ width: "100%", height: "100%" }}
         controls
         autoPlay={autoPlay}
+        initialFrame={initialFrame === undefined ? undefined : Math.min(Math.max(0, Math.round(initialFrame)), durationInFrames - 1)}
         loop
         clickToPlay
         spaceKeyToPlayOrPause
