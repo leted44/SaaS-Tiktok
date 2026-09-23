@@ -82,6 +82,7 @@ export async function saveEditorState(projectId: string, input: unknown): Promis
         musicUrl: state.musicUrl,
         musicName: state.musicName,
         musicVolume: state.musicVolume,
+        musicStartMs: hasMusic ? state.musicStartMs : 0,
         musicBpm: hasMusic ? state.musicBpm : null,
         musicBeatOffsetMs: hasMusic ? state.musicBeatOffsetMs : null,
         beatSync: state.beatSync,

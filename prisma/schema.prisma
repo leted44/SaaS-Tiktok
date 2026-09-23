@@ -258,6 +258,11 @@ model Project {
   musicUrl     String?
   musicName    String?
   musicVolume  Float   @default(0.18)
+  // Where in the uploaded/library file playback starts, in ms — lets a track
+  // longer than the video skip its intro instead of always opening on it.
+  // Relative to the raw file, same as musicBeatOffsetMs; reset to 0 whenever
+  // the track changes.
+  musicStartMs Int     @default(0)
 
   // Tempo of the chosen track, detected in the browser when it is picked, so
   // scene cuts can be nudged onto the beat. Two numbers describe the whole

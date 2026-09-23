@@ -5,7 +5,7 @@ import { getTrack } from "@/lib/music/library";
 import { estimateWordTimings } from "@/lib/captions/align";
 import { absoluteUrl } from "@/lib/storage";
 import { ASPECT_DIMENSIONS, type ShortVideoProps } from "@/lib/render/props";
-import { applyBeatSync, type BeatGridSpec } from "@/lib/render/beat-grid";
+import { applyBeatSync, timelineOffsetMs, type BeatGridSpec } from "@/lib/render/beat-grid";
 import { z } from "zod";
 
 interface BuildArgs {
@@ -72,7 +72,7 @@ export function buildShortVideoProps({ project, script, voiceover, workspace, re
   // on its own scene; visual layers follow the boundary they were cut to.
   const beatGrid: BeatGridSpec | null =
     project.beatSync && project.musicBpm && musicIsPlaying(project)
-      ? { bpm: project.musicBpm, offsetMs: project.musicBeatOffsetMs ?? 0 }
+      ? { bpm: project.musicBpm, offsetMs: timelineOffsetMs(project.musicBeatOffsetMs ?? 0, project.musicStartMs, project.musicBpm) }
       : null;
 
 
@@ -97,6 +97,7 @@ export function buildShortVideoProps({ project, script, voiceover, workspace, re
     voiceoverUrl,
     musicUrl,
     musicVolume: project.musicVolume,
+    musicStartMs: project.musicStartMs,
     beatGrid: musicUrl ? beatGrid : null,
     words,
     scenes: synced.scenes,

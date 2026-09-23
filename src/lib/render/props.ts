@@ -11,6 +11,8 @@ export const shortVideoPropsSchema = z.object({
   voiceoverUrl: z.string().nullable(),
   musicUrl: z.string().nullable(),
   musicVolume: z.number().min(0).max(1).default(0.18),
+  /** Where playback of musicUrl starts, from the file's own beginning. */
+  musicStartMs: z.number().int().min(0).default(0),
   /** Tempo of the music, when one was detected and beat sync is on. Cuts are already snapped; this drives the on-beat accent. */
   beatGrid: z.object({ bpm: z.number().positive(), offsetMs: z.number().min(0) }).nullable().default(null),
   words: z.array(wordTimingSchema),
@@ -50,6 +52,7 @@ export const DEFAULT_PREVIEW_PROPS: ShortVideoProps = {
   voiceoverUrl: null,
   musicUrl: null,
   musicVolume: 0.18,
+  musicStartMs: 0,
   beatGrid: null,
   words: [],
   scenes: [],

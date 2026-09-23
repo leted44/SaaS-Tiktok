@@ -48,6 +48,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         musicUrl: project.musicUrl,
         musicName: project.musicName,
         musicVolume: project.musicVolume,
+        musicStartMs: project.musicStartMs,
         musicBpm: project.musicBpm,
         musicBeatOffsetMs: project.musicBeatOffsetMs,
         beatSync: project.beatSync,

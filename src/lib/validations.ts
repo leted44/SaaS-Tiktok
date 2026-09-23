@@ -203,6 +203,11 @@ export const projectEditorStateSchema = z.object({
   musicUrl: z.string().nullable(),
   musicName: z.string().nullable(),
   musicVolume: z.number().min(0).max(1),
+  // Where playback of the track starts, from its own beginning — not the
+  // video's. Reset to 0 whenever the track changes; see build-props.ts for
+  // how it and musicBeatOffsetMs combine into where the beat grid lands on
+  // the timeline once playback is trimmed to this point.
+  musicStartMs: z.number().int().min(0).default(0),
   // Tempo of the chosen track, measured in the browser. Null whenever no track
   // is set or none could be found — never carried over from a previous track.
   musicBpm: z.number().positive().max(300).nullable().default(null),

@@ -15,6 +15,7 @@ export interface StudioProject {
   musicUrl: string | null;
   musicName: string | null;
   musicVolume: number;
+  musicStartMs: number;
   musicBpm: number | null;
   musicBeatOffsetMs: number | null;
   beatSync: boolean;
@@ -103,6 +104,7 @@ export interface EditorState {
   musicUrl: string | null;
   musicName: string | null;
   musicVolume: number;
+  musicStartMs: number;
   musicBpm: number | null;
   musicBeatOffsetMs: number | null;
   beatSync: boolean;

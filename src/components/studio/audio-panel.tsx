@@ -30,6 +30,7 @@ interface Props {
   musicUrl: string | null;
   musicName: string | null;
   musicVolume: number;
+  musicStartMs: number;
   voices: StudioProps["voices"];
   customVoice: { name: string; sampleUrl: string } | null;
   voiceCloningAllowed: boolean;
@@ -47,6 +48,7 @@ interface Props {
   onMusicChange: (id: string | null, grid: BeatGrid | null) => void;
   onCustomMusicChange: (url: string | null, name: string | null, grid: BeatGrid | null) => void;
   onVolumeChange: (v: number) => void;
+  onMusicStartChange: (v: number) => void;
   beatSync: boolean;
   musicBpm: number | null;
   onBeatSyncChange: (v: boolean) => void;
@@ -61,12 +63,17 @@ export function AudioPanel(p: Props) {
   const [uploadPct, setUploadPct] = useState(0);
   const [analysing, setAnalysing] = useState(false);
   const musicFileRef = useRef<HTMLInputElement>(null);
+  const musicPlayerRef = useRef<HTMLAudioElement>(null);
+  const [musicDurationMs, setMusicDurationMs] = useState<number | null>(null);
   // The preview endpoint caps the sample at 300 characters.
   const preview = useVoicePreview(p.previewText.trim().slice(0, 280) || VOICE_PREVIEW_TEXT, speed);
   const estCost = Math.max(p.costPer30s, Math.ceil((p.estimatedDurationSec / speed) / 30) * p.costPer30s);
   const stale = p.voiceover && p.voiceover.voiceId !== p.voiceId;
   const selectedVoice = p.voices.find((v) => v.id === p.voiceId) ?? null;
   const musicSource = p.musicUrl ?? p.tracks.find((t) => t.id === p.musicTrackId)?.url ?? null;
+  // How late the start point may be set: enough of the track must remain that a
+  // loop back to it doesn't restart within a couple of seconds of itself.
+  const maxStartMs = musicDurationMs ? Math.max(0, musicDurationMs - 4000) : 0;
   const musicSummary = p.musicUrl ? (p.musicName ?? "Ma musique") : (p.tracks.find((t) => t.id === p.musicTrackId)?.name ?? "Aucune");
 
   /**
@@ -216,7 +223,32 @@ export function AudioPanel(p: Props) {
               <span className="min-w-0 flex-1 truncate text-sm font-medium">{p.musicName ?? "Ma musique"}</span>
               <Button size="icon-sm" variant="ghost" aria-label="Retirer ma musique" onClick={() => p.onCustomMusicChange(null, null, null)}><Trash2 /></Button>
             </div>
-            <audio controls src={p.musicUrl} className="mt-2 h-8 w-full" />
+            <audio
+              ref={musicPlayerRef}
+              controls
+              src={p.musicUrl}
+              className="mt-2 h-8 w-full"
+              onLoadedMetadata={(e) => setMusicDurationMs(Math.round(e.currentTarget.duration * 1000))}
+            />
+            {musicDurationMs !== null && musicDurationMs > 8000 && (
+              <div className="mt-2.5 space-y-1">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Point de départ</span>
+                  <span>{formatDuration(p.musicStartMs)} / {formatDuration(musicDurationMs)}</span>
+                </div>
+                <Slider
+                  value={[Math.min(p.musicStartMs, maxStartMs)]}
+                  min={0}
+                  max={maxStartMs}
+                  step={500}
+                  onValueChange={([v]) => {
+                    p.onMusicStartChange(v);
+                    if (musicPlayerRef.current) musicPlayerRef.current.currentTime = v / 1000;
+                  }}
+                />
+                <p className="text-[11px] text-muted-foreground">Passe l'intro : la vidéo joue le morceau à partir d'ici. Fais glisser puis appuie sur lecture pour écouter.</p>
+              </div>
+            )}
           </div>
         )}
 

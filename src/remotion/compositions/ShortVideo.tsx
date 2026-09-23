@@ -33,7 +33,7 @@ export const ShortVideo: React.FC<ShortVideoProps> = (props) => {
       <ProgressBar color={props.brand.primaryColor} scale={scale} />
       {props.watermark && <Watermark watermark={props.watermark} scale={scale} />}
       {props.voiceoverUrl && <Audio src={props.voiceoverUrl} />}
-      {props.musicUrl && <Audio src={props.musicUrl} volume={props.musicVolume} loop />}
+      {props.musicUrl && <Audio src={props.musicUrl} volume={props.musicVolume} trimBefore={Math.round((props.musicStartMs / 1000) * fps)} loop />}
     </AbsoluteFill>
   );
 };

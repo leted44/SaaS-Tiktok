@@ -22,7 +22,7 @@ import { getTrack } from "@/lib/music/library";
 import type { EditorState, StudioProps } from "@/components/studio/types";
 import type { ShortVideoProps } from "@/lib/render/props";
 import { DEFAULT_PREVIEW_PROPS } from "@/lib/render/props";
-import { applyBeatSync } from "@/lib/render/beat-grid";
+import { applyBeatSync, timelineOffsetMs } from "@/lib/render/beat-grid";
 import { cn } from "@/lib/utils";
 
 export function Studio(props: StudioProps) {
@@ -42,6 +42,7 @@ export function Studio(props: StudioProps) {
     musicUrl: project.musicUrl,
     musicName: project.musicName,
     musicVolume: project.musicVolume,
+    musicStartMs: project.musicStartMs,
     musicBpm: project.musicBpm,
     musicBeatOffsetMs: project.musicBeatOffsetMs,
     beatSync: project.beatSync,
@@ -81,7 +82,7 @@ export function Studio(props: StudioProps) {
     const base = previewProps ?? { ...DEFAULT_PREVIEW_PROPS, title: project.title };
     const track = getTrack(state.musicTrackId);
     const musicUrl = state.musicUrl || track?.url || null;
-    const grid = musicUrl && state.beatSync && state.musicBpm ? { bpm: state.musicBpm, offsetMs: state.musicBeatOffsetMs ?? 0 } : null;
+    const grid = musicUrl && state.beatSync && state.musicBpm ? { bpm: state.musicBpm, offsetMs: timelineOffsetMs(state.musicBeatOffsetMs ?? 0, state.musicStartMs, state.musicBpm) } : null;
     const synced = applyBeatSync(base.scenes, state.visualLayers, grid, base.durationMs);
     return {
       ...base,
@@ -91,6 +92,7 @@ export function Studio(props: StudioProps) {
       backgroundStyle: state.backgroundStyle,
       musicUrl,
       musicVolume: state.musicVolume,
+      musicStartMs: state.musicStartMs,
       beatGrid: grid,
     };
   }, [previewProps, state, project.title]);
@@ -211,6 +213,7 @@ export function Studio(props: StudioProps) {
                     musicUrl={state.musicUrl}
                     musicName={state.musicName}
                     musicVolume={state.musicVolume}
+                    musicStartMs={state.musicStartMs}
                     voices={voices}
                     customVoice={customVoice}
                     voiceCloningAllowed={planLimits.voiceCloning}
@@ -224,12 +227,13 @@ export function Studio(props: StudioProps) {
                     credits={user.credits}
                     onVoiceChange={(id) => patch("voiceId", id)}
                     onCustomVoiceChange={() => router.refresh()}
-                    onMusicChange={(id, grid) => setState((s) => ({ ...s, musicTrackId: id, musicUrl: null, musicName: null, musicBpm: grid?.bpm ?? null, musicBeatOffsetMs: grid?.offsetMs ?? null }))}
-                    onCustomMusicChange={(url, name, grid) => setState((s) => ({ ...s, musicUrl: url, musicName: name, musicTrackId: url ? null : s.musicTrackId, musicBpm: grid?.bpm ?? null, musicBeatOffsetMs: grid?.offsetMs ?? null }))}
+                    onMusicChange={(id, grid) => setState((s) => ({ ...s, musicTrackId: id, musicUrl: null, musicName: null, musicStartMs: 0, musicBpm: grid?.bpm ?? null, musicBeatOffsetMs: grid?.offsetMs ?? null }))}
+                    onCustomMusicChange={(url, name, grid) => setState((s) => ({ ...s, musicUrl: url, musicName: name, musicTrackId: url ? null : s.musicTrackId, musicStartMs: 0, musicBpm: grid?.bpm ?? null, musicBeatOffsetMs: grid?.offsetMs ?? null }))}
                     beatSync={state.beatSync}
                     musicBpm={state.musicBpm}
                     onBeatSyncChange={(v) => patch("beatSync", v)}
                     onVolumeChange={(v) => patch("musicVolume", v)}
+                    onMusicStartChange={(v) => patch("musicStartMs", v)}
                   />
                 </TabsContent>
                 <TabsContent value="export" className="mt-0">

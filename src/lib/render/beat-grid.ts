@@ -30,6 +30,28 @@ const TOLERANCE_RATIO = 0.35;
 
 export const beatPeriodMs = (bpm: number) => 60_000 / bpm;
 
+/**
+ * Where the grid lands on the video timeline once playback is trimmed.
+ *
+ * `fileOffsetMs` is the first beat's position in the raw file, from analysing
+ * it at t=0 — that measurement never changes. What can change is where
+ * playback of that file starts (`startMs`, the trim point the user picked):
+ * moving the start point later shifts every beat earlier by the same amount,
+ * relative to the video. The grid is periodic, so only the remainder within
+ * one beat matters; folding it into [0, period) is what nearestBeat and
+ * snapBoundaries both assume of an offset.
+ *
+ * The one place this is computed: the studio and the render builder both
+ * call it on their way to a BeatGridSpec, so a trim point can never make them
+ * disagree about where the beat actually falls.
+ */
+export function timelineOffsetMs(fileOffsetMs: number, startMs: number, bpm: number): number {
+  const period = beatPeriodMs(bpm);
+  if (!(period > 0) || !Number.isFinite(period)) return 0;
+  const shifted = fileOffsetMs - startMs;
+  return ((shifted % period) + period) % period;
+}
+
 export function snapTolerance(bpm: number): number {
   return Math.min(MAX_TOLERANCE_MS, beatPeriodMs(bpm) * TOLERANCE_RATIO);
 }
