@@ -168,17 +168,25 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
 
   async function downloadImages() {
     setBusy("download");
+    let progress: string | number | undefined;
     try {
       const files = await collectFiles();
       if (!files) return;
-      for (const file of files) {
+      // Android dates a download to the second, and galleries (Instagram's
+      // picker included) break a tie between same-second files arbitrarily —
+      // slides saved 350 ms apart came out shuffled in small groups. Over a
+      // second apart, each gets its own timestamp; and saving the last slide
+      // first makes slide 1 the newest, so a newest-first gallery lists them
+      // 1, 2, 3… in reading order, ready to tap in sequence.
+      progress = toast.loading(`Téléchargement 1/${files.length}…`);
+      for (const [k, file] of [...files].reverse().entries()) {
+        toast.loading(`Téléchargement ${k + 1}/${files.length}…`, { id: progress });
         triggerDownload(file, file.name);
-        // Browsers drop rapid-fire downloads; a short gap lets each one through.
-        await new Promise((r) => setTimeout(r, 350));
+        if (k < files.length - 1) await new Promise((r) => setTimeout(r, 1200));
       }
-      toast.success(`${files.length} images téléchargées — elles apparaissent dans ta galerie.`);
+      toast.success(`${files.length} images téléchargées. Dans ta galerie, la slide 1 est en premier : sélectionne-les dans l'ordre d'affichage.`, { id: progress });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Téléchargement impossible.");
+      toast.error(err instanceof Error ? err.message : "Téléchargement impossible.", { id: progress });
     } finally {
       setBusy(null);
     }
