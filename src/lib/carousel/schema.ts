@@ -13,6 +13,12 @@ export const carouselSlideSchema = z.object({
   kicker: z.string().max(40).default(""),
   title: z.string().max(110),
   body: z.string().max(320).default(""),
+  /** Last slide only: the explicit ask — follow, comment a keyword, share. */
+  action: z.string().max(90).default(""),
+  /** Search words for a matching photo, written by the AI. Pre-fills the image search. */
+  imageQuery: z.string().max(80).default(""),
+  /** A photo behind the cover or above a content slide. Always a copy in our own storage. */
+  image: z.object({ url: z.string().min(1).max(600) }).nullable().default(null),
 });
 export type CarouselSlide = z.infer<typeof carouselSlideSchema>;
 
@@ -21,11 +27,22 @@ export type CarouselSlide = z.infer<typeof carouselSlideSchema>;
  * room. Measured against the tightest case — the square format — with a margin,
  * so a slide that respects these never overflows in any format.
  */
-export const SLIDE_LIMITS: Record<CarouselSlide["kind"], { kicker: number; title: number; body: number }> = {
-  cover: { kicker: 32, title: 90, body: 140 },
-  content: { kicker: 32, title: 110, body: 320 },
-  cta: { kicker: 32, title: 80, body: 180 },
+export const SLIDE_LIMITS: Record<CarouselSlide["kind"], { kicker: number; title: number; body: number; action: number }> = {
+  cover: { kicker: 32, title: 90, body: 140, action: 0 },
+  content: { kicker: 32, title: 110, body: 320, action: 0 },
+  cta: { kicker: 32, title: 70, body: 140, action: 90 },
 };
+
+/**
+ * Tighter limits for a content slide that carries a photo: the photo takes a
+ * third of the height, so the text has to give up the same room.
+ */
+export const IMAGE_SLIDE_LIMITS = { title: 80, body: 200 };
+
+export function limitsFor(slide: Pick<CarouselSlide, "kind" | "image">) {
+  const base = SLIDE_LIMITS[slide.kind];
+  return slide.kind === "content" && slide.image ? { ...base, ...IMAGE_SLIDE_LIMITS } : base;
+}
 
 export const carouselSlidesSchema = z.array(carouselSlideSchema).min(2).max(12);
 
@@ -69,12 +86,15 @@ export function stripEmoji(text: string): string {
  * A typewriter apostrophe and a question mark stranded alone on the next line
  * are the two details that make a slide look typed rather than designed. The
  * apostrophe becomes the typographic one, and the space French puts before
- * ? ! : ; becomes non-breaking so the mark always stays with its word.
+ * ? ! : ; becomes non-breaking so the mark always stays with its word, as does
+ * the space between a number and its unit.
  */
 export function typeset(text: string): string {
   return text
-    .replace(/(\w)'(\w)/g, "$1’$2")
-    .replace(/'/g, "’")
-    .replace(/ ([?!:;»])/g, " $1")
-    .replace(/(«) /g, "$1 ");
+    .replace(/(\w)'(\w)/g, "$1\u2019$2")
+    .replace(/'/g, "\u2019")
+    .replace(/ ([?!:;»])/g, "\u00A0$1")
+    .replace(/(«) /g, "$1\u00A0")
+    // "7 jours", "2 minutes": a number never ends a line apart from its unit.
+    .replace(/(\d) (\p{L})/gu, "$1\u00A0$2");
 }

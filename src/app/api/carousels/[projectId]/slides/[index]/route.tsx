@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { CarouselSlideView } from "@/components/carousel/slide";
 import { resolveTemplate } from "@/lib/carousel/templates";
 import { loadCarouselFonts } from "@/lib/carousel/fonts";
+import { renderableImageUrl } from "@/lib/carousel/images";
 import { carouselStateSchema, FORMAT_SIZE } from "@/lib/carousel/schema";
 
 // Reads the bundled font files from disk.
@@ -45,7 +46,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
 
   const download = new URL(req.url).searchParams.has("download");
   return new ImageResponse(
-    <CarouselSlideView slide={state.slides[i]} index={i} total={state.slides.length} step={step} format={state.format} tokens={tokens} handle={state.handle} />,
+    <CarouselSlideView slide={state.slides[i]} index={i} total={state.slides.length} step={step} format={state.format} tokens={tokens} handle={state.handle} imageUrl={renderableImageUrl(state.slides[i].image?.url)} />,
     {
       width,
       height,

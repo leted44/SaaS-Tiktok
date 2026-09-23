@@ -22,6 +22,8 @@ export interface TemplateTokens {
   rule: string;
   /** Unfilled segments of the progress bar — always quieter than the rule, or they read as filled. */
   track: string;
+  /** Background of inset cards (the call-to-action block). */
+  surface: string;
   headlineFont: "Inter" | "Playfair Display";
   headlineWeight: 700 | 800;
   headlineCase: "none" | "uppercase";
@@ -104,6 +106,7 @@ export function resolveTemplate(id: CarouselTemplate, brand: Brand): TemplateTok
         onAccent: readableOn(accent),
         rule: "rgba(255,255,255,0.16)",
         track: "rgba(255,255,255,0.16)",
+        surface: "rgba(255,255,255,0.07)",
         headlineFont: "Inter",
         headlineWeight: 800,
         headlineCase: "none",
@@ -124,6 +127,7 @@ export function resolveTemplate(id: CarouselTemplate, brand: Brand): TemplateTok
         onAccent: readableOn(accent),
         rule: "#1A1814",
         track: "rgba(26,24,20,0.14)",
+        surface: "rgba(26,24,20,0.05)",
         headlineFont: "Playfair Display",
         headlineWeight: 700,
         headlineCase: "none",
@@ -145,6 +149,7 @@ export function resolveTemplate(id: CarouselTemplate, brand: Brand): TemplateTok
         onAccent: base,
         rule: light ? "rgba(255,255,255,0.28)" : "rgba(17,17,17,0.22)",
         track: light ? "rgba(255,255,255,0.28)" : "rgba(17,17,17,0.18)",
+        surface: light ? "rgba(255,255,255,0.14)" : "rgba(17,17,17,0.08)",
         headlineFont: "Inter",
         headlineWeight: 800,
         headlineCase: "none",
@@ -166,6 +171,7 @@ export function resolveTemplate(id: CarouselTemplate, brand: Brand): TemplateTok
         onAccent: readableOn(accent),
         rule: "rgba(17,17,17,0.12)",
         track: "rgba(17,17,17,0.12)",
+        surface: "rgba(17,17,17,0.05)",
         headlineFont: "Inter",
         headlineWeight: 800,
         headlineCase: "none",

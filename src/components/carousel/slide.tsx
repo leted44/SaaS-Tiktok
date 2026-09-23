@@ -23,6 +23,8 @@ interface Props {
   format: CarouselFormat;
   tokens: TemplateTokens;
   handle: string | null;
+  /** Absolute URL of the slide's photo, already vetted by the caller. */
+  imageUrl?: string | null;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -36,7 +38,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
  * headline filling the slide the way a designer would set it by hand.
  */
 export function headlineSize(text: string, kind: CarouselSlide["kind"], format: CarouselFormat): number {
-  const scale = { cover: [118, 70, 22, 90], cta: [92, 62, 18, 80], content: [80, 54, 22, 110] }[kind];
+  const scale = { cover: [118, 70, 22, 90], cta: [88, 60, 18, 70], content: [80, 54, 22, 110] }[kind];
   const [max, min, from, to] = scale;
   const t = clamp((text.length - from) / (to - from), 0, 1);
   const factor = format === "square" ? 0.86 : format === "story" ? 1.06 : 1;
@@ -63,12 +65,31 @@ function Icon({ path, size, color }: { path: string[]; size: number; color: stri
 
 const ARROW = ["M5 12h14", "m12 5 7 7-7 7"];
 const BOOKMARK = ["m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"];
+const SEND = ["m22 2-7 20-4-9-9-4Z", "M22 2 11 13"];
+const COMMENT = ["M7.9 20A9 9 0 1 0 4 16.1L2 22Z"];
 
-export function CarouselSlideView({ slide, index, total, step, format, tokens: t, handle }: Props) {
+/** Photo band height on a content slide, per format — a third of the slide, give or take. */
+const BAND_HEIGHT: Record<CarouselFormat, number> = { portrait: 470, story: 760, square: 330 };
+
+/**
+ * Over a photo, the template's own colours stop applying: whatever the photo
+ * is, the text sits on the darkened lower half of it, so it is always white.
+ */
+function onPhoto(t: TemplateTokens): TemplateTokens {
+  return { ...t, text: "#FFFFFF", muted: "rgba(255,255,255,0.82)", track: "rgba(255,255,255,0.3)", rule: "rgba(255,255,255,0.4)", background: "#000000", overlay: null };
+}
+
+const PHOTO_SCRIM = "linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.05) 24%, rgba(0,0,0,0.2) 46%, rgba(0,0,0,0.8) 70%, rgba(0,0,0,0.94) 100%)";
+
+export function CarouselSlideView({ slide, index, total, step, format, tokens, handle, imageUrl }: Props) {
   const { width, height } = FORMAT_SIZE[format];
   const padding = format === "square" ? 80 : 92;
-  const editorial = t.id === "editorial";
-  const titleSize = headlineSize(slide.title, slide.kind, format);
+  const compact = format === "square";
+  const coverPhoto = slide.kind === "cover" && Boolean(imageUrl);
+  const bandPhoto = slide.kind === "content" && Boolean(imageUrl);
+  const t = coverPhoto ? onPhoto(tokens) : tokens;
+  const editorial = t.id === "editorial" && !coverPhoto;
+  const titleSize = Math.round(headlineSize(slide.title, slide.kind, format) * (bandPhoto ? 0.84 : 1));
 
   const headline = (text: string, marginTop: number): ReactNode => (
     <div
@@ -88,9 +109,9 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens: t
     </div>
   );
 
-  const body = (text: string, marginTop: number, color: string): ReactNode =>
+  const body = (text: string, marginTop: number, color: string, scale = 1): ReactNode =>
     text ? (
-      <div style={{ display: "flex", marginTop, fontSize: bodySize(text, format), lineHeight: 1.42, color, whiteSpace: "pre-wrap" }}>{typeset(text)}</div>
+      <div style={{ display: "flex", marginTop, fontSize: Math.round(bodySize(text, format) * scale), lineHeight: 1.42, color, whiteSpace: "pre-wrap" }}>{typeset(text)}</div>
     ) : null;
 
   const label = (text: string): ReactNode =>
@@ -112,47 +133,31 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens: t
   let main: ReactNode;
   if (slide.kind === "cover") {
     main = (
-      <div style={col({ flexGrow: 1, justifyContent: "center" })}>
+      <div style={col({ flexGrow: 1, justifyContent: coverPhoto ? "flex-end" : "center", paddingBottom: coverPhoto ? 48 : 0 })}>
         {slide.kicker ? label(slide.kicker) : null}
-        {headline(slide.title, slide.kicker ? 40 : 0)}
-        {bar(48)}
-        {body(slide.body, 44, t.muted)}
+        {headline(slide.title, slide.kicker ? 36 : 0)}
+        {bar(coverPhoto ? 40 : 48)}
+        {body(slide.body, coverPhoto ? 34 : 44, t.muted)}
       </div>
     );
   } else if (slide.kind === "cta") {
+    main = <CtaBody slide={slide} t={t} compact={compact} handle={handle} headline={headline} body={body} label={label} />;
+  } else if (bandPhoto) {
     main = (
       <div style={col({ flexGrow: 1, justifyContent: "center" })}>
-        {slide.kicker ? label(slide.kicker) : null}
-        {headline(slide.title, slide.kicker ? 40 : 0)}
-        {body(slide.body, 36, t.muted)}
-        <div style={row({ marginTop: 64, alignItems: "center", alignSelf: "flex-start", gap: 18, padding: "26px 40px", borderRadius: 999, background: t.accent, color: t.onAccent, fontSize: 32, fontWeight: 600 })}>
-          <Icon path={BOOKMARK} size={34} color={t.onAccent} />
-          <div style={{ display: "flex" }}>Enregistre ce post</div>
+        <img src={imageUrl!} alt="" width={width - padding * 2} height={BAND_HEIGHT[format]} style={{ width: width - padding * 2, height: BAND_HEIGHT[format], objectFit: "cover", borderRadius: 28 }} />
+        <div style={row({ marginTop: 40, alignItems: "center", gap: 20 })}>
+          <div style={{ display: "flex", fontFamily: t.headlineFont, fontWeight: t.headlineWeight, fontSize: 56, lineHeight: 1, letterSpacing: -2, color: t.accent }}>{pad(step)}</div>
+          {slide.kicker ? label(slide.kicker) : null}
         </div>
-        {handle ? (
-          <div style={row({ marginTop: 34, alignItems: "center", gap: 14, fontSize: 30, fontWeight: 600, color: t.text })}>
-            <div style={{ display: "flex", color: t.muted, fontWeight: 400 }}>Plus de contenus :</div>
-            <div style={{ display: "flex" }}>{handle}</div>
-          </div>
-        ) : null}
+        {headline(slide.title, 22)}
+        {body(slide.body, 26, t.text, 0.92)}
       </div>
     );
   } else {
     main = (
       <div style={col({ flexGrow: 1, justifyContent: "center" })}>
-        <div
-          style={{
-            display: "flex",
-            fontFamily: t.headlineFont,
-            fontWeight: t.headlineWeight,
-            fontSize: editorial ? 132 : 120,
-            lineHeight: 1,
-            letterSpacing: -4,
-            color: t.accent,
-          }}
-        >
-          {pad(step)}
-        </div>
+        <div style={{ display: "flex", fontFamily: t.headlineFont, fontWeight: t.headlineWeight, fontSize: editorial ? 132 : 120, lineHeight: 1, letterSpacing: -4, color: t.accent }}>{pad(step)}</div>
         {slide.kicker ? <div style={{ display: "flex", marginTop: 28 }}>{label(slide.kicker)}</div> : null}
         {headline(slide.title, slide.kicker ? 28 : 36)}
         {bar(40)}
@@ -165,18 +170,11 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens: t
   const segment = Math.max(18, Math.min(64, Math.floor((width - padding * 2 - 260) / total) - 8));
 
   return (
-    <div
-      style={col({
-        position: "relative",
-        width,
-        height,
-        padding,
-        background: t.background,
-        color: t.text,
-        fontFamily: "Inter",
-        fontWeight: 400,
-      })}
-    >
+    <div style={col({ position: "relative", width, height, padding, background: t.background, color: t.text, fontFamily: "Inter", fontWeight: 400 })}>
+      {coverPhoto ? (
+        <img src={imageUrl!} alt="" width={width} height={height} style={{ position: "absolute", top: 0, left: 0, width, height, objectFit: "cover" }} />
+      ) : null}
+      {coverPhoto ? <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width, height, backgroundImage: PHOTO_SCRIM }} /> : null}
       {t.overlay ? <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width, height, backgroundImage: t.overlay }} /> : null}
 
       <div style={row({ justifyContent: "space-between", alignItems: "center", fontSize: 26, fontWeight: 600, color: t.muted })}>
@@ -201,6 +199,67 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens: t
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The closing slide.
+ *
+ * A takeaway alone ends the carousel politely and wastes the one moment the
+ * reader has finished and is deciding what to do next. So the slide makes the
+ * ask explicit twice over: the three gestures the algorithms reward, drawn as
+ * the buttons the reader is about to press, then the account to follow.
+ */
+function CtaBody({ slide, t, compact, handle, headline, body, label }: {
+  slide: CarouselSlide;
+  t: TemplateTokens;
+  compact: boolean;
+  handle: string | null;
+  headline: (text: string, marginTop: number) => ReactNode;
+  body: (text: string, marginTop: number, color: string, scale?: number) => ReactNode;
+  label: (text: string) => ReactNode;
+}) {
+  const ask = slide.action || "Enregistre ce post pour le retrouver au bon moment.";
+  const initial = (handle ?? "").replace(/[^\p{L}\p{N}]/gu, "").charAt(0).toUpperCase();
+  const actions = [
+    { icon: BOOKMARK, label: "Enregistre" },
+    { icon: SEND, label: "Partage" },
+    { icon: COMMENT, label: "Commente" },
+  ];
+
+  return (
+    <div style={col({ flexGrow: 1, justifyContent: "center" })}>
+      {slide.kicker ? label(slide.kicker) : null}
+      {headline(slide.title, slide.kicker ? 32 : 0)}
+      {body(slide.body, 24, t.muted, compact ? 0.9 : 1)}
+
+      <div style={col({ marginTop: compact ? 36 : 52, padding: compact ? 28 : 36, borderRadius: 32, background: t.surface })}>
+        <div style={row({ justifyContent: "space-between" })}>
+          {actions.map((a) => (
+            <div key={a.label} style={row({ alignItems: "center", gap: 14 })}>
+              <div style={row({ width: compact ? 52 : 64, height: compact ? 52 : 64, borderRadius: 999, alignItems: "center", justifyContent: "center", background: t.accent })}>
+                <Icon path={a.icon} size={compact ? 26 : 30} color={t.onAccent} />
+              </div>
+              <div style={{ display: "flex", fontSize: compact ? 24 : 28, fontWeight: 600, color: t.text }}>{a.label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", marginTop: compact ? 20 : 28, fontSize: compact ? 26 : 30, fontWeight: 600, lineHeight: 1.3, color: t.text }}>{typeset(ask)}</div>
+      </div>
+
+      {handle ? (
+        <div style={row({ marginTop: compact ? 28 : 40, alignItems: "center", gap: 22 })}>
+          <div style={row({ width: compact ? 72 : 88, height: compact ? 72 : 88, borderRadius: 999, alignItems: "center", justifyContent: "center", background: t.accent, color: t.onAccent, fontSize: compact ? 34 : 40, fontWeight: 800 })}>
+            {initial || "@"}
+          </div>
+          <div style={col({ flexGrow: 1 })}>
+            <div style={{ display: "flex", fontSize: compact ? 28 : 32, fontWeight: 800, color: t.text }}>{handle}</div>
+            <div style={{ display: "flex", marginTop: 4, fontSize: compact ? 22 : 24, color: t.muted }}>Abonne-toi pour la suite</div>
+          </div>
+          <div style={row({ padding: compact ? "14px 26px" : "16px 32px", borderRadius: 999, background: t.accent, color: t.onAccent, fontSize: compact ? 24 : 27, fontWeight: 600 })}>Suivre</div>
+        </div>
+      ) : null}
     </div>
   );
 }

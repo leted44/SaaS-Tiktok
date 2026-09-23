@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowDown, ArrowUp, Coins, Download, Archive, GalleryHorizontalEnd, Loader2, MessageSquareText, Palette, Plus, RefreshCw, Share2, Sparkles, Trash2, Type } from "lucide-react";
+import { ArrowLeft, ArrowDown, ArrowUp, Coins, Download, Archive, GalleryHorizontalEnd, ImageIcon, ImagePlus, Loader2, MessageSquareText, Palette, Plus, RefreshCw, Search, Share2, Sparkles, Trash2, Type, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { zipSync } from "fflate";
 import { nanoid } from "nanoid";
@@ -14,8 +14,9 @@ import { Label } from "@/components/ui/label";
 import { Section } from "@/components/ui/section";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
-import { generateCarouselAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
-import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, FORMAT_SIZE, SLIDE_LIMITS, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
+import { generateCarouselAction, importCarouselImageAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
+import { uploadAsset } from "@/lib/assets/upload-client";
+import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, limitsFor, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
 import { resolveTemplate } from "@/lib/carousel/templates";
 import type { SocialCopy } from "@/lib/social/captions";
 import { cn } from "@/lib/utils";
@@ -86,7 +87,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const slideUrl = (i: number, v: number, download = false) => `/api/carousels/${projectId}/slides/${i}?v=${v}${download ? "&download=1" : ""}`;
 
   async function generate() {
-    if (state && !window.confirm("Réécrire tous les textes du carrousel ? Le design (modèle, format, signature) est conservé.")) return;
+    if (state && !window.confirm("Réécrire tous les textes du carrousel ? Les photos des slides sont retirées ; le modèle, le format et la signature sont conservés.")) return;
     setGenerating(true);
     const res = await generateCarouselAction(projectId);
     setGenerating(false);
@@ -183,7 +184,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       if (!s) return s;
       const ctaAt = s.slides.findIndex((x) => x.kind === "cta");
       const slides = [...s.slides];
-      slides.splice(ctaAt < 0 ? slides.length : ctaAt, 0, { id: nanoid(8), kind: "content", kicker: "", title: "Nouvelle idée", body: "" });
+      slides.splice(ctaAt < 0 ? slides.length : ctaAt, 0, { id: nanoid(8), kind: "content", kicker: "", title: "Nouvelle idée", body: "", action: "", imageQuery: "", image: null });
       return { ...s, slides };
     });
 
@@ -323,6 +324,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
               return (
                 <SlideEditor
                   key={s.id}
+                  projectId={projectId}
                   slide={s}
                   label={s.kind === "cover" ? "Couverture" : s.kind === "cta" ? "Dernière slide" : `Idée ${pad(contentIndex)}`}
                   canDelete={s.kind === "content" && contentCount > 1}
@@ -349,7 +351,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
         )}
 
         <Section title="Réécrire avec l'IA" icon={RefreshCw} summary={cost > 0 ? `${cost} crédits` : undefined}>
-          <p className="text-xs text-muted-foreground">Repart du script actuel du projet et réécrit tous les textes. Le modèle, le format et la signature sont conservés.</p>
+          <p className="text-xs text-muted-foreground">Repart du script actuel du projet et réécrit tous les textes. Une nouvelle photo de couverture est cherchée ; les photos des autres slides sont retirées. Le modèle, le format et la signature sont conservés.</p>
           <Button variant="secondary" size="sm" className="mt-3 w-full" onClick={generate} loading={generating} disabled={!aiConfigured || !hasScript || credits < cost}>
             <Sparkles /> Réécrire le carrousel {cost > 0 && <><Coins className="h-3.5 w-3.5" /> {cost}</>}
           </Button>
@@ -374,8 +376,9 @@ function Counter({ value, max }: { value: string; max: number }) {
   return <span className={cn("text-[10px] tabular-nums", value.length >= max * 0.9 ? "text-amber-300" : "text-muted-foreground")}>{value.length}/{max}</span>;
 }
 
-/** One slide's text. Limits come from what the layout can hold in its tightest format, so a slide within them never overflows. */
-function SlideEditor({ slide, label, canDelete, canMoveUp, canMoveDown, onChange, onRemove, onMove }: {
+/** One slide. Limits come from what the layout can hold in its tightest format, so a slide within them never overflows. */
+function SlideEditor({ projectId, slide, label, canDelete, canMoveUp, canMoveDown, onChange, onRemove, onMove }: {
+  projectId: string;
   slide: CarouselSlide;
   label: string;
   canDelete: boolean;
@@ -385,7 +388,10 @@ function SlideEditor({ slide, label, canDelete, canMoveUp, canMoveDown, onChange
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
 }) {
-  const limit = SLIDE_LIMITS[slide.kind];
+  const limit = limitsFor(slide);
+  // A photo takes a third of a content slide, so it only fits once the text is short enough.
+  const tooLongForPhoto = slide.kind === "content" && !slide.image && (slide.title.length > IMAGE_SLIDE_LIMITS.title || slide.body.length > IMAGE_SLIDE_LIMITS.body);
+
   return (
     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
       <div className="mb-2 flex items-center justify-between gap-1">
@@ -407,9 +413,163 @@ function SlideEditor({ slide, label, canDelete, canMoveUp, canMoveDown, onChange
         </div>
         <div className="space-y-1">
           <div className="flex items-center justify-between"><Label className="text-[11px]">Texte</Label><Counter value={slide.body} max={limit.body} /></div>
-          <Textarea value={slide.body} maxLength={limit.body} rows={3} onChange={(e) => onChange({ body: e.target.value })} />
+          <Textarea value={slide.body} maxLength={limit.body} rows={slide.kind === "cta" ? 2 : 3} onChange={(e) => onChange({ body: e.target.value })} />
         </div>
+        {slide.kind === "cta" && (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between"><Label className="text-[11px] text-brand-300">Appel à l'action</Label><Counter value={slide.action} max={limit.action} /></div>
+            <Textarea value={slide.action} maxLength={limit.action} rows={2} placeholder="Ex. : Commente « GO » et je t'envoie la méthode complète." onChange={(e) => onChange({ action: e.target.value })} />
+            <p className="text-[10px] text-muted-foreground">Affiché dans l'encadré avec les boutons Enregistre · Partage · Commente, au-dessus de ton compte.</p>
+          </div>
+        )}
+        {slide.kind !== "cta" && (
+          <ImageControl projectId={projectId} slide={slide} blockedReason={tooLongForPhoto ? `Pour ajouter une photo, raccourcis le titre à ${IMAGE_SLIDE_LIMITS.title} et le texte à ${IMAGE_SLIDE_LIMITS.body} caractères : la photo prend un tiers de la slide.` : null} onChange={(image) => onChange({ image })} />
+        )}
       </div>
+    </div>
+  );
+}
+
+interface StockHit {
+  id: string;
+  url: string;
+  thumbnailUrl: string;
+}
+
+/**
+ * Downscale and re-encode a phone photo as JPEG before upload.
+ *
+ * The slide renderer draws JPEG and PNG only, and phones hand over HEIC,
+ * WebP and 12-megapixel files. Going through a canvas fixes all three: the
+ * browser decodes whatever it can display, and the result is a sensible size.
+ */
+async function toJpeg(file: File): Promise<File> {
+  const src = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("Ton navigateur ne sait pas lire ce format de photo. Essaie une photo JPEG ou PNG."));
+      el.src = src;
+    });
+    const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Conversion de la photo impossible.");
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
+    if (!blob) throw new Error("Conversion de la photo impossible.");
+    return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "photo"}.jpg`, { type: "image/jpeg" });
+  } finally {
+    URL.revokeObjectURL(src);
+  }
+}
+
+/** Photo of one slide: search both stock libraries, or bring your own. */
+function ImageControl({ projectId, slide, blockedReason, onChange }: {
+  projectId: string;
+  slide: CarouselSlide;
+  blockedReason: string | null;
+  onChange: (image: CarouselSlide["image"]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(slide.imageQuery || slide.title);
+  const [hits, setHits] = useState<StockHit[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [importing, setImporting] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function search(q = query) {
+    if (!q.trim()) return;
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/stock/search?type=image&q=${encodeURIComponent(q.trim())}`);
+      const data = (await res.json()) as { results?: StockHit[]; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Recherche impossible.");
+      setHits(data.results ?? []);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Recherche impossible.");
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function openPicker() {
+    setOpen(true);
+    if (!hits) void search();
+  }
+
+  async function pick(hit: StockHit) {
+    setImporting(hit.id);
+    const res = await importCarouselImageAction(projectId, hit.url);
+    setImporting(null);
+    if (!res.ok) return toast.error(res.error);
+    onChange({ url: res.data.url });
+    setOpen(false);
+  }
+
+  async function upload(file: File) {
+    setUploading(true);
+    try {
+      const asset = await uploadAsset(await toJpeg(file));
+      onChange({ url: asset.url });
+      setOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Envoi de la photo impossible.");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="space-y-2 border-t border-white/[0.06] pt-2">
+      <div className="flex items-center gap-2">
+        {slide.image ? (
+          <img src={slide.image.url} alt="" className="h-12 w-10 shrink-0 rounded object-cover" />
+        ) : (
+          <div className="flex h-12 w-10 shrink-0 items-center justify-center rounded border border-dashed border-white/15 text-muted-foreground"><ImageIcon className="h-4 w-4" /></div>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-medium">{slide.kind === "cover" ? "Photo de fond" : "Photo"}</p>
+          <p className="truncate text-[10px] text-muted-foreground">{slide.image ? (slide.kind === "cover" ? "Plein cadre, texte en blanc par-dessus" : "En bandeau au-dessus du texte") : "Aucune — le design seul"}</p>
+        </div>
+        <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" disabled={Boolean(blockedReason)} onClick={() => (open ? setOpen(false) : openPicker())}>
+          <ImagePlus /> {slide.image ? "Changer" : "Ajouter"}
+        </Button>
+        {slide.image && (
+          <Button size="icon-sm" variant="ghost" aria-label="Retirer la photo" className="text-red-300" onClick={() => onChange(null)}><Trash2 /></Button>
+        )}
+      </div>
+      {blockedReason && <p className="text-[10px] text-amber-300">{blockedReason}</p>}
+
+      {open && (
+        <div className="space-y-2 rounded-lg border border-white/[0.06] bg-black/20 p-2">
+          <form className="flex gap-1.5" onSubmit={(e) => { e.preventDefault(); void search(); }}>
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ex. : woman journaling" className="h-8 text-xs" />
+            <Button type="submit" size="icon-sm" variant="secondary" aria-label="Rechercher" loading={searching}><Search /></Button>
+          </form>
+          <p className="text-[10px] text-muted-foreground">Pexels et Pixabay — les mots-clés en anglais donnent plus de résultats.</p>
+          {hits && hits.length === 0 && !searching && <p className="py-3 text-center text-[11px] text-muted-foreground">Aucune photo trouvée. Essaie des mots plus simples et concrets.</p>}
+          {hits && hits.length > 0 && (
+            <div className="grid grid-cols-3 gap-1.5">
+              {hits.slice(0, 12).map((h) => (
+                <button key={h.id} type="button" onClick={() => pick(h)} disabled={importing !== null} className="relative aspect-[4/5] overflow-hidden rounded-md border border-white/10 transition hover:border-primary/60 disabled:opacity-60">
+                  <img src={h.thumbnailUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                  {importing === h.id && <span className="absolute inset-0 flex items-center justify-center bg-black/50"><Loader2 className="h-4 w-4 animate-spin" /></span>}
+                </button>
+              ))}
+            </div>
+          )}
+          <Button size="sm" variant="outline" className="w-full text-[11px]" loading={uploading} onClick={() => fileRef.current?.click()}>
+            <Upload /> Importer ma propre photo
+          </Button>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
+        </div>
+      )}
     </div>
   );
 }

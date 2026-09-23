@@ -7,7 +7,10 @@ import { parseJson, scenesSchema } from "@/lib/validations";
 import { generateCarousel } from "@/lib/ai/carousel-generator";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
-import { carouselSlidesSchema, carouselStateSchema, stripEmoji, SLIDE_LIMITS, type CarouselState } from "@/lib/carousel/schema";
+import { carouselSlidesSchema, carouselStateSchema, stripEmoji, limitsFor, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
+import { copyStockImage, isOwnStorageUrl } from "@/lib/carousel/images";
+import { searchStock } from "@/lib/stock/search";
+import { integrations } from "@/lib/env";
 import { guard, type ActionResult } from "@/server/action-result";
 
 export interface CarouselSnapshot extends CarouselState {
@@ -51,6 +54,8 @@ export async function generateCarouselAction(projectId: string): Promise<ActionR
       throw err;
     }
 
+    slides = await withCoverPhoto(user.id, slides);
+
     const saved = await prisma.carousel.upsert({
       where: { projectId: project.id },
       create: { projectId: project.id, userId: user.id, scriptId: script.id, slides },
@@ -68,8 +73,17 @@ export async function saveCarouselAction(projectId: string, input: unknown): Pro
     const state = carouselStateSchema.parse(input);
     const slides = carouselSlidesSchema.parse(
       state.slides.map((s) => {
-        const limit = SLIDE_LIMITS[s.kind];
-        return { ...s, kicker: stripEmoji(s.kicker).slice(0, limit.kicker), title: stripEmoji(s.title).slice(0, limit.title), body: stripEmoji(s.body).slice(0, limit.body) };
+        // Only a copy in our own storage may be rendered — see lib/carousel/images.
+        const image = s.kind !== "cta" && s.image && isOwnStorageUrl(s.image.url) ? s.image : null;
+        const limit = limitsFor({ kind: s.kind, image });
+        return {
+          ...s,
+          image,
+          kicker: stripEmoji(s.kicker).slice(0, limit.kicker),
+          title: stripEmoji(s.title).slice(0, limit.title),
+          body: stripEmoji(s.body).slice(0, limit.body),
+          action: s.kind === "cta" ? stripEmoji(s.action).slice(0, limit.action) : "",
+        };
       }),
     );
     const handle = state.handle?.trim() ? stripEmoji(state.handle.trim()).slice(0, 40) : null;
@@ -79,6 +93,46 @@ export async function saveCarouselAction(projectId: string, input: unknown): Pro
     });
     return { version: saved.updatedAt.getTime() };
   });
+}
+
+/**
+ * Copy a stock photo the user picked into their storage, for a slide.
+ *
+ * Returns the stored URL; the editor then places it on the slide and the
+ * autosave persists it, so this never races with a save in flight.
+ */
+export async function importCarouselImageAction(projectId: string, sourceUrl: string): Promise<ActionResult<{ url: string }>> {
+  return guard(async () => {
+    const user = await requireDbUser();
+    await prisma.carousel.findFirstOrThrow({ where: { projectId, userId: user.id }, select: { id: true } });
+    return { url: await copyStockImage(user.id, sourceUrl) };
+  });
+}
+
+/**
+ * Put a photo behind the cover when the stock libraries have one for it.
+ *
+ * Best effort by design: no stock key, no match, or a slow download all leave
+ * the cover as the template draws it, which is already a finished design.
+ */
+async function withCoverPhoto(userId: string, slides: CarouselSlide[]): Promise<CarouselSlide[]> {
+  const cover = slides[0];
+  if (!cover || cover.kind !== "cover" || !cover.imageQuery || !integrations.stock()) return slides;
+  try {
+    const portrait = await searchStock(cover.imageQuery, "image", 5, true);
+    const candidates = portrait.length ? portrait : await searchStock(cover.imageQuery, "image", 5, false);
+    for (const candidate of candidates.slice(0, 3)) {
+      try {
+        const url = await copyStockImage(userId, candidate.url);
+        return [{ ...cover, image: { url } }, ...slides.slice(1)];
+      } catch {
+        // Try the next match.
+      }
+    }
+  } catch {
+    // Stock search down: the cover keeps its designed, photo-free look.
+  }
+  return slides;
 }
 
 type CarouselRow = { template: string; format: string; handle: string | null; slides: unknown; updatedAt: Date };
