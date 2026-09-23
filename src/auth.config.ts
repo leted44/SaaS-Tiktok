@@ -18,7 +18,7 @@ export const authConfig = {
     authorized({ auth, request }) {
       const isLoggedIn = Boolean(auth?.user);
       const { pathname } = request.nextUrl;
-      const isApp = ["/dashboard", "/projects", "/scripts", "/voices", "/studio", "/exports", "/brand", "/billing", "/settings", "/onboarding"].some((p) => pathname.startsWith(p));
+      const isApp = ["/dashboard", "/projects", "/scripts", "/voices", "/studio", "/exports", "/brand", "/billing", "/settings", "/onboarding", "/autopilot"].some((p) => pathname.startsWith(p));
       if (isApp) return isLoggedIn;
       return true;
     },

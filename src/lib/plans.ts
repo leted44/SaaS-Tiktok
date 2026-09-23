@@ -18,6 +18,8 @@ export interface PlanDefinition {
   voiceCloning: boolean;
   scheduling: boolean;
   priorityRendering: boolean;
+  /** How many autopilot videos may wait in the queue at once; 0 = no autopilot. */
+  autopilotQueue: number;
   features: string[];
   highlight?: boolean;
 }
@@ -39,6 +41,7 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     voiceCloning: false,
     scheduling: false,
     priorityRendering: false,
+    autopilotQueue: 0,
     features: [
       "30 crédits / mois",
       "Générateur de script IA",
@@ -64,6 +67,7 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     voiceCloning: false,
     scheduling: true,
     priorityRendering: false,
+    autopilotQueue: 0,
     features: [
       "400 crédits / mois (~30 vidéos)",
       "Sans filigrane, exports 1080p",
@@ -90,12 +94,14 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     voiceCloning: true,
     scheduling: true,
     priorityRendering: true,
+    autopilotQueue: 30,
     features: [
       "1 200 crédits / mois (~100 vidéos)",
       "Tout ce qui est inclus dans Créateur",
       "Clonez votre propre voix (IA)",
       "3 espaces de marque",
       "Exports 4K",
+      "Pilote automatique : vidéos écrites, montées et livrées à l'heure choisie",
       "File de rendu prioritaire",
       "10 comptes sociaux connectés",
     ],
@@ -116,9 +122,11 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     voiceCloning: true,
     scheduling: true,
     priorityRendering: true,
+    autopilotQueue: 200,
     features: [
       "4 000 crédits / mois",
       "Tout ce qui est inclus dans Pro",
+      "Pilote automatique étendu (200 vidéos en file)",
       "Clonage vocal illimité",
       "Espaces de marque illimités",
       "Comptes sociaux illimités",
@@ -180,7 +188,7 @@ export function isAdmin(role: string): boolean {
 
 export function effectivePlanDef(user: { plan: Plan; role: string }): PlanDefinition {
   if (!isAdmin(user.role)) return PLANS[user.plan];
-  return { ...PLANS[user.plan], watermark: false, maxResolution: "4K", premiumVoices: true, voiceCloning: true, scheduling: true, priorityRendering: true, maxProjects: -1, maxSocialAccounts: -1 };
+  return { ...PLANS[user.plan], watermark: false, maxResolution: "4K", premiumVoices: true, voiceCloning: true, scheduling: true, priorityRendering: true, maxProjects: -1, maxSocialAccounts: -1, autopilotQueue: Math.max(PLANS[user.plan].autopilotQueue, 200) };
 }
 
 export function planFromPriceId(priceId: string | null | undefined, prices: Record<string, { month: string; year: string }>): Plan | null {

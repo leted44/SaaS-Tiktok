@@ -143,6 +143,8 @@ model User {
   creditTransactions CreditTransaction[]
   customVoice        CustomVoice?
   carousels          Carousel[]
+  autopilotItems     AutopilotItem[]
+  pushSubscriptions  PushSubscription[]
 
   @@index([stripeCustomerId])
 }
@@ -232,6 +234,7 @@ model Workspace {
   projects       Project[]
   assets         Asset[]
   socialAccounts SocialAccount[]
+  autopilotItems AutopilotItem[]
 
   @@index([ownerId])
 }
@@ -292,13 +295,14 @@ model Project {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   scripts     Script[]
   voiceovers  Voiceover[]
   renderJobs  RenderJob[]
   publishJobs PublishJob[]
   carousel    Carousel?
+  autopilot   AutopilotItem?
 
   @@index([workspaceId])
   @@index([userId, updatedAt])
@@ -535,4 +539,68 @@ model StripeEvent {
   id          String   @id // Stripe event id — enforces webhook idempotency
   type        String
   processedAt DateTime @default(now())
+}
+
+// ───────────────────────── Autopilot ─────────────────────────
+
+enum AutopilotStatus {
+  SCHEDULED // waiting for its production window
+  SCRIPTING
+  VOICING
+  VISUALS
+  RENDERING
+  READY // video done, waiting for its delivery time
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+// A video the user asked to be made and delivered by a given date, with no one
+// at the controls: the worker tick writes it, voices it, dresses it, renders it
+// and hands it over at deliverAt. Each tick moves an item one step, so a slow
+// step never holds up the others and a crash resumes where it stopped.
+model AutopilotItem {
+  id                String           @id @default(cuid())
+  userId            String
+  workspaceId       String
+  topic             String           @db.Text
+  tone              String           @default("energetic")
+  targetDurationSec Int              @default(45)
+  language          String           @default("fr")
+  deliverAt         DateTime
+  status            AutopilotStatus  @default(SCHEDULED)
+  projectId         String?          @unique
+  renderJobId       String?
+  videoUrl          String?
+  error             String?          @db.Text
+  // Failed attempts at the current step; reset whenever a step succeeds.
+  attempts          Int              @default(0)
+  // The step a FAILED item stopped at, so "Relancer" resumes there.
+  failedStep        AutopilotStatus?
+  lockedAt          DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([status, deliverAt])
+  @@index([userId, deliverAt])
+}
+
+// A browser that asked to be told when a video is ready (Web Push).
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

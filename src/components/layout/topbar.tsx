@@ -15,6 +15,7 @@ const TITLES: Record<string, string> = {
   "/projects": "Projets",
   "/scripts": "Générateur de script",
   "/voices": "Voix",
+  "/autopilot": "Pilote automatique",
   "/exports": "Exports & publication",
   "/brand": "Charte de marque",
   "/billing": "Facturation & crédits",

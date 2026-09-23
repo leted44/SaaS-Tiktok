@@ -42,6 +42,10 @@ export const env = {
     serveUrl: read("REMOTION_SERVE_URL"),
   },
   cronSecret: read("CRON_SECRET"),
+  authSecret: read("AUTH_SECRET"),
+  // Optional: Web Push keys. When absent they are derived from AUTH_SECRET.
+  vapidPublicKey: read("VAPID_PUBLIC_KEY"),
+  vapidPrivateKey: read("VAPID_PRIVATE_KEY"),
 
   stripe: {
     secretKey: read("STRIPE_SECRET_KEY"),

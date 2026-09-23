@@ -4,6 +4,7 @@ import { getRenderEngine, type RenderOptions } from "@/lib/render/engine";
 import { shortVideoPropsSchema } from "@/lib/render/props";
 import { refundCredits } from "@/lib/credits";
 import { processDuePublishJobs } from "@/lib/publish";
+import { advanceAutopilot } from "@/lib/autopilot/engine";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -60,7 +61,13 @@ async function runRenderJob(job: RenderJobWithRelations, opts?: RenderOptions): 
 }
 
 export async function runWorkerTick(workerId: string) {
+  // Autopilot first: a render it queues this tick is then picked up just below.
+  // Isolated so a problem there never holds up renders and posts people started by hand.
+  const autopilot = await advanceAutopilot().catch((err) => {
+    console.error("[autopilot] tick failed:", err);
+    return 0;
+  });
   const render = await processOneRenderJob(workerId);
   const published = await processDuePublishJobs(5);
-  return { render, published };
+  return { autopilot, render, published };
 }
