@@ -24,7 +24,11 @@ function s3(): S3Client {
 }
 
 /** Local driver root (outside /public: Next only serves public files that existed at build time). */
-export const LOCAL_ROOT = path.resolve(process.cwd(), process.env.LOCAL_STORAGE_DIR ?? "storage");
+// No explicit process.cwd(): the build tracer reads `process.cwd() + dynamic path`
+// as "any file in the project" and copies the whole repo (.git, .next/cache…)
+// into every function that imports this module. path.resolve already resolves
+// against the cwd, so the result is the same.
+export const LOCAL_ROOT = path.resolve(process.env.LOCAL_STORAGE_DIR ?? "storage");
 
 function publicUrlFor(key: string): string {
   if (env.storageDriver === "s3") {
