@@ -87,7 +87,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const slideUrl = (i: number, v: number, download = false) => `/api/carousels/${projectId}/slides/${i}?v=${v}${download ? "&download=1" : ""}`;
 
   async function generate() {
-    if (state && !window.confirm("Réécrire tous les textes du carrousel ? Les photos des slides sont retirées ; le modèle, le format et la signature sont conservés.")) return;
+    if (state && !window.confirm("Réécrire tous les textes du carrousel ? De nouvelles photos sont cherchées pour chaque slide ; le modèle, le format et la signature sont conservés.")) return;
     setGenerating(true);
     const res = await generateCarouselAction(projectId);
     setGenerating(false);
@@ -351,7 +351,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
         )}
 
         <Section title="Réécrire avec l'IA" icon={RefreshCw} summary={cost > 0 ? `${cost} crédits` : undefined}>
-          <p className="text-xs text-muted-foreground">Repart du script actuel du projet et réécrit tous les textes. Une nouvelle photo de couverture est cherchée ; les photos des autres slides sont retirées. Le modèle, le format et la signature sont conservés.</p>
+          <p className="text-xs text-muted-foreground">Repart du script actuel du projet et réécrit tous les textes. De nouvelles photos sont cherchées pour chaque slide. Le modèle, le format et la signature sont conservés.</p>
           <Button variant="secondary" size="sm" className="mt-3 w-full" onClick={generate} loading={generating} disabled={!aiConfigured || !hasScript || credits < cost}>
             <Sparkles /> Réécrire le carrousel {cost > 0 && <><Coins className="h-3.5 w-3.5" /> {cost}</>}
           </Button>

@@ -9,6 +9,9 @@ import { parseJson } from "@/lib/validations";
 import { fallbackSocialCopy, socialCopySchema } from "@/lib/social/captions";
 
 export const dynamic = "force-dynamic";
+// Generating now searches and copies a photo for every slide, in parallel —
+// still one round trip, but a slow stock host can push it past the default.
+export const maxDuration = 60;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;

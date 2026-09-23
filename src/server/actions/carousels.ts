@@ -4,12 +4,12 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireDbUser } from "@/lib/auth";
 import { parseJson, scenesSchema } from "@/lib/validations";
-import { generateCarousel } from "@/lib/ai/carousel-generator";
+import { generateCarousel, fit } from "@/lib/ai/carousel-generator";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
-import { carouselSlidesSchema, carouselStateSchema, stripEmoji, limitsFor, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
+import { carouselSlidesSchema, carouselStateSchema, stripEmoji, limitsFor, IMAGE_SLIDE_LIMITS, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
 import { copyStockImage, isOwnStorageUrl } from "@/lib/carousel/images";
-import { searchStock } from "@/lib/stock/search";
+import { stockCandidates } from "@/lib/stock/search";
 import { integrations } from "@/lib/env";
 import { guard, type ActionResult } from "@/server/action-result";
 
@@ -54,7 +54,7 @@ export async function generateCarouselAction(projectId: string): Promise<ActionR
       throw err;
     }
 
-    slides = await withCoverPhoto(user.id, slides);
+    slides = await withAutoPhotos(user.id, slides);
 
     const saved = await prisma.carousel.upsert({
       where: { projectId: project.id },
@@ -110,29 +110,61 @@ export async function importCarouselImageAction(projectId: string, sourceUrl: st
 }
 
 /**
- * Put a photo behind the cover when the stock libraries have one for it.
+ * Put a photo behind the cover and above every content slide, when the stock
+ * libraries have one for it — the whole carousel, ready to post without
+ * touching the "Ajouter" picker.
  *
- * Best effort by design: no stock key, no match, or a slow download all leave
- * the cover as the template draws it, which is already a finished design.
+ * Best effort by design, per slide: no stock key, no match, or a slow
+ * download just leaves that one slide as the template draws it, which is
+ * already a finished design. A slide that gains a photo also gets its title
+ * and body re-cut to the tighter limit a photo band leaves room for — the
+ * model wrote them assuming the full slide, before any photo was chosen.
+ *
+ * Two passes, not one function per slide: searching is read-only, so every
+ * slide's candidates are fetched together first, then a single synchronous
+ * pass assigns each slide the best candidate no earlier slide already took
+ * (JS runs that assignment loop without interleaving, so there is no race
+ * between slides for the same photo). Only then do the picked photos get
+ * copied into storage, again together, so eight slides cost about as long
+ * as one instead of eight times as long.
  */
-async function withCoverPhoto(userId: string, slides: CarouselSlide[]): Promise<CarouselSlide[]> {
-  const cover = slides[0];
-  if (!cover || cover.kind !== "cover" || !cover.imageQuery || !integrations.stock()) return slides;
-  try {
-    const portrait = await searchStock(cover.imageQuery, "image", 5, true);
-    const candidates = portrait.length ? portrait : await searchStock(cover.imageQuery, "image", 5, false);
-    for (const candidate of candidates.slice(0, 3)) {
-      try {
-        const url = await copyStockImage(userId, candidate.url);
-        return [{ ...cover, image: { url } }, ...slides.slice(1)];
-      } catch {
-        // Try the next match.
+async function withAutoPhotos(userId: string, slides: CarouselSlide[]): Promise<CarouselSlide[]> {
+  if (!integrations.stock()) return slides;
+  const targets = slides
+    .map((slide, index) => ({ slide, index }))
+    .filter(({ slide }) => (slide.kind === "cover" || slide.kind === "content") && slide.imageQuery);
+  if (!targets.length) return slides;
+
+  const searches = await Promise.allSettled(targets.map(({ slide }) => stockCandidates(slide.imageQuery, "image", 5)));
+
+  const used = new Set<string>();
+  const picks = targets.map(({ index }, i) => {
+    const result = searches[i];
+    const pool = result.status === "fulfilled" ? result.value.filter((c) => !used.has(c.id)) : [];
+    const candidates = pool.slice(0, 2);
+    candidates.forEach((c) => used.add(c.id));
+    return { index, candidates };
+  });
+
+  const next = [...slides];
+  await Promise.all(
+    picks.map(async ({ index, candidates }) => {
+      for (const candidate of candidates) {
+        try {
+          const url = await copyStockImage(userId, candidate.url);
+          const slide = next[index];
+          next[index] =
+            slide.kind === "content"
+              ? { ...slide, image: { url }, title: fit(slide.title, IMAGE_SLIDE_LIMITS.title), body: fit(slide.body, IMAGE_SLIDE_LIMITS.body) }
+              : { ...slide, image: { url } };
+          return;
+        } catch {
+          // Try this slide's other candidate before giving up on it.
+        }
       }
-    }
-  } catch {
-    // Stock search down: the cover keeps its designed, photo-free look.
-  }
-  return slides;
+    }),
+  );
+  return next;
 }
 
 type CarouselRow = { template: string; format: string; handle: string | null; slides: unknown; updatedAt: Date };
