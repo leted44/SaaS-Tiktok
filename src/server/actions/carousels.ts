@@ -110,17 +110,11 @@ export async function importCarouselImageAction(projectId: string, sourceUrl: st
 }
 
 /**
- * Swap every stock photo of the carousel for a different one, and fill the
- * slides that have none — without touching a word of the text.
- *
- * Rewriting the whole carousel to get new photos also rewrites every slide;
- * this is the photos-only counterpart, like "Remplir toutes les scènes" for a
- * video. Free, as stock search is everywhere else. A photo the user uploaded
- * is theirs and is never replaced, and a content slide whose text is longer
- * than a photo band leaves room for is left without one rather than having
- * the user's own text cut.
+ * Put a photo on every slide that has none, keeping the ones already placed
+ * and every word of the text — the carousel's "Remplir toutes les scènes".
+ * Free, as stock search is everywhere else.
  */
-export async function refillCarouselPhotosAction(
+export async function fillCarouselPhotosAction(
   projectId: string,
 ): Promise<ActionResult<{ carousel: CarouselSnapshot; changed: number; tooLong: number; unmatched: number }>> {
   return guard(async () => {
@@ -129,7 +123,7 @@ export async function refillCarouselPhotosAction(
     const row = await prisma.carousel.findFirstOrThrow({ where: { projectId, userId: user.id } });
     const { slides } = toSnapshot(row);
 
-    const result = await withAutoPhotos(user.id, slides, "refill");
+    const result = await withAutoPhotos(user.id, slides, "fill");
     const saved = await prisma.carousel.update({ where: { id: row.id }, data: { slides: result.slides } });
     return { carousel: toSnapshot(saved), changed: result.changed, tooLong: result.tooLong, unmatched: result.unmatched };
   });

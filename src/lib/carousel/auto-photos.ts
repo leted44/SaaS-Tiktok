@@ -1,6 +1,6 @@
 import { fit } from "@/lib/ai/carousel-generator";
 import { IMAGE_SLIDE_LIMITS, type CarouselSlide } from "@/lib/carousel/schema";
-import { copyStockImage, isStockPhoto } from "@/lib/carousel/images";
+import { copyStockImage } from "@/lib/carousel/images";
 import { stockCandidates } from "@/lib/stock/search";
 import { integrations } from "@/lib/env";
 
@@ -12,11 +12,12 @@ import { integrations } from "@/lib/env";
  * gains a photo has its title and body re-cut to the tighter limit a photo
  * band leaves room for — the model wrote them before any photo was chosen.
  *
- * "refill" runs on a carousel the user has worked on: stock photos are swapped
- * for ones not already in it, empty slides are filled, uploads are kept, and
- * no text is ever cut — a content slide too long for a photo is skipped. The
- * pick is drawn at random among the best few matches, so pressing it again
- * gives another set instead of cycling between the same two photos.
+ * "fill" runs on a carousel the user has worked on, like "Remplir toutes les
+ * scènes" for a video: only slides without a photo get one, every photo
+ * already placed stays, and no text is ever cut — a content slide too long
+ * for a photo band is skipped. The pick is drawn among the best few matches,
+ * so removing a photo and filling again brings a different one rather than
+ * the same photo straight back.
  *
  * Best effort per slide: no match or a failed download leaves that slide as
  * it was. Searching is read-only, so all slides search together; a single
@@ -27,7 +28,7 @@ import { integrations } from "@/lib/env";
 export async function withAutoPhotos(
   userId: string,
   slides: CarouselSlide[],
-  mode: "generate" | "refill",
+  mode: "generate" | "fill",
 ): Promise<{ slides: CarouselSlide[]; changed: number; tooLong: number; unmatched: number }> {
   const none = { slides, changed: 0, tooLong: 0, unmatched: 0 };
   if (!integrations.stock()) return none;
@@ -38,21 +39,21 @@ export async function withAutoPhotos(
     .filter(({ slide, query }) => {
       if ((slide.kind !== "cover" && slide.kind !== "content") || !query.trim()) return false;
       if (mode === "generate") return Boolean(slide.imageQuery);
-      if (slide.image) return isStockPhoto(slide.image);
+      if (slide.image) return false;
       const fits = slide.kind === "cover" || (slide.title.length <= IMAGE_SLIDE_LIMITS.title && slide.body.length <= IMAGE_SLIDE_LIMITS.body);
       if (!fits) tooLong++;
       return fits;
     });
   if (!targets.length) return { ...none, tooLong };
 
-  const searches = await Promise.allSettled(targets.map(({ query }) => stockCandidates(query, "image", mode === "refill" ? 8 : 5)));
+  const searches = await Promise.allSettled(targets.map(({ query }) => stockCandidates(query, "image", 5)));
 
-  // Photos already in the carousel are never picked again, so a refill always changes them.
+  // A photo already in the carousel is never picked for a second slide.
   const used = new Set<string>(slides.flatMap((s) => (s.image?.source ? [s.image.source] : [])));
   const picks = targets.map(({ index }, i) => {
     const result = searches[i];
     const fresh = result.status === "fulfilled" ? result.value.filter((c) => !used.has(c.url)) : [];
-    const pool = mode === "refill" ? shuffle(fresh.slice(0, 6)) : fresh;
+    const pool = mode === "fill" ? shuffle(fresh.slice(0, 3)) : fresh;
     const candidates = pool.slice(0, 2);
     candidates.forEach((c) => used.add(c.url));
     return { index, candidates };

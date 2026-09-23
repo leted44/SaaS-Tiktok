@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Section } from "@/components/ui/section";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
-import { generateCarouselAction, importCarouselImageAction, refillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
+import { generateCarouselAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
 import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, limitsFor, slideFileSlug, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
 import { resolveTemplate } from "@/lib/carousel/templates";
@@ -45,7 +45,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const [state, setState] = useState<CarouselState | null>(initial ? withoutVersion(initial) : null);
   const [version, setVersion] = useState(initial?.version ?? 0);
   const [generating, setGenerating] = useState(false);
-  const [refilling, setRefilling] = useState(false);
+  const [filling, setFilling] = useState(false);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<null | "share" | "download" | "zip">(null);
   const [canShareFiles, setCanShareFiles] = useState(false);
@@ -102,13 +102,16 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
     router.refresh();
   }
 
-  /** New photos for every slide, same text. */
-  async function refillPhotos() {
+  /** A photo on every slide that has none; photos already placed and all text stay. */
+  async function fillPhotos() {
     if (!state) return;
-    setRefilling(true);
+    if (!state.slides.some((s) => s.kind !== "cta" && !s.image)) {
+      return toast.info("Toutes les slides ont déjà une photo. Retires-en une pour la remplacer.");
+    }
+    setFilling(true);
     try {
       if (dirty && (await persist(state)) === null) return;
-      const res = await refillCarouselPhotosAction(projectId);
+      const res = await fillCarouselPhotosAction(projectId);
       if (!res.ok) return toast.error(res.error);
       const result = withoutVersion(res.data.carousel);
       const images = new Map(result.slides.map((s) => [s.id, s.image]));
@@ -119,14 +122,14 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       setState((prev) => (prev ? { ...prev, slides: prev.slides.map((s) => (images.has(s.id) ? { ...s, image: images.get(s.id) ?? null } : s)) } : prev));
 
       const { changed, tooLong, unmatched } = res.data;
-      if (!changed) return toast.info(tooLong ? "Aucune photo changée : les slides restantes ont trop de texte pour une photo." : "Aucune nouvelle photo trouvée. Essaie la recherche manuelle sur une slide.");
+      if (!changed) return toast.info(tooLong ? "Aucune photo ajoutée : les slides vides ont trop de texte pour une photo." : "Aucune photo trouvée pour ces slides. Essaie la recherche manuelle sur une slide.");
       toast.success(
-        `${changed} photo${changed > 1 ? "s" : ""} changée${changed > 1 ? "s" : ""}.` +
-          (unmatched > 0 ? ` ${unmatched} slide${unmatched > 1 ? "s" : ""} sans nouvelle photo trouvée.` : "") +
+        `${changed} photo${changed > 1 ? "s" : ""} ajoutée${changed > 1 ? "s" : ""}.` +
+          (unmatched > 0 ? ` ${unmatched} slide${unmatched > 1 ? "s" : ""} sans résultat — cherche manuellement.` : "") +
           (tooLong > 0 ? ` ${tooLong} slide${tooLong > 1 ? "s" : ""} trop longue${tooLong > 1 ? "s" : ""} pour une photo.` : ""),
       );
     } finally {
-      setRefilling(false);
+      setFilling(false);
     }
   }
 
@@ -351,11 +354,11 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
         </Section>
 
         <Section title="Photos" icon={ImageIcon} summary={`${photoCount} / ${photoSlots} slides`} defaultOpen>
-          <p className="text-xs text-muted-foreground">Cherche de nouvelles photos pour toutes les slides, sans toucher aux textes. Tes propres photos importées sont gardées.</p>
-          <Button variant="gradient" className="mt-3 w-full" onClick={refillPhotos} loading={refilling} disabled={!stockConfigured || generating || busy !== null}>
-            <Sparkles /> Changer toutes les photos
+          <p className="text-xs text-muted-foreground">Ajoute une photo sur chaque slide qui n'en a pas. Les photos déjà en place et les textes ne bougent pas.</p>
+          <Button variant="gradient" className="mt-3 w-full" onClick={fillPhotos} loading={filling} disabled={!stockConfigured || generating || busy !== null}>
+            <Sparkles /> Remplir les slides vides
           </Button>
-          <p className="mt-2 text-[11px] text-muted-foreground">{stockConfigured ? "Gratuit. Pour une seule slide : ouvre-la dans Textes, puis Changer." : "La recherche de photos n'est pas configurée."}</p>
+          <p className="mt-2 text-[11px] text-muted-foreground">{stockConfigured ? "Gratuit. Pour changer une photo précise : ouvre la slide dans Textes, puis Changer." : "La recherche de photos n'est pas configurée."}</p>
         </Section>
 
         <Section title="Textes" icon={Type} count={state.slides.length}>
@@ -393,7 +396,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
 
         <Section title="Réécrire avec l'IA" icon={RefreshCw} summary={cost > 0 ? `${cost} crédits` : undefined}>
           <p className="text-xs text-muted-foreground">Repart du script actuel du projet et réécrit tous les textes. De nouvelles photos sont cherchées pour chaque slide. Le modèle, le format et la signature sont conservés.</p>
-          <Button variant="secondary" size="sm" className="mt-3 w-full" onClick={generate} loading={generating} disabled={!aiConfigured || !hasScript || credits < cost || refilling}>
+          <Button variant="secondary" size="sm" className="mt-3 w-full" onClick={generate} loading={generating} disabled={!aiConfigured || !hasScript || credits < cost || filling}>
             <Sparkles /> Réécrire le carrousel {cost > 0 && <><Coins className="h-3.5 w-3.5" /> {cost}</>}
           </Button>
         </Section>

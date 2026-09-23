@@ -95,12 +95,3 @@ export async function copyStockImage(userId: string, sourceUrl: string): Promise
   const stored = await putObject(storageKey(userId, "asset", `carousel-${nanoid(10)}.${type === "image/png" ? "png" : "jpg"}`), buf, type);
   return stored.url;
 }
-
-// Stock copies made before `source` was recorded: copyStockImage names them
-// `carousel-<10-char id>`, which an uploaded photo's name never is.
-const LEGACY_STOCK_COPY = /-carousel-[A-Za-z0-9_-]{10}\.(?:jpg|png)$/;
-
-/** Whether a slide photo came from the stock libraries, and so may be swapped for another one. */
-export function isStockPhoto(image: { url: string; source?: string }): boolean {
-  return Boolean(image.source) || LEGACY_STOCK_COPY.test(image.url);
-}

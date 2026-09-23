@@ -20,9 +20,8 @@ export const carouselSlideSchema = z.object({
   imageQuery: z.string().max(80).default(""),
   /**
    * A photo behind the cover or above a content slide. Always a copy in our own
-   * storage. `source` is the stock photo it was copied from — set only for stock
-   * picks, so "change all photos" knows which ones it may replace (never a photo
-   * the user uploaded) and which it must not pick again.
+   * storage. `source` is the stock photo it was copied from, so filling the empty
+   * slides never puts the same photo on two of them.
    */
   image: z.object({ url: z.string().min(1).max(600), source: z.string().max(600).optional() }).nullable().default(null),
 });
