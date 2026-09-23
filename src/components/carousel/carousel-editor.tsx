@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Section } from "@/components/ui/section";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
-import { generateCarouselAction, importCarouselImageAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
+import { generateCarouselAction, importCarouselImageAction, refillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
 import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, limitsFor, slideFileSlug, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
 import { resolveTemplate } from "@/lib/carousel/templates";
@@ -34,16 +34,18 @@ interface Props {
   socialCopyCost: number;
   credits: number;
   aiConfigured: boolean;
+  stockConfigured: boolean;
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const withoutVersion = (s: CarouselSnapshot): CarouselState => ({ template: s.template, format: s.format, handle: s.handle, slides: s.slides });
 
-export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, credits, aiConfigured }: Props) {
+export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, credits, aiConfigured, stockConfigured }: Props) {
   const router = useRouter();
   const [state, setState] = useState<CarouselState | null>(initial ? withoutVersion(initial) : null);
   const [version, setVersion] = useState(initial?.version ?? 0);
   const [generating, setGenerating] = useState(false);
+  const [refilling, setRefilling] = useState(false);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<null | "share" | "download" | "zip">(null);
   const [canShareFiles, setCanShareFiles] = useState(false);
@@ -98,6 +100,34 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
     setVersion(res.data.carousel.version);
     toast.success(`Carrousel prêt · ${next.slides.length} slides${cost > 0 ? ` · ${cost} crédits` : ""}`);
     router.refresh();
+  }
+
+  /** New photos for every slide, same text. */
+  async function refillPhotos() {
+    if (!state) return;
+    setRefilling(true);
+    try {
+      if (dirty && (await persist(state)) === null) return;
+      const res = await refillCarouselPhotosAction(projectId);
+      if (!res.ok) return toast.error(res.error);
+      const result = withoutVersion(res.data.carousel);
+      const images = new Map(result.slides.map((s) => [s.id, s.image]));
+      // Only the photos come from the server: text typed while it searched stays,
+      // and the autosave then persists both together.
+      lastSaved.current = JSON.stringify(result);
+      setVersion(res.data.carousel.version);
+      setState((prev) => (prev ? { ...prev, slides: prev.slides.map((s) => (images.has(s.id) ? { ...s, image: images.get(s.id) ?? null } : s)) } : prev));
+
+      const { changed, tooLong, unmatched } = res.data;
+      if (!changed) return toast.info(tooLong ? "Aucune photo changée : les slides restantes ont trop de texte pour une photo." : "Aucune nouvelle photo trouvée. Essaie la recherche manuelle sur une slide.");
+      toast.success(
+        `${changed} photo${changed > 1 ? "s" : ""} changée${changed > 1 ? "s" : ""}.` +
+          (unmatched > 0 ? ` ${unmatched} slide${unmatched > 1 ? "s" : ""} sans nouvelle photo trouvée.` : "") +
+          (tooLong > 0 ? ` ${tooLong} slide${tooLong > 1 ? "s" : ""} trop longue${tooLong > 1 ? "s" : ""} pour une photo.` : ""),
+      );
+    } finally {
+      setRefilling(false);
+    }
   }
 
   /** The PNGs of the saved carousel — saving first, so the export always matches what is on screen. */
@@ -228,6 +258,8 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
 
   const { width, height } = FORMAT_SIZE[state.format];
   const contentCount = state.slides.filter((s) => s.kind === "content").length;
+  const photoSlots = state.slides.filter((s) => s.kind !== "cta").length;
+  const photoCount = state.slides.filter((s) => s.kind !== "cta" && s.image).length;
   let contentIndex = 0;
 
   return (
@@ -318,6 +350,14 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
           </div>
         </Section>
 
+        <Section title="Photos" icon={ImageIcon} summary={`${photoCount} / ${photoSlots} slides`} defaultOpen>
+          <p className="text-xs text-muted-foreground">Cherche de nouvelles photos pour toutes les slides, sans toucher aux textes. Tes propres photos importées sont gardées.</p>
+          <Button variant="gradient" className="mt-3 w-full" onClick={refillPhotos} loading={refilling} disabled={!stockConfigured || generating || busy !== null}>
+            <Sparkles /> Changer toutes les photos
+          </Button>
+          <p className="mt-2 text-[11px] text-muted-foreground">{stockConfigured ? "Gratuit. Pour une seule slide : ouvre-la dans Textes, puis Changer." : "La recherche de photos n'est pas configurée."}</p>
+        </Section>
+
         <Section title="Textes" icon={Type} count={state.slides.length}>
           <div className="space-y-3">
             {state.slides.map((s, i) => {
@@ -353,7 +393,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
 
         <Section title="Réécrire avec l'IA" icon={RefreshCw} summary={cost > 0 ? `${cost} crédits` : undefined}>
           <p className="text-xs text-muted-foreground">Repart du script actuel du projet et réécrit tous les textes. De nouvelles photos sont cherchées pour chaque slide. Le modèle, le format et la signature sont conservés.</p>
-          <Button variant="secondary" size="sm" className="mt-3 w-full" onClick={generate} loading={generating} disabled={!aiConfigured || !hasScript || credits < cost}>
+          <Button variant="secondary" size="sm" className="mt-3 w-full" onClick={generate} loading={generating} disabled={!aiConfigured || !hasScript || credits < cost || refilling}>
             <Sparkles /> Réécrire le carrousel {cost > 0 && <><Coins className="h-3.5 w-3.5" /> {cost}</>}
           </Button>
         </Section>
@@ -508,7 +548,7 @@ function ImageControl({ projectId, slide, blockedReason, onChange }: {
     const res = await importCarouselImageAction(projectId, hit.url);
     setImporting(null);
     if (!res.ok) return toast.error(res.error);
-    onChange({ url: res.data.url });
+    onChange({ url: res.data.url, source: res.data.source });
     setOpen(false);
   }
 

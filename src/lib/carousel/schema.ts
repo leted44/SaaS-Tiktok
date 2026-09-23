@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { slugify } from "@/lib/utils";
 
 /**
  * One slide of a carousel.
@@ -17,8 +18,13 @@ export const carouselSlideSchema = z.object({
   action: z.string().max(90).default(""),
   /** Search words for a matching photo, written by the AI. Pre-fills the image search. */
   imageQuery: z.string().max(80).default(""),
-  /** A photo behind the cover or above a content slide. Always a copy in our own storage. */
-  image: z.object({ url: z.string().min(1).max(600) }).nullable().default(null),
+  /**
+   * A photo behind the cover or above a content slide. Always a copy in our own
+   * storage. `source` is the stock photo it was copied from — set only for stock
+   * picks, so "change all photos" knows which ones it may replace (never a photo
+   * the user uploaded) and which it must not pick again.
+   */
+  image: z.object({ url: z.string().min(1).max(600), source: z.string().max(600).optional() }).nullable().default(null),
 });
 export type CarouselSlide = z.infer<typeof carouselSlideSchema>;
 
@@ -87,15 +93,7 @@ export function stripEmoji(text: string): string {
  * overwrote the first's still sitting in the phone's Downloads folder.
  */
 export function slideFileSlug(title: string): string {
-  const slug = title
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40)
-    .replace(/-+$/, "");
-  return slug || "carrousel";
+  return slugify(title).slice(0, 40).replace(/-+$/, "") || "carrousel";
 }
 
 /**

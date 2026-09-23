@@ -4,12 +4,12 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireDbUser } from "@/lib/auth";
 import { parseJson, scenesSchema } from "@/lib/validations";
-import { generateCarousel, fit } from "@/lib/ai/carousel-generator";
+import { generateCarousel } from "@/lib/ai/carousel-generator";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
-import { carouselSlidesSchema, carouselStateSchema, stripEmoji, limitsFor, IMAGE_SLIDE_LIMITS, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
+import { carouselSlidesSchema, carouselStateSchema, stripEmoji, limitsFor, type CarouselState } from "@/lib/carousel/schema";
 import { copyStockImage, isOwnStorageUrl } from "@/lib/carousel/images";
-import { stockCandidates } from "@/lib/stock/search";
+import { withAutoPhotos } from "@/lib/carousel/auto-photos";
 import { integrations } from "@/lib/env";
 import { guard, type ActionResult } from "@/server/action-result";
 
@@ -54,7 +54,7 @@ export async function generateCarouselAction(projectId: string): Promise<ActionR
       throw err;
     }
 
-    slides = await withAutoPhotos(user.id, slides);
+    slides = (await withAutoPhotos(user.id, slides, "generate")).slides;
 
     const saved = await prisma.carousel.upsert({
       where: { projectId: project.id },
@@ -101,70 +101,38 @@ export async function saveCarouselAction(projectId: string, input: unknown): Pro
  * Returns the stored URL; the editor then places it on the slide and the
  * autosave persists it, so this never races with a save in flight.
  */
-export async function importCarouselImageAction(projectId: string, sourceUrl: string): Promise<ActionResult<{ url: string }>> {
+export async function importCarouselImageAction(projectId: string, sourceUrl: string): Promise<ActionResult<{ url: string; source: string }>> {
   return guard(async () => {
     const user = await requireDbUser();
     await prisma.carousel.findFirstOrThrow({ where: { projectId, userId: user.id }, select: { id: true } });
-    return { url: await copyStockImage(user.id, sourceUrl) };
+    return { url: await copyStockImage(user.id, sourceUrl), source: sourceUrl };
   });
 }
 
 /**
- * Put a photo behind the cover and above every content slide, when the stock
- * libraries have one for it — the whole carousel, ready to post without
- * touching the "Ajouter" picker.
+ * Swap every stock photo of the carousel for a different one, and fill the
+ * slides that have none — without touching a word of the text.
  *
- * Best effort by design, per slide: no stock key, no match, or a slow
- * download just leaves that one slide as the template draws it, which is
- * already a finished design. A slide that gains a photo also gets its title
- * and body re-cut to the tighter limit a photo band leaves room for — the
- * model wrote them assuming the full slide, before any photo was chosen.
- *
- * Two passes, not one function per slide: searching is read-only, so every
- * slide's candidates are fetched together first, then a single synchronous
- * pass assigns each slide the best candidate no earlier slide already took
- * (JS runs that assignment loop without interleaving, so there is no race
- * between slides for the same photo). Only then do the picked photos get
- * copied into storage, again together, so eight slides cost about as long
- * as one instead of eight times as long.
+ * Rewriting the whole carousel to get new photos also rewrites every slide;
+ * this is the photos-only counterpart, like "Remplir toutes les scènes" for a
+ * video. Free, as stock search is everywhere else. A photo the user uploaded
+ * is theirs and is never replaced, and a content slide whose text is longer
+ * than a photo band leaves room for is left without one rather than having
+ * the user's own text cut.
  */
-async function withAutoPhotos(userId: string, slides: CarouselSlide[]): Promise<CarouselSlide[]> {
-  if (!integrations.stock()) return slides;
-  const targets = slides
-    .map((slide, index) => ({ slide, index }))
-    .filter(({ slide }) => (slide.kind === "cover" || slide.kind === "content") && slide.imageQuery);
-  if (!targets.length) return slides;
+export async function refillCarouselPhotosAction(
+  projectId: string,
+): Promise<ActionResult<{ carousel: CarouselSnapshot; changed: number; tooLong: number; unmatched: number }>> {
+  return guard(async () => {
+    const user = await requireDbUser();
+    if (!integrations.stock()) throw new Error("La recherche de photos n'est pas configurée (clé PEXELS_API_KEY manquante).");
+    const row = await prisma.carousel.findFirstOrThrow({ where: { projectId, userId: user.id } });
+    const { slides } = toSnapshot(row);
 
-  const searches = await Promise.allSettled(targets.map(({ slide }) => stockCandidates(slide.imageQuery, "image", 5)));
-
-  const used = new Set<string>();
-  const picks = targets.map(({ index }, i) => {
-    const result = searches[i];
-    const pool = result.status === "fulfilled" ? result.value.filter((c) => !used.has(c.id)) : [];
-    const candidates = pool.slice(0, 2);
-    candidates.forEach((c) => used.add(c.id));
-    return { index, candidates };
+    const result = await withAutoPhotos(user.id, slides, "refill");
+    const saved = await prisma.carousel.update({ where: { id: row.id }, data: { slides: result.slides } });
+    return { carousel: toSnapshot(saved), changed: result.changed, tooLong: result.tooLong, unmatched: result.unmatched };
   });
-
-  const next = [...slides];
-  await Promise.all(
-    picks.map(async ({ index, candidates }) => {
-      for (const candidate of candidates) {
-        try {
-          const url = await copyStockImage(userId, candidate.url);
-          const slide = next[index];
-          next[index] =
-            slide.kind === "content"
-              ? { ...slide, image: { url }, title: fit(slide.title, IMAGE_SLIDE_LIMITS.title), body: fit(slide.body, IMAGE_SLIDE_LIMITS.body) }
-              : { ...slide, image: { url } };
-          return;
-        } catch {
-          // Try this slide's other candidate before giving up on it.
-        }
-      }
-    }),
-  );
-  return next;
 }
 
 type CarouselRow = { template: string; format: string; handle: string | null; slides: unknown; updatedAt: Date };
