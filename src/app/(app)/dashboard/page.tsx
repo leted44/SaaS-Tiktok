@@ -1,150 +1,144 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Sparkles, FolderKanban, Film, Send, ArrowRight, Clock, Coins, Plus } from "lucide-react";
-import { getDashboardData } from "@/server/queries";
-import { PageHeader } from "@/components/shared/page-header";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { StatusBadge } from "@/components/shared/status-badge";
-import { Progress } from "@/components/ui/progress";
-import { EmptyState } from "@/components/shared/empty-state";
+import { ArrowRight, Captions, ChevronRight, Film, FileText, Layers, Mic2 } from "lucide-react";
+import { getDashboard, type DashboardData } from "@/app/(app)/dashboard/data";
 import { UpgradePrompt } from "@/components/shared/upgrade-prompt";
-import { PlatformIcon } from "@/components/shared/platform-icon";
-import { UsageChart } from "@/components/dashboard/usage-chart";
-import { StatTile } from "@/components/dashboard/stat-tile";
-import { relativeTime, formatNumber } from "@/lib/utils";
-import { CREDIT_COSTS, isAdmin } from "@/lib/plans";
+import { QuickCreate } from "@/components/dashboard/quick-create";
+import { FeaturedProject, FirstProject } from "@/components/dashboard/featured-project";
+import { ProjectCard } from "@/components/dashboard/project-card";
+import { Agenda, CreateCards, CreditsCard, HeroPosters, ScoreSummary, SectionTitle, StatGrid, reveal } from "@/components/dashboard/sections";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Tableau de bord" };
 export const dynamic = "force-dynamic";
 
+const PIPELINE = [
+  { icon: FileText, label: "Script IA" },
+  { icon: Mic2, label: "Voix off" },
+  { icon: Layers, label: "Visuels" },
+  { icon: Captions, label: "Sous-titres animés" },
+  { icon: Film, label: "Export 9:16" },
+];
+
+/** The single most useful thing to do now, from the real state of the account. */
+function nextAction(d: DashboardData): { text: string; href: string; tone: "alert" | "normal" } | null {
+  if (d.autopilotFailed > 0) return { text: `${d.autopilotFailed} vidéo${d.autopilotFailed > 1 ? "s" : ""} du pilote automatique à corriger`, href: "/autopilot", tone: "alert" };
+  if (!d.user.admin && d.user.credits < d.credits.scriptCost) return { text: "Plus assez de crédits pour un script : recharger", href: "/billing", tone: "alert" };
+  const f = d.featured;
+  if (!f) return null;
+  if (f.rendering) return { text: `Rendu en cours — « ${f.title} » à ${f.rendering.progress} %`, href: `/studio/${f.id}`, tone: "normal" };
+  return { text: `${f.next.label} — « ${f.title} »`, href: f.next.href, tone: "normal" };
+}
+
 export default async function DashboardPage() {
-  const { user, workspace, projects, renders, usage, scheduled, plan, totals } = await getDashboardData();
-  const firstName = (user.name ?? "Créateur").split(" ")[0];
-  const creditsPct = Math.min(100, Math.round((user.credits / Math.max(1, plan.monthlyCredits)) * 100));
-  const videosLeft = Math.floor(user.credits / (CREDIT_COSTS.SCRIPT_GENERATION + CREDIT_COSTS.VOICEOVER_PER_30S * 2 + CREDIT_COSTS.RENDER_1080P));
+  const d = await getDashboard();
+  const action = nextAction(d);
+  const returning = d.totals.projects > 0;
+  const name = d.user.firstName;
 
   return (
-    <div className="mx-auto max-w-7xl">
-      <PageHeader
-        title={`Ravi de vous revoir, ${firstName}.`}
-        description={isAdmin(user.role) ? `${workspace.name} · Compte interne · générations illimitées` : `${workspace.name} · Forfait ${plan.name} · ${formatNumber(user.credits)} crédits (~${videosLeft} vidéos restantes)`}
-        actions={
-          <Button asChild variant="gradient"><Link href="/scripts"><Sparkles /> Nouvelle vidéo</Link></Button>
-        }
-      />
-
-      {user.credits < 12 && !isAdmin(user.role) && <div className="mb-6"><UpgradePrompt title={user.credits === 0 ? "Vous n'avez plus de crédits" : "Crédits bientôt épuisés"} body={`Il vous en reste ${user.credits}. Une vidéo complète coûte environ 15 crédits.`} compact /></div>}
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatTile icon={FolderKanban} label="Projets" value={totals.projects} hint="depuis le début" />
-        <StatTile icon={Sparkles} label="Scripts générés" value={totals.scripts} hint="depuis le début" />
-        <StatTile icon={Film} label="Vidéos rendues" value={totals.renders} hint="terminées" />
-        <StatTile icon={Send} label="Publications" value={totals.published} hint="toutes plateformes" />
-      </div>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle>Projets récents</CardTitle>
-              <CardDescription>Reprenez là où vous vous étiez arrêté.</CardDescription>
-            </div>
-            <Button asChild variant="ghost" size="sm"><Link href="/projects">Tout voir <ArrowRight /></Link></Button>
-          </CardHeader>
-          <CardContent>
-            {projects.length === 0 ? (
-              <EmptyState icon={Sparkles} title="Aucun projet pour l'instant" description="Générez votre premier script et nous créerons le projet pour vous." action={<Button asChild variant="gradient"><Link href="/scripts"><Plus /> Générer un script</Link></Button>} className="border-dashed py-10 shadow-none" />
-            ) : (
-              <ul className="divide-y divide-white/[0.05]">
-                {projects.map((p) => (
-                  <li key={p.id}>
-                    <Link href={`/studio/${p.id}`} className="group -mx-2 flex items-center gap-4 rounded-lg px-2 py-3 transition-colors hover:bg-white/[0.03]">
-                      <div className="h-14 w-9 shrink-0 overflow-hidden rounded-md border border-white/10 bg-brand-gradient-soft">
-                        {p.thumbnailUrl && <img src={p.thumbnailUrl} alt="" className="h-full w-full object-cover" />}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium group-hover:text-brand-200">{p.title}</p>
-                        <p className="truncate text-xs text-muted-foreground">{p.niche || p.topic || "Sans sujet"} · {relativeTime(p.updatedAt)}</p>
-                      </div>
-                      {p.scripts[0] && <span className="hidden text-xs text-muted-foreground sm:block">Viralité <b className="text-foreground">{p.scripts[0].viralityScore}</b></span>}
-                      <StatusBadge status={p.status} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Coins className="h-4 w-4 text-brand-300" /> Crédits</CardTitle>
-              <CardDescription>{user.credits} sur {plan.monthlyCredits} mensuels</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Progress value={creditsPct} indicatorClassName={creditsPct < 20 ? "bg-amber-400" : "bg-brand-gradient"} />
-              <UsageChart usage={usage.byType} />
-              <p className="mt-3 text-xs text-muted-foreground">{usage.totalUsed} crédits utilisés sur les 30 derniers jours.</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Clock className="h-4 w-4 text-brand-300" /> Publications à venir</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {scheduled.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Rien de programmé. <Link href="/exports" className="text-foreground underline-offset-4 hover:underline">Programmer une publication</Link>.</p>
-              ) : (
-                <ul className="space-y-3">
-                  {scheduled.map((s) => (
-                    <li key={s.id} className="flex items-center gap-3 text-sm">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.05] text-muted-foreground"><PlatformIcon platform={s.platform} /></span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium">{s.project.title}</p>
-                        <p className="text-xs text-muted-foreground">@{s.socialAccount.username} · {new Date(s.scheduledAt).toLocaleString("fr-FR", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+    <div className="mx-auto max-w-[1440px] space-y-10 sm:space-y-14">
+      {/* ── Hero + quick create */}
+      <section className="relative isolate -mx-4 -mt-6 overflow-hidden px-4 pb-2 pt-8 sm:pt-12 md:-mx-8 md:px-8">
+        <div aria-hidden className="absolute inset-0 -z-10">
+          <div className="absolute -left-40 -top-40 h-[520px] w-[520px] rounded-full bg-violet-700/30 blur-[120px]" />
+          <div className="absolute -top-24 right-[-10%] h-[420px] w-[420px] rounded-full bg-fuchsia-600/20 blur-[120px]" />
+          <div className="absolute bottom-[-30%] left-1/3 h-[380px] w-[380px] rounded-full bg-orange-500/10 blur-[120px]" />
+          <div className="dot-grid absolute inset-0 opacity-60 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" />
         </div>
-      </div>
 
-      <Card className="mt-6">
-        <CardHeader className="flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle>Activité des rendus</CardTitle>
-            <CardDescription>Derniers exports de la file de rendu.</CardDescription>
-          </div>
-          <Button asChild variant="ghost" size="sm"><Link href="/exports">Ouvrir les exports <ArrowRight /></Link></Button>
-        </CardHeader>
-        <CardContent>
-          {renders.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucun rendu pour l'instant.</p>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-              {renders.map((r) => (
-                <div key={r.id} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-sm font-medium">{r.project.title}</p>
-                    <StatusBadge status={r.status} />
-                  </div>
-                  {r.status === "PROCESSING" || r.status === "QUEUED" ? (
-                    <Progress value={r.progress} className="mt-3 h-1.5" />
-                  ) : (
-                    <p className="mt-2 text-xs text-muted-foreground">{relativeTime(r.createdAt)}</p>
-                  )}
-                </div>
+        <div className="grid items-center gap-10 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="min-w-0">
+            <p style={reveal(0).style} className={cn("inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur", reveal(0).className)}>
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gradient-to-r from-fuchsia-400 to-orange-300" />
+              <span className="truncate">{d.workspace.name} · {d.user.admin ? "Compte interne" : `Forfait ${d.plan.name}`}</span>
+            </p>
+            <h1 style={reveal(1).style} className={cn("mt-4 font-display text-[1.7rem] font-bold leading-[1.1] tracking-tight sm:text-4xl lg:text-5xl", reveal(1).className)}>
+              {returning ? "Bon retour" : "Bienvenue"}{name ? `, ${name}` : ""}.
+              <span className="mt-1 block bg-gradient-to-r from-violet-300 via-fuchsia-300 to-orange-200 bg-clip-text text-transparent">Qu'est-ce qu'on crée aujourd'hui ?</span>
+            </h1>
+            <p style={reveal(2).style} className={cn("mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base", reveal(2).className)}>
+              Une idée suffit : ClipForge écrit le script, pose la voix, choisit les visuels et anime les sous-titres. Tu gardes la main sur chaque étape, jusqu'à l'export.
+            </p>
+
+            <ol style={reveal(3).style} className={cn("-mx-4 mt-5 flex items-center gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden", reveal(3).className)} aria-label="Ce que ClipForge fait pour toi">
+              {PIPELINE.map((s, i) => (
+                <li key={s.label} className="flex shrink-0 items-center gap-1.5">
+                  {i > 0 && <ChevronRight aria-hidden className="h-3 w-3 text-muted-foreground/50" />}
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[11px] text-foreground/85">
+                    <s.icon className="h-3 w-3 text-brand-300" /> {s.label}
+                  </span>
+                </li>
               ))}
+            </ol>
+
+            {action && (
+              <Link
+                href={action.href}
+                style={reveal(4).style}
+                className={cn(
+                  "group mt-5 flex max-w-xl items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 text-sm transition",
+                  action.tone === "alert" ? "border-amber-400/30 bg-amber-400/10 text-amber-100 hover:border-amber-400/50" : "border-white/10 bg-white/[0.035] hover:border-violet-400/40 hover:bg-violet-500/[0.07]",
+                  reveal(4).className,
+                )}
+              >
+                <span className="relative flex h-2 w-2 shrink-0"><span className={cn("absolute inline-flex h-full w-full rounded-full opacity-60 motion-safe:animate-ping", action.tone === "alert" ? "bg-amber-400" : "bg-fuchsia-400")} /><span className={cn("relative inline-flex h-2 w-2 rounded-full", action.tone === "alert" ? "bg-amber-400" : "bg-fuchsia-400")} /></span>
+                <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Ensuite</span>
+                <span className="min-w-0 flex-1 truncate">{action.text}</span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground" />
+              </Link>
+            )}
+
+            <div style={reveal(5).style} className={cn("mt-6 max-w-3xl", reveal(5).className)}>
+              <QuickCreate aiConfigured={d.ai} credits={d.user.credits} cost={d.credits.scriptCost} language={d.workspace.language} />
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+
+          <div className="hidden xl:block" style={reveal(4).style}>
+            <HeroPosters posters={d.posters} />
+          </div>
+        </div>
+      </section>
+
+      {d.credits.low && (
+        <UpgradePrompt title={d.user.credits === 0 ? "Vous n'avez plus de crédits" : "Crédits bientôt épuisés"} body={`Il vous en reste ${d.user.credits}. Une vidéo complète coûte environ 15 crédits.`} compact />
+      )}
+
+      {/* ── Pick up where you left off */}
+      <section>{d.featured ? <FeaturedProject project={d.featured} /> : <FirstProject />}</section>
+
+      {/* ── Recent projects */}
+      {d.recent.length > 0 && (
+        <section>
+          <SectionTitle
+            title="Projets récents"
+            hint="Reprends une vidéo là où tu l'as laissée."
+            action={<Link href="/projects" className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground transition hover:text-foreground">Tout voir <ArrowRight className="h-3.5 w-3.5" /></Link>}
+          />
+          <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-3 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 md:grid-cols-4 xl:grid-cols-6 [&::-webkit-scrollbar]:hidden">
+            {d.recent.slice(0, 6).map((p, i) => <ProjectCard key={p.id} project={p} style={{ animationDelay: `${i * 60}ms` }} />)}
+          </div>
+        </section>
+      )}
+
+      {/* ── Numbers */}
+      <section>
+        <SectionTitle title="Ton studio en chiffres" />
+        <StatGrid totals={d.totals} />
+        {d.scores && <div className="mt-3 sm:mt-4"><ScoreSummary scores={d.scores} /></div>}
+      </section>
+
+      {/* ── What else, and what's next */}
+      <section className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6">
+        <div className="min-w-0">
+          <SectionTitle title="Ce que tu peux créer" hint="Tout ce que le studio sait faire, à un clic." />
+          <CreateCards data={d} />
+        </div>
+        <div className="space-y-4 lg:pt-[52px]">
+          <Agenda entries={d.agenda} />
+          <CreditsCard data={d} />
+        </div>
+      </section>
     </div>
   );
 }
