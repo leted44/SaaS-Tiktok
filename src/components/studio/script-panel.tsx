@@ -3,7 +3,7 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles, Save, History, Plus, Trash2, GripVertical, Lightbulb, RefreshCw, ChevronDown, Hash, Gauge } from "lucide-react";
+import { Sparkles, Save, History, Plus, Trash2, GripVertical, Lightbulb, RefreshCw, ChevronDown, Hash } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,6 +90,8 @@ export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene,
         <Button size="sm" variant="gradient" onClick={save} loading={saving} disabled={!dirty} className="ml-auto shrink-0"><Save /> Enregistrer</Button>
       </div>
 
+      <ScoreCard script={active} stale={dirty} />
+
       <div className="space-y-1.5"><Label>Titre</Label><Input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></div>
 
       <div className={cn("space-y-1.5 rounded-lg p-2 -m-2 transition", selectedScene === 0 && "bg-primary/10")} onClick={() => onSelectScene(0)}>
@@ -131,20 +133,6 @@ export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene,
           </div>
         </Section>
 
-        <Section title="Score IA" icon={Gauge} summary={`Viralité ${active.viralityScore}/100`}>
-          <div className="flex items-center justify-around">
-            <ScoreRing value={active.viralityScore} size={72} label="Viralité" />
-            <ScoreRing value={active.hookScore} size={56} label="Hook" />
-            <ScoreRing value={active.retentionScore} size={56} label="Rétention" />
-            <ScoreRing value={active.clarityScore} size={56} label="Clarté" />
-          </div>
-          {active.scoreRationale && (
-            <p className="mt-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-xs leading-relaxed text-muted-foreground">
-              <Lightbulb className="mr-1 inline h-3.5 w-3.5 text-amber-300" />{active.scoreRationale}
-            </p>
-          )}
-        </Section>
-
         <Section title="Versions et variantes" icon={History} summary={`${scripts.length} version${scripts.length > 1 ? "s" : ""}`}>
           <div className="space-y-2">
             <Select value={active.id} onValueChange={switchVersion}>
@@ -158,6 +146,45 @@ export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene,
           </div>
         </Section>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The AI's verdict on the script, at the top of the tab.
+ *
+ * It is the first thing worth knowing about a generated script — whether it
+ * is worth editing or regenerating — so it sits above the text rather than
+ * folded away under it. The four numbers are always visible; the reasoning,
+ * a paragraph long, opens on demand so the script stays within reach.
+ */
+function ScoreCard({ script, stale }: { script: StudioScript; stale: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+      <div className="flex items-center justify-around">
+        <ScoreRing value={script.viralityScore} size={64} label="Viralité" />
+        <ScoreRing value={script.hookScore} size={52} label="Hook" />
+        <ScoreRing value={script.retentionScore} size={52} label="Rétention" />
+        <ScoreRing value={script.clarityScore} size={52} label="Clarté" />
+      </div>
+      {stale && (
+        <p className="mt-2 text-center text-[11px] text-amber-300">Score de la version enregistrée — tes modifications en cours ne sont pas encore notées.</p>
+      )}
+      {script.scoreRationale && (
+        <>
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="mt-2 inline-flex w-full items-center justify-center gap-1 text-[11px] text-muted-foreground transition hover:text-foreground"
+          >
+            <Lightbulb className="h-3 w-3 text-amber-300" />
+            Pourquoi ce score ?
+            <ChevronDown className={cn("h-3 w-3 transition-transform", open && "rotate-180")} />
+          </button>
+          {open && <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{script.scoreRationale}</p>}
+        </>
+      )}
     </div>
   );
 }
