@@ -6,7 +6,7 @@ import { CarouselSlideView } from "@/components/carousel/slide";
 import { resolveTemplate } from "@/lib/carousel/templates";
 import { loadCarouselFonts } from "@/lib/carousel/fonts";
 import { renderableImageUrl } from "@/lib/carousel/images";
-import { carouselStateSchema, FORMAT_SIZE } from "@/lib/carousel/schema";
+import { carouselStateSchema, slideFileSlug, FORMAT_SIZE } from "@/lib/carousel/schema";
 
 // Reads the bundled font files from disk.
 export const runtime = "nodejs";
@@ -27,7 +27,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
   const { projectId, index } = await params;
   const carousel = await prisma.carousel.findFirst({
     where: { projectId, userId: session.user.id },
-    include: { project: { select: { workspace: { select: { primaryColor: true, accentColor: true } } } } },
+    include: { project: { select: { title: true, workspace: { select: { primaryColor: true, accentColor: true } } } } },
   });
   if (!carousel) return NextResponse.json({ error: "Carrousel introuvable" }, { status: 404 });
 
@@ -53,7 +53,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
       fonts,
       headers: {
         "Cache-Control": "private, max-age=31536000, immutable",
-        ...(download ? { "Content-Disposition": `attachment; filename="slide-${String(i + 1).padStart(2, "0")}.png"` } : {}),
+        ...(download ? { "Content-Disposition": `attachment; filename="${slideFileSlug(carousel.project.title)}-slide-${String(i + 1).padStart(2, "0")}.png"` } : {}),
       },
     },
   );

@@ -16,7 +16,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
 import { generateCarouselAction, importCarouselImageAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
-import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, limitsFor, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
+import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, limitsFor, slideFileSlug, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
 import { resolveTemplate } from "@/lib/carousel/templates";
 import type { SocialCopy } from "@/lib/social/captions";
 import { cn } from "@/lib/utils";
@@ -109,11 +109,12 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       if (saved === null) return null;
       v = saved;
     }
+    const slug = slideFileSlug(projectTitle);
     return Promise.all(
       state.slides.map(async (_, i) => {
         const res = await fetch(slideUrl(i, v));
         if (!res.ok) throw new Error(`La slide ${i + 1} n'a pas pu être générée.`);
-        return new File([await res.blob()], `slide-${pad(i + 1)}.png`, { type: "image/png" });
+        return new File([await res.blob()], `${slug}-slide-${pad(i + 1)}.png`, { type: "image/png" });
       }),
     );
   }
@@ -158,7 +159,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       const entries = Object.fromEntries(await Promise.all(files.map(async (f) => [f.name, new Uint8Array(await f.arrayBuffer())] as const)));
       // PNGs are already compressed; storing them avoids burning the phone's CPU for nothing.
       const zipped = zipSync(entries, { level: 0 });
-      triggerDownload(new Blob([zipped], { type: "application/zip" }), "carrousel.zip");
+      triggerDownload(new Blob([zipped], { type: "application/zip" }), `${slideFileSlug(projectTitle)}.zip`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Téléchargement impossible.");
     } finally {

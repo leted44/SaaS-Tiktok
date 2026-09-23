@@ -81,6 +81,24 @@ export function stripEmoji(text: string): string {
 }
 
 /**
+ * A filename-safe slug from the project title, so downloaded slides from two
+ * different carousels never collide — without this, every project's files
+ * were all named `slide-01.png`, and a second project's download silently
+ * overwrote the first's still sitting in the phone's Downloads folder.
+ */
+export function slideFileSlug(title: string): string {
+  const slug = title
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40)
+    .replace(/-+$/, "");
+  return slug || "carrousel";
+}
+
+/**
  * Typographic polish applied at render time, never to the stored text.
  *
  * A typewriter apostrophe and a question mark stranded alone on the next line
