@@ -43,9 +43,8 @@ export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, s
   const [stockQuery, setStockQuery] = useState("");
   const [stockResults, setStockResults] = useState<StockResult[]>([]);
   const [searching, setSearching] = useState(false);
-  // Deleting a visual means "not this one" — auto-fill must not hand it back.
-  const [rejected, setRejected] = useState<Set<string>>(new Set());
   const fileRef = useRef<HTMLInputElement>(null);
+  const library = pool.filter((p) => !p.rejected);
 
   useEffect(() => {
     fetch("/api/assets/upload").then((r) => r.json()).then((j) => setAssets((j.assets ?? []).filter((a: Asset) => a.type === "IMAGE" || a.type === "VIDEO"))).catch(() => undefined);
@@ -135,13 +134,16 @@ export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, s
    */
   function remember(...items: (Omit<VisualPoolItem, "id"> & { id?: string })[]) {
     const seen = new Set(pool.map((p) => p.src));
+    // Placing a clip by hand overrides an earlier "not this one".
+    const reinstated = new Set(items.map((i) => i.src).filter((src) => pool.some((p) => p.src === src && p.rejected)));
     const fresh: VisualPoolItem[] = [];
     for (const item of items) {
       if (!item.src || seen.has(item.src)) continue;
       seen.add(item.src);
       fresh.push({ ...item, id: item.id ?? nanoid(8) });
     }
-    if (fresh.length) onPoolChange([...fresh, ...pool]);
+    if (!fresh.length && !reinstated.size) return;
+    onPoolChange([...fresh, ...pool.map((p) => (reinstated.has(p.src) ? { ...p, rejected: false } : p))]);
   }
 
   /** What currently sits on a scene, as a pool entry — so replacing it never loses it. */
@@ -236,15 +238,18 @@ export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, s
 
     setAutoFilling(true);
     try {
+      // Everything this project has already shown — on a scene, taken off one,
+      // or turned down. The catalogs return the same order for the same query,
+      // so anything not listed here comes straight back as the first hit.
+      const used = new Set([...layers.map((l) => l.src), ...pool.map((p) => p.src)]);
       const res = await fetch("/api/stock/search", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ queries: empty.map((i) => sceneQueries[i] ?? ""), type: "video" }),
+        body: JSON.stringify({ queries: empty.map((i) => sceneQueries[i] ?? ""), type: "video", exclude: [...used].slice(0, 300) }),
       });
       const json = await res.json();
       if (!res.ok) return toast.error(json.error ?? "Génération impossible");
 
-      const used = new Set([...layers.map((l) => l.src), ...rejected]);
       const added: VisualLayer[] = [];
       // Auto-filled picks are remembered too: without this they exist only as a
       // URL inside a layer, and taking one off a scene puts it out of reach.
@@ -274,9 +279,9 @@ export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, s
   const update = (id: string, patch: Partial<VisualLayer>) => onLayersChange(layers.map((l) => (l.id === id ? { ...l, ...patch } : l)));
 
   /**
-   * Take a visual off its scene. Deliberately does NOT blacklist it: this used
-   * to be the only way to move a clip, so refusing it here meant the auto-fill
-   * actively avoided the very clip you were trying to reuse.
+   * Take a visual off its scene. It stays in the project library, so placing
+   * it again is one tap there; auto-fill, whose job is proposing something new,
+   * skips it because it is in the library.
    */
   function remove(id: string) {
     const layer = layers.find((l) => l.id === id);
@@ -284,15 +289,17 @@ export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, s
       remember({ type: layer.type, src: layer.src, thumbnailUrl: null, label: null });
     }
     onLayersChange(layers.filter((l) => l.id !== id));
-    toast.success("Retiré de la scène — le visuel reste dans la bibliothèque du projet.");
+    toast.success("Retiré — « Remplir » proposera un autre visuel. Celui-ci reste dans la bibliothèque du projet.");
   }
 
-  /** The explicit "not this one": drop it and stop the auto-fill proposing it. */
+  /**
+   * The explicit "not this one": off every scene and out of the library. It is
+   * kept in the saved pool, flagged, so the refusal survives a reload.
+   */
   function banish(item: VisualPoolItem) {
-    setRejected((r) => new Set(r).add(item.src));
-    onPoolChange(pool.filter((p) => p.id !== item.id));
+    onPoolChange(pool.map((p) => (p.id === item.id ? { ...p, rejected: true } : p)));
     onLayersChange(layers.filter((l) => l.src !== item.src));
-    toast.success("Visuel écarté — il ne sera plus proposé automatiquement.");
+    toast.success("Visuel écarté — il ne sera plus proposé.");
   }
 
   return (
@@ -390,11 +397,11 @@ export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, s
         )}
       </Section>
 
-      {pool.length > 0 && (
-        <Section title="Bibliothèque du projet" icon={LibraryBig} count={pool.length}>
+      {library.length > 0 && (
+        <Section title="Bibliothèque du projet" icon={LibraryBig} count={library.length}>
           <p className="text-[11px] text-muted-foreground">Touchez pour placer sur la scène choisie.</p>
           <ul className="mt-2 grid grid-cols-4 gap-2">
-            {pool.map((item) => {
+            {library.map((item) => {
               const inUse = layers.some((l) => l.src === item.src);
               return (
                 <li key={item.id} className="relative">

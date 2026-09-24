@@ -60,6 +60,8 @@ export const visualPoolItemSchema = z.object({
   src: z.string().min(1),
   thumbnailUrl: z.string().nullable().default(null),
   label: z.string().max(120).nullable().default(null),
+  /** Turned down by the user: hidden from the library and never auto-proposed again. */
+  rejected: z.boolean().optional(),
 });
 export type VisualPoolItem = z.infer<typeof visualPoolItemSchema>;
 export const visualPoolSchema = z.array(visualPoolItemSchema);

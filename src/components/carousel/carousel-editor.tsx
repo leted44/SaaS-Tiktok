@@ -475,7 +475,7 @@ function SlideEditor({ projectId, slide, label, canDelete, canMoveUp, canMoveDow
           </div>
         )}
         {slide.kind !== "cta" && (
-          <ImageControl projectId={projectId} slide={slide} blockedReason={tooLongForPhoto ? `Pour ajouter une photo, raccourcis le titre à ${IMAGE_SLIDE_LIMITS.title} et le texte à ${IMAGE_SLIDE_LIMITS.body} caractères : la photo prend un tiers de la slide.` : null} onChange={(image) => onChange({ image })} />
+          <ImageControl projectId={projectId} slide={slide} blockedReason={tooLongForPhoto ? `Pour ajouter une photo, raccourcis le titre à ${IMAGE_SLIDE_LIMITS.title} et le texte à ${IMAGE_SLIDE_LIMITS.body} caractères : la photo prend un tiers de la slide.` : null} onChange={(image) => onChange(image === null && slide.image?.source ? { image, rejectedImages: [...(slide.rejectedImages ?? []), slide.image.source].slice(-40) } : { image })} />
         )}
       </div>
     </div>

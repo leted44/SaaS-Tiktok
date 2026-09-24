@@ -9,6 +9,8 @@ export const dynamic = "force-dynamic";
 const batchSchema = z.object({
   queries: z.array(z.string().max(120)).min(1).max(30),
   type: z.enum(["video", "image"]).default("video"),
+  /** URLs the project has already shown — never proposed again. */
+  exclude: z.array(z.string().max(2000)).max(300).default([]),
 });
 
 function errorResponse(err: unknown) {
@@ -42,8 +44,8 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
 
   try {
-    // Deep enough that regenerating a scene the user rejected still has options.
-    const matches = await Promise.all(parsed.data.queries.map((q) => (q.trim() ? stockCandidates(q, parsed.data.type, 8) : Promise.resolve([]))));
+    const exclude = new Set(parsed.data.exclude);
+    const matches = await Promise.all(parsed.data.queries.map((q) => (q.trim() ? stockCandidates(q, parsed.data.type, 8, exclude) : Promise.resolve([]))));
     return NextResponse.json({ matches });
   } catch (err) {
     return errorResponse(err);

@@ -15,9 +15,9 @@ import { integrations } from "@/lib/env";
  * "fill" runs on a carousel the user has worked on, like "Remplir toutes les
  * scènes" for a video: only slides without a photo get one, every photo
  * already placed stays, and no text is ever cut — a content slide too long
- * for a photo band is skipped. The pick is drawn among the best few matches,
- * so removing a photo and filling again brings a different one rather than
- * the same photo straight back.
+ * for a photo band is skipped. A photo the user took off a slide is remembered
+ * on it and excluded, so filling again brings a different one rather than the
+ * same photo straight back.
  *
  * Best effort per slide: no match or a failed download leaves that slide as
  * it was. Searching is read-only, so all slides search together; a single
@@ -46,15 +46,16 @@ export async function withAutoPhotos(
     });
   if (!targets.length) return { ...none, tooLong };
 
-  const searches = await Promise.allSettled(targets.map(({ query }) => stockCandidates(query, "image", 5)));
+  // Neither a photo already in the carousel nor one the user turned down.
+  // Search results come back in the same order every time, so the search itself
+  // has to know what to skip, or it never gets past them.
+  const used = new Set<string>(slides.flatMap((s) => [...(s.image?.source ? [s.image.source] : []), ...(s.rejectedImages ?? [])]));
+  const searches = await Promise.allSettled(targets.map(({ query }) => stockCandidates(query, "image", 5, used)));
 
-  // A photo already in the carousel is never picked for a second slide.
-  const used = new Set<string>(slides.flatMap((s) => (s.image?.source ? [s.image.source] : [])));
   const picks = targets.map(({ index }, i) => {
     const result = searches[i];
     const fresh = result.status === "fulfilled" ? result.value.filter((c) => !used.has(c.url)) : [];
-    const pool = mode === "fill" ? shuffle(fresh.slice(0, 3)) : fresh;
-    const candidates = pool.slice(0, 2);
+    const candidates = fresh.slice(0, 2);
     candidates.forEach((c) => used.add(c.url));
     return { index, candidates };
   });
@@ -80,13 +81,4 @@ export async function withAutoPhotos(
     }),
   );
   return { slides: next, changed, tooLong, unmatched: targets.length - changed };
-}
-
-function shuffle<T>(items: T[]): T[] {
-  const out = [...items];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
 }

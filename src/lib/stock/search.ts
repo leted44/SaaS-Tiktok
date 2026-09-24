@@ -60,22 +60,33 @@ export async function browseStock(query: string, type: "video" | "image", limit 
   return dedupe([portrait, wide], limit);
 }
 
+/** Pexels caps per_page at 80; beyond this a query has nothing relevant left anyway. */
+const MAX_FETCH = 60;
+
 /**
  * Top candidates for one scene, searching both catalogs and falling back to
  * the other media type when the preferred one comes up thin. Several are
  * returned so the caller can skip a clip it already used on a neighbouring
  * scene. A dead query yields an empty list rather than failing the whole batch.
+ *
+ * `exclude` holds the URLs the project has already shown. Each catalog returns
+ * the same results in the same order for the same query, so without it a
+ * rejected clip is simply the first hit again; with it, every pass fetches
+ * deep enough to get past what was already seen before judging it thin.
  */
-export async function stockCandidates(query: string, prefer: "video" | "image" = "video", limit = 3): Promise<StockResult[]> {
+export async function stockCandidates(query: string, prefer: "video" | "image" = "video", limit = 3, exclude: ReadonlySet<string> = new Set()): Promise<StockResult[]> {
+  const fetchSize = Math.min(MAX_FETCH, limit + exclude.size);
+  const fresh = (list: StockResult[]) => list.filter((r) => !exclude.has(r.url));
   try {
-    const portrait = await searchStock(query, prefer, limit, true);
+    const portrait = fresh(await searchStock(query, prefer, fetchSize, true));
     if (portrait.length >= 3) return dedupe([portrait], limit);
 
-    const wide = await searchStock(query, prefer, limit, false);
+    const wide = fresh(await searchStock(query, prefer, fetchSize, false));
     const merged = dedupe([portrait, wide], limit);
-    if (merged.length) return merged;
+    if (merged.length >= 3 || (merged.length && !exclude.size)) return merged;
 
-    return dedupe([await searchStock(query, prefer === "video" ? "image" : "video", limit, false)], limit);
+    const other = fresh(await searchStock(query, prefer === "video" ? "image" : "video", fetchSize, false));
+    return dedupe([merged, other], limit);
   } catch (err) {
     if (err instanceof StockError && err.code === "NOT_CONFIGURED") throw err;
     return [];
