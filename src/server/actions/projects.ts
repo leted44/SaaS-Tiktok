@@ -11,6 +11,7 @@ import { effectivePlanDef } from "@/lib/plans";
 import { guard, type ActionResult } from "@/server/action-result";
 import { assembleFullText, heuristicScores } from "@/lib/ai/script-generator";
 import { countWords } from "@/lib/utils";
+import { POST_PLATFORMS } from "@/lib/projects/progress";
 
 export async function createProject(input: unknown): Promise<ActionResult<{ id: string }>> {
   return guard(async () => {
@@ -47,6 +48,36 @@ export async function deleteProject(projectId: string): Promise<ActionResult<und
     const user = await requireUser();
     await prisma.project.delete({ where: { id: projectId, userId: user.id } });
     revalidatePath("/projects");
+    return undefined;
+  });
+}
+
+/**
+ * Mark a video as posted, by hand — most are shared from the phone rather
+ * than through a connected account, so the app can't see it otherwise.
+ */
+export async function markProjectPosted(projectId: string, platforms: string[], postedAt?: string): Promise<ActionResult<undefined>> {
+  return guard(async () => {
+    const user = await requireUser();
+    const clean = [...new Set(platforms.filter((p): p is (typeof POST_PLATFORMS)[number] => (POST_PLATFORMS as readonly string[]).includes(p)))];
+    const at = postedAt ? new Date(postedAt) : new Date();
+    if (Number.isNaN(at.getTime()) || at.getTime() > Date.now() + 60_000) throw new Error("Date de publication invalide.");
+    const { count } = await prisma.project.updateMany({ where: { id: projectId, userId: user.id }, data: { postedAt: at, postedPlatforms: clean } });
+    if (!count) throw new Error("Ce projet n'existe plus.");
+    revalidatePath("/projects");
+    revalidatePath("/dashboard");
+    return undefined;
+  });
+}
+
+/** Undo a manual "posted" mark. Publications made through a connected account stay recorded. */
+export async function unmarkProjectPosted(projectId: string): Promise<ActionResult<undefined>> {
+  return guard(async () => {
+    const user = await requireUser();
+    const { count } = await prisma.project.updateMany({ where: { id: projectId, userId: user.id }, data: { postedAt: null, postedPlatforms: [] } });
+    if (!count) throw new Error("Ce projet n'existe plus.");
+    revalidatePath("/projects");
+    revalidatePath("/dashboard");
     return undefined;
   });
 }

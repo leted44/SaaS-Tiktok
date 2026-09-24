@@ -31,7 +31,7 @@ export function StatGrid({ totals }: { totals: DashboardData["totals"] }) {
     { icon: FolderKanban, label: "Projets", value: totals.projects, href: "/projects" },
     { icon: Sparkles, label: "Scripts", value: totals.scripts, href: "/scripts" },
     { icon: Film, label: "Vidéos rendues", value: totals.renders, href: "/exports" },
-    { icon: Send, label: "Publications", value: totals.published, href: "/exports" },
+    { icon: Send, label: "Vidéos publiées", value: totals.published, href: "/projects?vue=posted" },
   ];
   return (
     <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">

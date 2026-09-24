@@ -42,15 +42,6 @@ export async function getDashboardData() {
   return { user, workspace, projects, renders, usage, scheduled, plan, totals: { projects: totals[0], renders: totals[1], published: totals[2], scripts: totals[3] } };
 }
 
-export async function getProjects() {
-  const user = await getCurrentUser();
-  return prisma.project.findMany({
-    where: { userId: user.id },
-    orderBy: { updatedAt: "desc" },
-    include: { scripts: { orderBy: { version: "desc" }, take: 1, select: { viralityScore: true, estimatedDurationSec: true } }, renderJobs: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true, outputUrl: true } } },
-  });
-}
-
 export async function getProjectForStudio(projectId: string) {
   const user = await getCurrentUser();
   const project = await prisma.project.findFirst({

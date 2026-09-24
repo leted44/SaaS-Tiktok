@@ -289,6 +289,11 @@ model Project {
   thumbnailUrl   String?
   activeScriptId String?
 
+  // Marked by hand as posted — most videos are shared from the phone, not
+  // through a connected account, so the app can't know otherwise.
+  postedAt        DateTime?
+  postedPlatforms String[]  @default([])
+
   // A multi-part series. Each episode is its own project, because the editor
   // state a video needs (visual layers, captions, music) lives here and is not
   // shared between episodes — they have different scenes of different lengths.
