@@ -1,4 +1,4 @@
-# ClipForge — AI short-form video studio
+# VidiSprint — AI short-form video studio
 
 Turn one idea into a scripted, voiced, captioned and published video for TikTok, Instagram Reels and YouTube Shorts.
 
@@ -22,7 +22,7 @@ Turn one idea into a scripted, voiced, captioned and published video for TikTok,
 cp .env.example .env          # fill in at least DATABASE_URL, DIRECT_URL, AUTH_SECRET
 npm install
 npm run db:push               # sync tables for local iteration (or `db:deploy` to apply the committed migration)
-npm run db:seed               # optional demo account: demo@clipforge.app / demo1234
+npm run db:seed               # optional demo account: demo@vidisprint.com / demo1234
 npm run dev                   # http://localhost:3000
 npm run worker                # in a second terminal: renders + scheduled posts
 ```

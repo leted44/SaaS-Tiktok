@@ -8,7 +8,7 @@ export function Logo({ className, compact = false, href = "/" }: { className?: s
       <span className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-brand-gradient shadow-glow-sm transition-transform group-hover:scale-105">
         <Clapperboard className="h-4 w-4 text-white" />
       </span>
-      {!compact && <span className="font-display text-lg font-bold tracking-tight">ClipForge</span>}
+      {!compact && <span className="font-display text-lg font-bold tracking-tight">VidiSprint</span>}
     </Link>
   );
 }

@@ -1,4 +1,4 @@
-// ClipForge service worker: shows autopilot notifications and opens the
+// VidiSprint service worker: shows autopilot notifications and opens the
 // right page when one is tapped. Nothing is cached — it only handles pushes.
 
 self.addEventListener("install", () => self.skipWaiting());
@@ -9,10 +9,10 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: "ClipForge", body: event.data ? event.data.text() : "" };
+    data = { title: "VidiSprint", body: event.data ? event.data.text() : "" };
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || "ClipForge", {
+    self.registration.showNotification(data.title || "VidiSprint", {
       body: data.body || "",
       tag: data.tag,
       renotify: Boolean(data.tag),

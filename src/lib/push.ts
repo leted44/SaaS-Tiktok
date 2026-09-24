@@ -28,6 +28,8 @@ export function vapidKeys(): { publicKey: string; privateKey: string } | null {
   if (env.vapidPublicKey && env.vapidPrivateKey) {
     cached = { publicKey: env.vapidPublicKey, privateKey: env.vapidPrivateKey };
   } else if (env.authSecret) {
+    // "clipforge" is the app's former name, kept on purpose: it seeds the key pair,
+    // and a new salt would silently invalidate every existing push subscription.
     const seed = Buffer.from(hkdfSync("sha256", env.authSecret, "clipforge", "web-push vapid p256 v1", 32));
     const ecdh = createECDH("prime256v1");
     ecdh.setPrivateKey(seed);

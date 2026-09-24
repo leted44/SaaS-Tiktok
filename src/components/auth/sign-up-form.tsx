@@ -27,7 +27,7 @@ export function SignUpForm({ googleEnabled }: { googleEnabled: boolean }) {
       toast.error(res.error);
       return;
     }
-    toast.success("Bienvenue sur ClipForge ! 30 crédits ajoutés.");
+    toast.success("Bienvenue sur VidiSprint ! 30 crédits ajoutés.");
     router.push("/dashboard");
     router.refresh();
   }

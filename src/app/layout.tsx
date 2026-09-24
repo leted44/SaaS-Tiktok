@@ -9,10 +9,10 @@ const grotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-display", 
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "ClipForge — Studio vidéo IA pour formats courts", template: "%s · ClipForge" },
+  title: { default: "VidiSprint — Studio vidéo IA pour formats courts", template: "%s · VidiSprint" },
   description: "Transformez n'importe quelle idée en TikTok, Reel ou Short viral. Scripts IA, voix off réalistes, sous-titres dynamiques et publication en un clic.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
-  openGraph: { title: "ClipForge", description: "Studio de création vidéo courte propulsé par l'IA.", type: "website" },
+  openGraph: { title: "VidiSprint", description: "Studio de création vidéo courte propulsé par l'IA.", type: "website" },
 };
 
 export const viewport: Viewport = { themeColor: "#0B0714", colorScheme: "dark" };

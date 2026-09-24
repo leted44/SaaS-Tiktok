@@ -26,7 +26,7 @@ const TITLES: Record<string, string> = {
 export function Topbar({ user, status, onMenu }: { user: ShellUser; status: { ai: boolean; tts: boolean; stripe: boolean }; onMenu: () => void }) {
   const pathname = usePathname();
   const base = `/${pathname.split("/")[1]}`;
-  const title = TITLES[base] ?? "ClipForge";
+  const title = TITLES[base] ?? "VidiSprint";
   const missing = [!status.ai && "Scripts IA", !status.tts && "Voix off", !status.stripe && "Facturation"].filter(Boolean) as string[];
   const initials = (user.name ?? user.email).split(" ").map((s) => s[0]).join("").slice(0, 2).toUpperCase();
 

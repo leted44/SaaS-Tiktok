@@ -42,7 +42,7 @@ export default function LandingPage() {
             </Reveal>
             <Reveal delay={0.1}>
               <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-                ClipForge transforme une idée en vidéo scriptée, doublée, sous-titrée et publiée pour TikTok, Reels et Shorts — en moins de cinq minutes, sans ouvrir de logiciel de montage.
+                VidiSprint transforme une idée en vidéo scriptée, doublée, sous-titrée et publiée pour TikTok, Reels et Shorts — en moins de cinq minutes, sans ouvrir de logiciel de montage.
               </p>
             </Reveal>
             <Reveal delay={0.15}>

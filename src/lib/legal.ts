@@ -11,7 +11,7 @@
  * so an unfinished page cannot quietly go live.
  */
 export const legal = {
-  appName: "ClipForge",
+  appName: "VidiSprint",
 
   // ─── À COMPLÉTER AVANT LA MISE EN LIGNE ───────────────────────────────────
   /** Nom et prénom de l'éditeur (ou raison sociale une fois la société créée). */

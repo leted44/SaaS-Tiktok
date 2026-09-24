@@ -158,7 +158,7 @@ export function BrandKitForm({ initial, voices, tracks, premiumAllowed, watermar
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2">Filigrane {watermarkForced && <span className="inline-flex items-center gap-1 text-xs font-normal text-amber-300"><Lock className="h-3 w-3" /> Le forfait gratuit ajoute un filigrane ClipForge</span>}</CardTitle><CardDescription>Envoyez un logo PNG à superposer sur chaque rendu.</CardDescription></CardHeader>
+          <CardHeader><CardTitle className="flex items-center gap-2">Filigrane {watermarkForced && <span className="inline-flex items-center gap-1 text-xs font-normal text-amber-300"><Lock className="h-3 w-3" /> Le forfait gratuit ajoute un filigrane VidiSprint</span>}</CardTitle><CardDescription>Envoyez un logo PNG à superposer sur chaque rendu.</CardDescription></CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-[1fr_200px]">
             <div className="space-y-4">
               <div className="flex gap-2">

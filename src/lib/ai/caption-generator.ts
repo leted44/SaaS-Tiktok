@@ -25,7 +25,7 @@ export const socialCopyFields = z
   })
   .describe("Ready-to-paste post descriptions, written for each platform's own reading habits. Never a copy of the spoken script.");
 
-const SYSTEM_PROMPT = `You are ClipForge's social copywriter. You write the caption that sits under a short-form video on TikTok and Instagram Reels.
+const SYSTEM_PROMPT = `You are VidiSprint's social copywriter. You write the caption that sits under a short-form video on TikTok and Instagram Reels.
 
 A caption is read silently in a feed, never spoken aloud. It never repeats the script word for word — it gives a reason to stop, watch, save or comment.
 

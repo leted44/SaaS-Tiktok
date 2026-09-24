@@ -105,7 +105,7 @@ export function buildShortVideoProps({ project, script, voiceover, workspace, re
     visualLayers,
     backgroundStyle,
     watermark: watermark
-      ? { text: "clipforge.app", imageUrl: null, position: "bottom-right", opacity: 0.85 }
+      ? { text: "vidisprint.com", imageUrl: null, position: "bottom-right", opacity: 0.85 }
       : workspace.watermarkUrl
         ? { text: null, imageUrl: absolute ? absoluteUrl(workspace.watermarkUrl) : workspace.watermarkUrl, position: workspace.watermarkPosition, opacity: workspace.watermarkOpacity }
         : null,

@@ -1,8 +1,8 @@
 {
-  "name": "clipforge",
+  "name": "vidisprint",
   "version": "1.0.0",
   "private": true,
-  "description": "ClipForge — AI-powered short-form video creation studio for TikTok, Reels and Shorts",
+  "description": "VidiSprint — AI-powered short-form video creation studio for TikTok, Reels and Shorts",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && prisma migrate deploy && next build",

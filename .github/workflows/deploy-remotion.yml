@@ -6,7 +6,9 @@ name: Deploy Remotion Lambda site
 #
 # Keeps the site name fixed ("clipforge") so the Serve URL stored in
 # REMOTION_SERVE_URL on Vercel never changes — this redeploys the existing
-# site in place rather than creating a new one to point at.
+# site in place rather than creating a new one to point at. It is the app's
+# former name and stays so through the rename to VidiSprint: renders would
+# otherwise keep using a stale copy of the composition.
 
 on:
   push:

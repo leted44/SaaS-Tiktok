@@ -83,7 +83,7 @@ export const localRemotionEngine: RenderEngine = {
     const inputProps = shortVideoPropsSchema.parse(props);
     const composition = await selectComposition({ serveUrl: cachedBundle.serveUrl, id: job.compositionId, inputProps, browserExecutable: process.env.REMOTION_BROWSER_EXECUTABLE || null });
 
-    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "clipforge-"));
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "vidisprint-"));
     const outPath = path.join(tmpDir, `${job.id}.mp4`);
     const thumbPath = path.join(tmpDir, `${job.id}.jpg`);
 

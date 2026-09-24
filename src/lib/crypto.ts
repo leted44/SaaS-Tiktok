@@ -4,6 +4,8 @@ import { env } from "@/lib/env";
 const ALGO = "aes-256-gcm";
 
 function key(): Buffer {
+  // Former app name, kept on purpose: renaming the fallback would make tokens
+  // already encrypted with it undecryptable.
   const raw = env.tokenEncryptionKey || env.cronSecret || "clipforge-dev-only-key";
   // Derive a 32-byte key regardless of the configured secret length.
   return createHash("sha256").update(raw).digest();

@@ -1,7 +1,7 @@
 /**
  * Seed a demo account so the studio is explorable immediately.
  *   npm run db:seed
- * Login: demo@clipforge.app / demo1234
+ * Login: demo@vidisprint.com / demo1234
  */
 import { config } from "dotenv";
 config({ path: ".env" });
@@ -11,7 +11,7 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = "demo@clipforge.app";
+  const email = "demo@vidisprint.com";
   const passwordHash = await bcrypt.hash("demo1234", 12);
   const user = await prisma.user.upsert({
     where: { email },
@@ -55,7 +55,7 @@ async function main() {
     });
     await prisma.project.update({ where: { id: project.id }, data: { activeScriptId: script.id } });
   }
-  console.log("Seeded demo account → demo@clipforge.app / demo1234");
+  console.log("Seeded demo account → demo@vidisprint.com / demo1234");
 }
 
 main().then(() => prisma.$disconnect()).catch((e) => { console.error(e); process.exit(1); });

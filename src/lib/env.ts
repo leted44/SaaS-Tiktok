@@ -29,6 +29,7 @@ export const env = {
   s3: {
     endpoint: read("S3_ENDPOINT"),
     region: read("S3_REGION", "us-east-1"),
+    // Former app name, kept on purpose: it names an existing bucket holding every stored file.
     bucket: read("S3_BUCKET", "clipforge"),
     accessKeyId: read("S3_ACCESS_KEY_ID"),
     secretAccessKey: read("S3_SECRET_ACCESS_KEY"),

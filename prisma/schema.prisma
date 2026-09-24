@@ -1,4 +1,4 @@
-// ClipForge — Prisma schema
+// VidiSprint — Prisma schema
 // PostgreSQL (Supabase). Run `npm run db:push` for dev, `npm run db:deploy` in prod.
 
 generator client {
