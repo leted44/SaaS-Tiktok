@@ -23,6 +23,8 @@ export interface StudioProject {
   visualLayers: VisualLayer[];
   visualPool: VisualPoolItem[];
   backgroundStyle: BackgroundStyle;
+  postedAt: string | null;
+  postedPlatforms: string[];
 }
 
 export interface StudioScript {

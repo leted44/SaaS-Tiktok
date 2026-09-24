@@ -4,12 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { PlayerRef } from "@remotion/player";
-import { FileText, Captions, Layers, Music2, Film, GalleryHorizontalEnd, ArrowLeft, Check, Loader2, Pencil, Wand2 } from "lucide-react";
+import { FileText, Captions, Layers, Music2, Film, GalleryHorizontalEnd, ArrowLeft, Check, CheckCircle2, Loader2, Pencil, Undo2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { MarkPostedDialog } from "@/components/projects/mark-posted-dialog";
 import { PreviewPlayer } from "@/components/studio/preview-player";
 import { Timeline } from "@/components/studio/timeline";
 import { ScriptPanel } from "@/components/studio/script-panel";
@@ -17,7 +18,8 @@ import { CaptionsPanel } from "@/components/studio/captions-panel";
 import { VisualsPanel } from "@/components/studio/visuals-panel";
 import { AudioPanel } from "@/components/studio/audio-panel";
 import { ExportPanel } from "@/components/studio/export-panel";
-import { saveEditorState, renameProject } from "@/server/actions/projects";
+import { saveEditorState, renameProject, unmarkProjectPosted } from "@/server/actions/projects";
+import { POST_PLATFORM_LABELS, type PostPlatform } from "@/lib/projects/progress";
 import { getTrack } from "@/lib/music/library";
 import type { EditorState, StudioProps } from "@/components/studio/types";
 import type { ShortVideoProps } from "@/lib/render/props";
@@ -136,6 +138,17 @@ export function Studio(props: StudioProps) {
     router.refresh();
   }
 
+  const [marking, setMarking] = useState(false);
+  const [unmarking, setUnmarking] = useState(false);
+  async function unmarkPosted() {
+    setUnmarking(true);
+    const res = await unmarkProjectPosted(project.id);
+    setUnmarking(false);
+    if (!res.ok) return toast.error(res.error);
+    toast.success("Marque « publiée » retirée.");
+    router.refresh();
+  }
+
   return (
     <div className="mx-auto max-w-[1600px]">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -152,11 +165,18 @@ export function Studio(props: StudioProps) {
             <p className="text-xs text-muted-foreground">{project.aspectRatio === "VERTICAL" ? "9:16" : project.aspectRatio === "SQUARE" ? "1:1" : "16:9"} · {project.niche || "Sans niche"} · {activeScript ? `${activeScript.wordCount} mots · ~${activeScript.estimatedDurationSec}s` : "Aucun script"}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className={cn("inline-flex items-center gap-1.5 text-xs", saveStatus === "error" ? "text-red-300" : "text-muted-foreground")}>
             {saveStatus === "saving" ? <><Loader2 className="h-3 w-3 animate-spin" /> Enregistrement…</> : saveStatus === "saved" ? <><Check className="h-3 w-3 text-emerald-400" /> Enregistré</> : saveStatus === "error" ? "Échec de l'enregistrement" : "Toutes les modifications sont enregistrées"}
           </span>
           <StatusBadge status={project.status} />
+          {project.postedAt ? (
+            <Button variant="secondary" size="sm" loading={unmarking} onClick={unmarkPosted} title={project.postedPlatforms.length ? `Publiée sur ${project.postedPlatforms.map((p) => POST_PLATFORM_LABELS[p as PostPlatform] ?? p).join(", ")}` : "Publiée"} className="border border-emerald-500/25 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15">
+              {!unmarking && <CheckCircle2 />} Publiée <Undo2 className="h-3.5 w-3.5 opacity-60" />
+            </Button>
+          ) : (
+            <Button variant="secondary" size="sm" onClick={() => setMarking(true)}><CheckCircle2 /> Marquer publiée</Button>
+          )}
           {planLimits.autopilot && (
             <Button variant="secondary" size="sm" loading={templating} onClick={saveAsTemplate} title="Enregistrer la voix, les sous-titres, la musique, le fond et le format de cette vidéo comme modèle du pilote automatique">
               {!templating && <Wand2 />} <span className="sm:hidden">Modèle</span><span className="hidden sm:inline">Enregistrer comme modèle</span>
@@ -266,6 +286,8 @@ export function Studio(props: StudioProps) {
           </Tabs>
         </div>
       </div>
+
+      {marking && <MarkPostedDialog projectId={project.id} title={project.title} open={marking} onOpenChange={setMarking} />}
     </div>
   );
 }

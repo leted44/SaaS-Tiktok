@@ -56,6 +56,8 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         visualLayers: parseJson(visualLayersSchema, project.visualLayers, []),
         visualPool: parseJson(visualPoolSchema, project.visualPool, []),
         backgroundStyle: parseJson(backgroundStyleSchema, project.backgroundStyle, { type: "gradient", colors: [project.workspace.primaryColor, "#0B0714"], vignette: true, grain: true }),
+        postedAt: project.postedAt?.toISOString() ?? null,
+        postedPlatforms: project.postedPlatforms,
       }}
       scripts={project.scripts.map((s) => ({
         id: s.id,
