@@ -217,6 +217,8 @@ model Workspace {
   accentColor       String      @default("#F59E0B")
   fontFamily        String      @default("Inter")
   captionPreset     String      @default("hormozi")
+  // Where captions sit on screen by default: "top" | "center" | "bottom". Overrides the preset's own position.
+  captionPosition   String      @default("center")
   logoUrl           String?
   watermarkUrl      String?
   watermarkOpacity  Float       @default(0.8)

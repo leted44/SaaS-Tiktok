@@ -40,8 +40,15 @@ export const CAPTION_PRESETS: CaptionPreset[] = [
 
 export const CAPTION_PRESET_BY_ID = Object.fromEntries(CAPTION_PRESETS.map((p) => [p.id, p])) as Record<CaptionPresetId, CaptionPreset>;
 
-export function presetStyle(id: string | null | undefined): CaptionStyle {
-  return (id && CAPTION_PRESET_BY_ID[id as CaptionPresetId]?.style) || CAPTION_PRESETS[0].style;
+/**
+ * A preset's style, with the brand kit's default caption position applied
+ * on top when given — otherwise the preset keeps its own (e.g. "editorial"
+ * defaults to the bottom).
+ */
+export function presetStyle(id: string | null | undefined, position?: string | null): CaptionStyle {
+  const style = (id && CAPTION_PRESET_BY_ID[id as CaptionPresetId]?.style) || CAPTION_PRESETS[0].style;
+  if (position === "top" || position === "center" || position === "bottom") return { ...style, position };
+  return style;
 }
 
 export const CAPTION_FONTS = ["Inter", "Space Grotesk", "Playfair Display", "Montserrat", "Bebas Neue", "Poppins", "Oswald"];

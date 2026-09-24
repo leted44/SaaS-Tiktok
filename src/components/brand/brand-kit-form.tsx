@@ -17,6 +17,12 @@ import { CAPTION_PRESETS, CAPTION_FONTS } from "@/lib/captions/presets";
 import type { BrandKitInput } from "@/lib/validations";
 import { cn } from "@/lib/utils";
 
+const CAPTION_POSITIONS: { value: BrandKitInput["captionPosition"]; label: string }[] = [
+  { value: "top", label: "Haut" },
+  { value: "center", label: "Centre" },
+  { value: "bottom", label: "Bas" },
+];
+
 interface Props {
   initial: BrandKitInput;
   voices: { id: string; name: string; premium: boolean; style: string }[];
@@ -93,8 +99,8 @@ export function BrandKitForm({ initial, voices, tracks, premiumAllowed, watermar
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Style de sous-titres</CardTitle><CardDescription>Style de sous-titres dynamiques par défaut pour les nouveaux projets.</CardDescription></CardHeader>
-          <CardContent>
+          <CardHeader><CardTitle>Style de sous-titres</CardTitle><CardDescription>Style et position des sous-titres dynamiques par défaut pour les nouveaux projets.</CardDescription></CardHeader>
+          <CardContent className="space-y-5">
             <div className="grid gap-3 sm:grid-cols-3">
               {CAPTION_PRESETS.map((p) => (
                 <button key={p.id} type="button" onClick={() => set("captionPreset", p.id)} className={cn("rounded-xl border p-3 text-left transition", form.captionPreset === p.id ? "border-primary/60 bg-primary/10 shadow-glow-sm" : "border-white/10 hover:border-white/20")}>
@@ -107,6 +113,19 @@ export function BrandKitForm({ initial, voices, tracks, premiumAllowed, watermar
                   <p className="text-[11px] text-muted-foreground">{p.description}</p>
                 </button>
               ))}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Position du texte</Label>
+              <div className="grid grid-cols-3 gap-2 sm:max-w-xs">
+                {CAPTION_POSITIONS.map((p) => (
+                  <button key={p.value} type="button" onClick={() => set("captionPosition", p.value)} className={cn("flex flex-col items-center gap-1.5 rounded-lg border p-2 text-xs transition", form.captionPosition === p.value ? "border-primary/60 bg-primary/10" : "border-white/10 text-muted-foreground hover:border-white/20")}>
+                    <span className={cn("flex h-12 w-8 flex-col rounded border border-white/20 bg-white/[0.04] p-1", p.value === "top" ? "justify-start" : p.value === "center" ? "justify-center" : "justify-end")}><span className="h-1 rounded-full bg-current" /></span>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">S'applique à chaque nouveau projet, quel que soit le style choisi ci-dessus.</p>
             </div>
           </CardContent>
         </Card>
@@ -183,7 +202,7 @@ export function BrandKitForm({ initial, voices, tracks, premiumAllowed, watermar
           <CardHeader><CardTitle>Aperçu</CardTitle></CardHeader>
           <CardContent>
             <div className="relative aspect-[9/16] overflow-hidden rounded-xl border border-white/10" style={{ background: `linear-gradient(160deg, ${form.primaryColor} 0%, #0B0714 70%)` }}>
-              <div className="absolute inset-0 flex items-center justify-center p-4 text-center">
+              <div className={cn("absolute inset-0 flex flex-col p-4 text-center", form.captionPosition === "top" ? "justify-start pt-8" : form.captionPosition === "bottom" ? "justify-end pb-8" : "justify-center")}>
                 <span className="text-2xl font-black uppercase text-white [text-shadow:0_3px_10px_rgba(0,0,0,.6)]" style={{ fontFamily: form.fontFamily }}>
                   Votre <span style={{ color: form.accentColor }}>marque</span> ici
                 </span>

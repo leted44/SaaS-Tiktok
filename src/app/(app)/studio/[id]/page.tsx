@@ -52,7 +52,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         musicBpm: project.musicBpm,
         musicBeatOffsetMs: project.musicBeatOffsetMs,
         beatSync: project.beatSync,
-        captionStyle: parseJson(captionStyleSchema, project.captionStyle, presetStyle(project.workspace.captionPreset)),
+        captionStyle: parseJson(captionStyleSchema, project.captionStyle, presetStyle(project.workspace.captionPreset, project.workspace.captionPosition)),
         visualLayers: parseJson(visualLayersSchema, project.visualLayers, []),
         visualPool: parseJson(visualPoolSchema, project.visualPool, []),
         backgroundStyle: parseJson(backgroundStyleSchema, project.backgroundStyle, { type: "gradient", colors: [project.workspace.primaryColor, "#0B0714"], vignette: true, grain: true }),

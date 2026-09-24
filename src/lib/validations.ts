@@ -138,6 +138,7 @@ export const brandKitSchema = z.object({
   accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   fontFamily: z.string().min(1).max(64),
   captionPreset: z.enum(captionPresetIds),
+  captionPosition: z.enum(["top", "center", "bottom"]),
   defaultVoiceId: z.string().min(1),
   defaultLanguage: z.string().min(2).max(8),
   defaultAspect: z.enum(["VERTICAL", "SQUARE", "HORIZONTAL"]),

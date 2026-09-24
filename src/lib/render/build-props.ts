@@ -76,7 +76,7 @@ export function buildShortVideoProps({ project, script, voiceover, workspace, re
       : null;
 
 
-  const captionStyle = parseJson(captionStyleSchema, project.captionStyle, presetStyle(workspace.captionPreset));
+  const captionStyle = parseJson(captionStyleSchema, project.captionStyle, presetStyle(workspace.captionPreset, workspace.captionPosition));
   const rawLayers = parseJson(visualLayersSchema, project.visualLayers, []).map((l) => ({ ...l, src: l.src && absolute ? absoluteUrl(l.src) : l.src }));
   const synced = applyBeatSync(sceneRanges, rawLayers, snapCuts ? beatGrid : null, durationMs);
   const visualLayers = synced.layers;

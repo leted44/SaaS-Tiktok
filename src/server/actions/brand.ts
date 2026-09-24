@@ -21,6 +21,7 @@ export async function updateBrandKit(input: unknown): Promise<ActionResult<undef
         accentColor: data.accentColor,
         fontFamily: data.fontFamily,
         captionPreset: data.captionPreset,
+        captionPosition: data.captionPosition,
         defaultVoiceId: data.defaultVoiceId,
         defaultLanguage: data.defaultLanguage,
         defaultAspect: data.defaultAspect,

@@ -23,6 +23,7 @@ export default async function BrandPage() {
           accentColor: workspace.accentColor,
           fontFamily: workspace.fontFamily,
           captionPreset: workspace.captionPreset as "hormozi",
+          captionPosition: workspace.captionPosition as "top" | "center" | "bottom",
           defaultVoiceId: workspace.defaultVoiceId,
           defaultLanguage: workspace.defaultLanguage,
           defaultAspect: workspace.defaultAspect,
