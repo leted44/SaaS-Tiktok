@@ -31,7 +31,6 @@ export const PreviewPlayer = forwardRef<PlayerRef, Props>(function PreviewPlayer
         controls
         autoPlay={autoPlay}
         initialFrame={initialFrame === undefined ? undefined : Math.min(Math.max(0, Math.round(initialFrame)), durationInFrames - 1)}
-        loop
         clickToPlay
         spaceKeyToPlayOrPause
         showVolumeControls
