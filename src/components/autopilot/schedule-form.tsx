@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CalendarClock, ListOrdered, Pencil, Video } from "lucide-react";
+import { AlertTriangle, CalendarClock, ListOrdered, PenLine, Pencil, Sparkles, Video } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { scheduleAutopilotAction } from "@/server/actions/autopilot";
 import { TONES, TONE_LABELS, templateCost, type Resolution, type Tone } from "@/lib/autopilot/template-shared";
 import { TemplateFacts, type TemplateView } from "@/components/autopilot/templates-card";
+import type { ScheduleSpace } from "@/components/autopilot/autopilot-board";
 import { at, dateFmt, nextQuarterIn, seriesTimes, toLocalInput } from "@/components/autopilot/time";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +26,12 @@ interface Props {
   leadHours: number;
   plan: { maxResolution: Resolution; free: boolean };
   credits: number;
+  spaces: ScheduleSpace[];
+  aiReady: boolean;
 }
+
+const NO_SPACE = "";
+const MIN_BRIEF = 15;
 
 const DURATIONS = [30, 45, 60, 90];
 const INTERVALS: [number, string][] = [
@@ -39,7 +45,7 @@ const INTERVALS: [number, string][] = [
 const MAX_SERIES = 30;
 const MIN_LEAD_MS = 2 * 60_000;
 
-export function ScheduleForm({ templates, initialTemplateId, customVoiceName, quota, queued, leadHours, plan, credits }: Props) {
+export function ScheduleForm({ templates, initialTemplateId, customVoiceName, quota, queued, leadHours, plan, credits, spaces, aiReady }: Props) {
   const router = useRouter();
   const fallback = templates.find((t) => t.isDefault) ?? templates[0] ?? null;
   const [templateId, setTemplateId] = useState(templates.some((t) => t.id === initialTemplateId) ? initialTemplateId! : (fallback?.id ?? ""));
@@ -52,6 +58,20 @@ export function ScheduleForm({ templates, initialTemplateId, customVoiceName, qu
   const [duration, setDuration] = useState(template?.input.targetDurationSec ?? 45);
   const [tone, setTone] = useState<Tone>(template?.input.tone ?? "energetic");
   const [saving, setSaving] = useState(false);
+  // Who writes the topics: the user, or the AI from the space's theme.
+  const [source, setSource] = useState<"mine" | "ai">("mine");
+  const [spaceId, setSpaceId] = useState(NO_SPACE);
+  const [brief, setBrief] = useState("");
+  const [aiCount, setAiCount] = useState(5);
+  const ai = source === "ai";
+
+  /** The theme follows the space picked, unless the user already wrote their own. */
+  function pickSpace(id: string) {
+    const previous = spaces.find((s) => s.id === spaceId)?.brief ?? "";
+    const next = spaces.find((s) => s.id === id)?.brief ?? "";
+    if (!brief.trim() || brief === previous) setBrief(next);
+    setSpaceId(id);
+  }
 
   // A template just saved in the editor comes back selected.
   const [seenInitial, setSeenInitial] = useState(initialTemplateId);
@@ -73,10 +93,16 @@ export function ScheduleForm({ templates, initialTemplateId, customVoiceName, qu
   useEffect(() => setWhen(toLocalInput(nextQuarterIn(3600_000))), []);
 
   const topics = useMemo(
-    () => (mode === "single" ? [topic.trim()].filter(Boolean) : topicsText.split("\n").map((l) => l.trim()).filter(Boolean)),
-    [mode, topic, topicsText],
+    () =>
+      ai
+        ? Array.from({ length: Math.min(Math.max(aiCount, 1), MAX_SERIES) }, () => "")
+        : mode === "single"
+          ? [topic.trim()].filter(Boolean)
+          : topicsText.split("\n").map((l) => l.trim()).filter(Boolean),
+    [ai, aiCount, mode, topic, topicsText],
   );
-  const times = useMemo(() => (when ? seriesTimes(new Date(when), Math.max(1, topics.length), mode === "series" ? interval : 24) : []), [when, topics.length, mode, interval]);
+  const spaced = ai || mode === "series";
+  const times = useMemo(() => (when ? seriesTimes(new Date(when), Math.max(1, topics.length), spaced ? interval : 24) : []), [when, topics.length, spaced, interval]);
 
   const perVideo = template ? templateCost({ targetDurationSec: duration, voiceSpeed: template.input.voiceSpeed, resolution: template.input.resolution }, plan.maxResolution) : 0;
   const total = perVideo * Math.max(1, topics.length);
@@ -89,9 +115,13 @@ export function ScheduleForm({ templates, initialTemplateId, customVoiceName, qu
         ? `Il reste ${quota - queued} place${quota - queued > 1 ? "s" : ""} dans ta file : retire des thèmes.`
         : topics.length > MAX_SERIES
           ? `${MAX_SERIES} vidéos au maximum à la fois.`
-          : topics.some((t) => t.length < 3)
-            ? "Chaque thème doit faire au moins 3 caractères."
-            : null;
+          : ai && !aiReady
+            ? "La génération IA n'est pas configurée : écris les thèmes toi-même."
+            : ai && brief.trim().length < MIN_BRIEF
+              ? "Décris la thématique en une phrase au moins, pour que l'IA sache de quoi parler."
+              : !ai && topics.some((t) => t.length < 3)
+                ? "Chaque thème doit faire au moins 3 caractères."
+                : null;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -103,6 +133,8 @@ export function ScheduleForm({ templates, initialTemplateId, customVoiceName, qu
       videos: topics.map((t, i) => ({ topic: t, deliverAt: times[i].toISOString() })),
       tone,
       targetDurationSec: duration,
+      spaceId: spaceId || null,
+      topicBrief: ai ? brief.trim() : null,
     });
     setSaving(false);
     if (!res.ok) return toast.error(res.error);
@@ -148,18 +180,59 @@ export function ScheduleForm({ templates, initialTemplateId, customVoiceName, qu
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-1 rounded-lg border border-white/10 p-1">
-            {([
-              ["single", Video, "Une vidéo"],
-              ["series", ListOrdered, "Une série"],
-            ] as const).map(([value, Icon, label]) => (
-              <button key={value} type="button" onClick={() => setMode(value)} className={cn("flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs transition", mode === value ? "bg-primary/15 text-foreground" : "text-muted-foreground hover:text-foreground")}>
-                <Icon className="h-3.5 w-3.5" /> {label}
-              </button>
-            ))}
+          {spaces.length > 0 && (
+            <div className="space-y-1.5">
+              <Label htmlFor="ap-space">Espace</Label>
+              <select id="ap-space" value={spaceId} onChange={(e) => pickSpace(e.target.value)} className="h-9 w-full rounded-md border border-white/10 bg-transparent px-2 text-sm">
+                <option value={NO_SPACE} className="bg-background">Aucun espace</option>
+                {spaces.map((s) => <option key={s.id} value={s.id} className="bg-background">{s.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label>Sujets</Label>
+            <div className="grid grid-cols-2 gap-1 rounded-lg border border-white/10 p-1">
+              {([
+                ["mine", PenLine, "Je les écris"],
+                ["ai", Sparkles, "L'IA les choisit"],
+              ] as const).map(([value, Icon, label]) => (
+                <button key={value} type="button" aria-pressed={source === value} onClick={() => setSource(value)} className={cn("flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs transition", source === value ? "bg-primary/15 text-foreground" : "text-muted-foreground hover:text-foreground")}>
+                  <Icon className="h-3.5 w-3.5" /> {label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {mode === "single" ? (
+          {!ai && (
+            <div className="grid grid-cols-2 gap-1 rounded-lg border border-white/10 p-1">
+              {([
+                ["single", Video, "Une vidéo"],
+                ["series", ListOrdered, "Une série"],
+              ] as const).map(([value, Icon, label]) => (
+                <button key={value} type="button" onClick={() => setMode(value)} className={cn("flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs transition", mode === value ? "bg-primary/15 text-foreground" : "text-muted-foreground hover:text-foreground")}>
+                  <Icon className="h-3.5 w-3.5" /> {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {ai ? (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="ap-brief">Thématique</Label>
+                <Textarea id="ap-brief" value={brief} onChange={(e) => setBrief(e.target.value)} rows={3} maxLength={600} placeholder="Ex. : pensées positives et petites habitudes pour bien commencer la journée" />
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Chaque sujet est inventé au démarrage de sa production, d'après cette thématique, sans reprendre ceux des vidéos déjà faites{spaceId ? " dans cet espace" : ""}. Aucun crédit en plus.
+                  {spaceId && !spaces.find((s) => s.id === spaceId)?.brief && " Elle sera enregistrée comme thématique de l'espace."}
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ap-count">Nombre de vidéos</Label>
+                <Input id="ap-count" type="number" inputMode="numeric" min={1} max={MAX_SERIES} value={aiCount} onChange={(e) => setAiCount(Math.max(1, Math.min(MAX_SERIES, Number(e.target.value) || 1)))} />
+              </div>
+            </div>
+          ) : mode === "single" ? (
             <div className="space-y-1.5">
               <Label htmlFor="ap-topic">Thème</Label>
               <Textarea id="ap-topic" value={topic} onChange={(e) => setTopic(e.target.value)} rows={3} maxLength={1200} placeholder="Ex. : 3 erreurs qui ruinent ton sommeil, et quoi faire à la place" />
@@ -175,7 +248,7 @@ export function ScheduleForm({ templates, initialTemplateId, customVoiceName, qu
           )}
 
           <div className="space-y-1.5">
-            <Label htmlFor="ap-when">{mode === "series" ? "Première livraison" : "Livraison"}</Label>
+            <Label htmlFor="ap-when">{spaced && count > 1 ? "Première livraison" : "Livraison"}</Label>
             <Input id="ap-when" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} required />
             <div className="flex flex-wrap gap-1.5">
               {quick.map(([label, pick]) => (
@@ -186,7 +259,7 @@ export function ScheduleForm({ templates, initialTemplateId, customVoiceName, qu
             </div>
           </div>
 
-          {mode === "series" && (
+          {spaced && (ai ? count > 1 : true) && (
             <div className="space-y-1.5">
               <Label htmlFor="ap-interval">Puis une vidéo</Label>
               <select id="ap-interval" value={interval} onChange={(e) => setIntervalHours(Number(e.target.value))} className="h-9 w-full rounded-md border border-white/10 bg-transparent px-2 text-sm">
@@ -197,7 +270,7 @@ export function ScheduleForm({ templates, initialTemplateId, customVoiceName, qu
                   {topics.slice(0, MAX_SERIES).map((t, i) => (
                     <li key={i} className="flex gap-2">
                       <span className="w-[108px] shrink-0 text-muted-foreground">{dateFmt.format(times[i])}</span>
-                      <span className="min-w-0 truncate">{t}</span>
+                      <span className={cn("min-w-0 truncate", !t && "text-muted-foreground")}>{t || "Sujet choisi par l'IA"}</span>
                     </li>
                   ))}
                 </ol>

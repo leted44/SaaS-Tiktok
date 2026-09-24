@@ -20,7 +20,7 @@ export default async function AutopilotPage({ searchParams }: { searchParams: Pr
   const plan = effectivePlanDef(user);
   const admin = isAdmin(user.role);
 
-  const [templates, items, heartbeat, customVoice, recentProjects] = await Promise.all([
+  const [templates, items, heartbeat, customVoice, recentProjects, spaces] = await Promise.all([
     prisma.videoTemplate.findMany({ where: { userId: user.id }, orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] }),
     prisma.autopilotItem.findMany({
       where: { userId: user.id },
@@ -28,12 +28,14 @@ export default async function AutopilotPage({ searchParams }: { searchParams: Pr
       take: 200,
       include: {
         template: { select: { name: true } },
+        space: { select: { name: true, color: true } },
         project: { select: { id: true, title: true, activeScriptId: true, scripts: { orderBy: { version: "desc" }, take: 3, select: { id: true, hook: true, callToAction: true, hashtags: true, socialCopy: true } } } },
       },
     }),
     prisma.workerHeartbeat.findUnique({ where: { id: "worker" } }),
     prisma.customVoice.findUnique({ where: { userId: user.id }, select: { name: true } }),
     prisma.project.findMany({ where: { userId: user.id, activeScriptId: { not: null } }, orderBy: { updatedAt: "desc" }, take: 3, select: { id: true, title: true } }),
+    prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, color: true, brief: true } }),
   ]);
 
   const renderIds = items.map((i) => i.renderJobId).filter((id): id is string => Boolean(id));
@@ -79,6 +81,8 @@ export default async function AutopilotPage({ searchParams }: { searchParams: Pr
       templateId: item.templateId,
       templateName: item.template?.name ?? null,
       applied: applied?.success ? applied.data : null,
+      aiTopic: item.topicBrief !== null,
+      space: item.space,
     };
   });
 
@@ -105,6 +109,7 @@ export default async function AutopilotPage({ searchParams }: { searchParams: Pr
         recentProjects={recentProjects}
         pushKey={vapidKeys()?.publicKey ?? null}
         ready={{ ai: integrations.ai(), tts: integrations.tts(), stock: integrations.stock() }}
+        spaces={spaces}
       />
     </div>
   );

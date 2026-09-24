@@ -16,8 +16,15 @@ export const spaceInputSchema = z.object({
   language: z.string().min(2).max(8).nullable(),
   tone: z.enum(TONES).nullable(),
   voiceId: z.string().min(1).nullable(),
+  /** What the account talks about — the autopilot invents topics from it. Blank = none. */
+  brief: z
+    .string()
+    .trim()
+    .max(600, "Thématique trop longue (600 caractères maximum).")
+    .nullable()
+    .transform((v) => v || null),
 });
-export type SpaceInput = z.infer<typeof spaceInputSchema>;
+export type SpaceInput = z.input<typeof spaceInputSchema>;
 
 export interface SpaceOption {
   id: string;
@@ -26,6 +33,7 @@ export interface SpaceOption {
   language: string | null;
   tone: string | null;
   voiceId: string | null;
+  brief: string | null;
   /** Projects currently tagged with it, so deleting says what it affects. */
   projectCount: number;
 }

@@ -4,6 +4,7 @@ import { generateScriptSchema, voiceoverRequestSchema } from "@/lib/validations"
 import { InsufficientCreditsError } from "@/lib/credits";
 import { effectivePlanDef } from "@/lib/plans";
 import { ScriptGenerationError } from "@/lib/ai/script-generator";
+import { inventTopic } from "@/lib/ai/topic-generator";
 import { TTSError } from "@/lib/tts";
 import { VoiceUnavailableError } from "@/lib/tts/resolve-voice";
 import { createScript } from "@/lib/pipeline/script";
@@ -257,10 +258,21 @@ async function scriptStep(item: AutopilotItem, user: User): Promise<StepResult> 
 
   const applied = await ensureApplied(item);
 
+  // Topic left to the AI: picked now rather than at scheduling, so it can avoid
+  // every video made in the meantime. Saved before anything else happens, so a
+  // retry keeps the same topic instead of inventing another.
+  let topic = item.topic.trim();
+  if (!topic && item.topicBrief) {
+    topic = await inventTopic({ brief: item.topicBrief, language: applied.language, tone: item.tone, covered: await coveredTopics(item) });
+    const { count } = await prisma.autopilotItem.updateMany({ where: stillHere, data: { topic } });
+    if (!count) return "wait";
+  }
+  if (!topic) throw new PermanentError("Cette vidéo n'a pas de thème : annule-la et programme-la à nouveau.");
+
   let projectId = item.projectId;
   if (!projectId) {
     const project = await prisma.project.create({
-      data: { userId: user.id, workspaceId: item.workspaceId, title: titleFromTopic(item.topic), topic: item.topic, language: applied.language, targetDurationSec: item.targetDurationSec, aspectRatio: applied.aspectRatio },
+      data: { userId: user.id, workspaceId: item.workspaceId, spaceId: item.spaceId, title: titleFromTopic(topic), topic, language: applied.language, targetDurationSec: item.targetDurationSec, aspectRatio: applied.aspectRatio },
     });
     projectId = project.id;
     const { count } = await prisma.autopilotItem.updateMany({ where: stillHere, data: { projectId } });
@@ -272,13 +284,34 @@ async function scriptStep(item: AutopilotItem, user: User): Promise<StepResult> 
   const project = await prisma.project.findUniqueOrThrow({ where: { id: projectId } });
   if (!project.activeScriptId) {
     const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: item.workspaceId } });
-    const data = generateScriptSchema.parse({ projectId, topic: item.topic, tone: item.tone, targetDurationSec: item.targetDurationSec, language: applied.language });
+    const data = generateScriptSchema.parse({ projectId, topic, tone: item.tone, targetDurationSec: item.targetDurationSec, language: applied.language });
     const summary = await createScript(user, workspace, data);
     const script = await prisma.script.findUniqueOrThrow({ where: { id: summary.scriptId }, select: { title: true } });
     // The studio names a project after its script; do the same.
     await prisma.project.update({ where: { id: projectId }, data: { title: script.title } });
   }
   return { next: { projectId, status: "VOICING" } };
+}
+
+/**
+ * What this theme has already covered, most recent first: the videos of the
+ * same space, and the other autopilot videos invented from the same theme
+ * (a series scheduled without a space has only those).
+ */
+async function coveredTopics(item: AutopilotItem): Promise<string[]> {
+  const [projects, siblings] = await Promise.all([
+    item.spaceId
+      ? prisma.project.findMany({ where: { userId: item.userId, spaceId: item.spaceId }, orderBy: { createdAt: "desc" }, take: 40, select: { title: true, topic: true } })
+      : Promise.resolve([]),
+    prisma.autopilotItem.findMany({
+      where: { userId: item.userId, id: { not: item.id }, topic: { not: "" }, topicBrief: item.topicBrief },
+      orderBy: { createdAt: "desc" },
+      take: 40,
+      select: { topic: true, project: { select: { title: true } } },
+    }),
+  ]);
+  const all = [...projects.flatMap((p) => [p.topic ?? "", p.title]), ...siblings.flatMap((s) => [s.topic, s.project?.title ?? ""])];
+  return [...new Set(all.map((t) => t.trim()).filter(Boolean))];
 }
 
 async function requireProject(item: AutopilotItem) {
@@ -289,6 +322,7 @@ async function requireProject(item: AutopilotItem) {
 }
 
 function shortTopic(topic: string): string {
+  if (!topic.trim()) return "Sujet choisi par l'IA";
   return topic.length > 60 ? `${topic.slice(0, 57).trimEnd()}…` : topic;
 }
 

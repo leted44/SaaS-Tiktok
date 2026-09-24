@@ -122,21 +122,34 @@ export async function templateFromProjectAction(projectId: string): Promise<Acti
 
 // ───────────────────────── Scheduling ─────────────────────────
 
-const scheduleSchema = z.object({
-  templateId: z.string().min(1, "Choisis un modèle."),
-  /** One entry per video. Times are worked out in the browser, in the user's own time zone. */
-  videos: z
-    .array(
-      z.object({
-        topic: z.string().trim().min(3, "Chaque thème doit faire au moins 3 caractères.").max(1200, "Un thème est trop long (1 200 caractères maximum)."),
-        deliverAt: z.string().datetime({ offset: true, message: "Date de livraison invalide." }),
-      }),
-    )
-    .min(1, "Écris au moins un thème.")
-    .max(MAX_VIDEOS_PER_BATCH, `${MAX_VIDEOS_PER_BATCH} vidéos au maximum à la fois.`),
-  tone: z.enum(TONES),
-  targetDurationSec: z.number().int().min(MIN_DURATION_SEC).max(MAX_DURATION_SEC),
-});
+const scheduleSchema = z
+  .object({
+    templateId: z.string().min(1, "Choisis un modèle."),
+    /** One entry per video. Times are worked out in the browser, in the user's own time zone. */
+    videos: z
+      .array(
+        z.object({
+          topic: z.string().trim().max(1200, "Un thème est trop long (1 200 caractères maximum)."),
+          deliverAt: z.string().datetime({ offset: true, message: "Date de livraison invalide." }),
+        }),
+      )
+      .min(1, "Écris au moins un thème.")
+      .max(MAX_VIDEOS_PER_BATCH, `${MAX_VIDEOS_PER_BATCH} vidéos au maximum à la fois.`),
+    tone: z.enum(TONES),
+    targetDurationSec: z.number().int().min(MIN_DURATION_SEC).max(MAX_DURATION_SEC),
+    spaceId: z.string().min(1).nullable().default(null),
+    /** Set when the AI picks each topic: the theme to invent them from. The topics sent are then ignored. */
+    topicBrief: z
+      .string()
+      .trim()
+      .min(15, "Décris la thématique en une phrase au moins, pour que l'IA sache de quoi parler.")
+      .max(600, "Thématique trop longue (600 caractères maximum).")
+      .nullable()
+      .default(null),
+  })
+  .superRefine((d, ctx) => {
+    if (!d.topicBrief && d.videos.some((v) => v.topic.length < 3)) ctx.addIssue({ code: "custom", message: "Chaque thème doit faire au moins 3 caractères.", path: ["videos"] });
+  });
 
 /** Queue one video, or a series (one theme per video, each with its own time), to be made from a template. */
 export async function scheduleAutopilotAction(input: unknown): Promise<ActionResult<{ ids: string[] }>> {
@@ -145,6 +158,9 @@ export async function scheduleAutopilotAction(input: unknown): Promise<ActionRes
     const data = parseOrThrow(scheduleSchema, input);
     const template = await prisma.videoTemplate.findFirst({ where: { id: data.templateId, userId: user.id } });
     if (!template) throw new Error("Ce modèle n'existe plus. Choisis-en un autre.");
+    if (data.spaceId && !(await prisma.space.findFirst({ where: { id: data.spaceId, userId: user.id }, select: { id: true } }))) {
+      throw new Error("Cet espace n'existe plus. Choisis-en un autre.");
+    }
 
     const now = Date.now();
     const times = data.videos.map((v) => new Date(v.deliverAt));
@@ -159,11 +175,26 @@ export async function scheduleAutopilotAction(input: unknown): Promise<ActionRes
     const created = await prisma.$transaction(
       data.videos.map((v, i) =>
         prisma.autopilotItem.create({
-          data: { userId: user.id, workspaceId: template.workspaceId, templateId: template.id, topic: v.topic, tone: data.tone, targetDurationSec: data.targetDurationSec, language: template.language, deliverAt: times[i] },
+          data: {
+            userId: user.id,
+            workspaceId: template.workspaceId,
+            templateId: template.id,
+            spaceId: data.spaceId,
+            topic: data.topicBrief ? "" : v.topic,
+            topicBrief: data.topicBrief,
+            tone: data.tone,
+            targetDurationSec: data.targetDurationSec,
+            language: template.language,
+            deliverAt: times[i],
+          },
           select: { id: true },
         }),
       ),
     );
+    // A theme typed here for a space that had none becomes the space's own, so it is there next time.
+    if (data.spaceId && data.topicBrief) {
+      await prisma.space.updateMany({ where: { id: data.spaceId, userId: user.id, brief: null }, data: { brief: data.topicBrief } });
+    }
     revalidatePath("/autopilot");
     return { ids: created.map((c) => c.id) };
   });

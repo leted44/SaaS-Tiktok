@@ -44,6 +44,16 @@ export interface AutopilotItemView {
   templateName: string | null;
   /** The settings frozen when production started; null before that. */
   applied: AppliedTemplate | null;
+  /** The AI picks (or picked) the topic, from a theme. */
+  aiTopic: boolean;
+  space: { name: string; color: string } | null;
+}
+
+export interface ScheduleSpace {
+  id: string;
+  name: string;
+  color: string;
+  brief: string | null;
 }
 
 interface Props {
@@ -64,6 +74,7 @@ interface Props {
   recentProjects: { id: string; title: string }[];
   pushKey: string | null;
   ready: { ai: boolean; tts: boolean; stock: boolean };
+  spaces: ScheduleSpace[];
 }
 
 const STEPS: { key: Status; label: string; icon: typeof FileText }[] = [
@@ -89,7 +100,7 @@ function stepIndex(item: AutopilotItemView): number {
 }
 
 export function AutopilotBoard(props: Props) {
-  const { templates, items, highlightItem, highlightTemplate, quota, queued, leadHours, plan, credits, heartbeat, customVoiceName, recentProjects, pushKey } = props;
+  const { templates, items, highlightItem, highlightTemplate, quota, queued, leadHours, plan, credits, heartbeat, customVoiceName, recentProjects, pushKey, spaces } = props;
   const router = useRouter();
   const now = useNow();
 
@@ -142,7 +153,7 @@ export function AutopilotBoard(props: Props) {
       <div className="grid gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
         <div className="space-y-4">
           <TemplatesCard templates={templates} highlight={highlightTemplate} customVoiceName={customVoiceName} recentProjects={recentProjects} plan={plan} queueFull={queued >= quota} />
-          <ScheduleForm templates={templates} initialTemplateId={highlightTemplate} customVoiceName={customVoiceName} quota={quota} queued={queued} leadHours={leadHours} plan={plan} credits={credits} />
+          <ScheduleForm templates={templates} initialTemplateId={highlightTemplate} customVoiceName={customVoiceName} quota={quota} queued={queued} leadHours={leadHours} plan={plan} credits={credits} spaces={spaces} aiReady={props.ready.ai} />
           <NotificationsCard pushKey={pushKey} />
         </div>
 
@@ -273,7 +284,7 @@ function ItemCard({ item, settings, customVoiceName, now, leadHours, maxAttempts
   const current = stepIndex(item);
   const deliverAt = new Date(item.deliverAt);
   const startsAt = new Date(deliverAt.getTime() - leadHours * 3600_000);
-  const name = item.title ?? item.topic;
+  const name = item.title ?? (item.topic || "Sujet choisi par l'IA au démarrage de la production");
   const fileName = `${slugify(name).slice(0, 40).replace(/-+$/, "") || "video"}.mp4`;
   const shareText = useMemo(() => [name, item.caption].filter(Boolean).join("\n\n"), [name, item.caption]);
   const failedStep = item.failedStep ? STEPS.find((s) => s.key === item.failedStep)?.label : null;
@@ -372,7 +383,13 @@ function ItemCard({ item, settings, customVoiceName, now, leadHours, maxAttempts
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="line-clamp-2 font-medium">{name}</p>
-              {item.title && item.title !== item.topic && <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">Thème : {item.topic}</p>}
+              {item.title && item.title !== item.topic && <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{item.aiTopic ? "Sujet choisi par l'IA" : "Thème"} : {item.topic}</p>}
+              {(item.space || (item.aiTopic && !item.title)) && (
+                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                  {item.space && <span className="inline-flex items-center gap-1 font-medium text-foreground/80"><span className="h-1.5 w-1.5 rounded-full" style={{ background: item.space.color }} />{item.space.name}</span>}
+                  {item.aiTopic && !item.title && <span className="inline-flex items-center gap-1"><Sparkles className="h-3 w-3" />{item.topic ? `Sujet choisi : ${item.topic}` : "d'après la thématique, sans répéter les vidéos déjà faites"}</span>}
+                </p>
+              )}
             </div>
             {statusBadge(item)}
           </div>

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { saveSpaceAction, deleteSpaceAction } from "@/server/actions/spaces";
 import { SPACE_COLORS, type SpaceOption } from "@/lib/spaces";
@@ -30,14 +31,15 @@ interface FormState {
   language: string;
   tone: string;
   voiceId: string;
+  brief: string;
 }
 
 function blank(): FormState {
-  return { name: "", color: SPACE_COLORS[0], language: DEFAULT, tone: DEFAULT, voiceId: DEFAULT };
+  return { name: "", color: SPACE_COLORS[0], language: DEFAULT, tone: DEFAULT, voiceId: DEFAULT, brief: "" };
 }
 
 function fromSpace(s: SpaceOption): FormState {
-  return { name: s.name, color: s.color, language: s.language ?? DEFAULT, tone: s.tone ?? DEFAULT, voiceId: s.voiceId ?? DEFAULT };
+  return { name: s.name, color: s.color, language: s.language ?? DEFAULT, tone: s.tone ?? DEFAULT, voiceId: s.voiceId ?? DEFAULT, brief: s.brief ?? "" };
 }
 
 /**
@@ -76,6 +78,7 @@ export function SpaceManagerDialog({ spaces, voices, open, onOpenChange }: { spa
       language: form.language === DEFAULT ? null : form.language,
       tone: form.tone === DEFAULT ? null : form.tone,
       voiceId: form.voiceId === DEFAULT ? null : form.voiceId,
+      brief: form.brief,
     });
     setSaving(false);
     if (!res.ok) return toast.error(res.error);
@@ -130,6 +133,19 @@ export function SpaceManagerDialog({ spaces, voices, open, onOpenChange }: { spa
             <div className="space-y-1.5">
               <Label htmlFor="space-name">Nom</Label>
               <Input id="space-name" autoFocus value={form.name} maxLength={40} onChange={(e) => set("name", e.target.value)} placeholder="Ex. : Kali IQ" />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="space-brief">Thématique <span className="font-normal text-muted-foreground">(facultatif)</span></Label>
+              <Textarea
+                id="space-brief"
+                value={form.brief}
+                maxLength={600}
+                rows={3}
+                onChange={(e) => set("brief", e.target.value)}
+                placeholder="Ex. : pensées positives et petites habitudes pour bien commencer la journée, pour des femmes de 25-40 ans"
+              />
+              <p className="text-[11px] text-muted-foreground">De quoi parle ce compte, en une ou deux phrases. Le pilote automatique s'en sert quand tu le laisses choisir les sujets.</p>
             </div>
 
             <div className="space-y-1.5">

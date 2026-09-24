@@ -24,11 +24,11 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   const plan = effectivePlanDef(user);
   const [rows, spaceRows, customVoice] = await Promise.all([
     prisma.project.findMany({ where: { userId: user.id }, orderBy: { updatedAt: "desc" }, select: PROJECT_PROGRESS_SELECT }),
-    prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, color: true, language: true, tone: true, voiceId: true, _count: { select: { projects: true } } } }),
+    prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, color: true, language: true, tone: true, voiceId: true, brief: true, _count: { select: { projects: true } } } }),
     plan.voiceCloning ? prisma.customVoice.findUnique({ where: { userId: user.id }, select: { name: true } }) : null,
   ]);
   const projects = rows.map(buildProjectProgress);
-  const spaces: SpaceOption[] = spaceRows.map((s) => ({ id: s.id, name: s.name, color: s.color, language: s.language, tone: s.tone, voiceId: s.voiceId, projectCount: s._count.projects }));
+  const spaces: SpaceOption[] = spaceRows.map((s) => ({ id: s.id, name: s.name, color: s.color, language: s.language, tone: s.tone, voiceId: s.voiceId, brief: s.brief, projectCount: s._count.projects }));
   const voices = [
     ...(customVoice ? [customVoiceDefinition(customVoice.name)] : []),
     ...sortVoices(VOICES, workspace.defaultLanguage, plan.premiumVoices),
