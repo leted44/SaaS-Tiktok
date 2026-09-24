@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Clock, Gauge, Layers3, Sparkles } from "lucide-react";
+import { ArrowRight, Clock, Gauge, Layers3 } from "lucide-react";
 import type { ProjectCardData } from "@/app/(app)/dashboard/data";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Poster } from "@/components/dashboard/poster";
@@ -15,15 +15,10 @@ export function FeaturedProject({ project }: { project: ProjectCardData }) {
   const p = project;
   const finished = p.steps.every((s) => s.state === "done");
   return (
-    <section aria-labelledby="featured-title" className="group/card relative overflow-hidden rounded-[1.75rem] border border-white/[0.07] bg-[#0e0b18] shadow-card">
-      <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-fuchsia-600/20 blur-3xl" />
-      <div aria-hidden className="pointer-events-none absolute -bottom-32 left-1/3 h-64 w-64 rounded-full bg-violet-600/15 blur-3xl" />
+    <section aria-labelledby="featured-title" className="group/card relative overflow-hidden rounded-[1.75rem] border border-white/[0.07] bg-white/[0.02]">
 
       <div className="relative flex items-center justify-between gap-3 px-5 pt-5 sm:px-7 sm:pt-6">
-        <p className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-200">
-          <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full rounded-full bg-fuchsia-400 opacity-60 motion-safe:animate-ping" /><span className="relative inline-flex h-2 w-2 rounded-full bg-fuchsia-400" /></span>
-          {finished ? "Dernière vidéo" : "Projet en cours"}
-        </p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{finished ? "Dernière vidéo" : "Projet en cours"}</p>
         <Link href="/projects" className="inline-flex items-center gap-1 text-xs text-muted-foreground transition hover:text-foreground">Tous les projets <ArrowRight className="h-3.5 w-3.5" /></Link>
       </div>
 
@@ -55,7 +50,7 @@ export function FeaturedProject({ project }: { project: ProjectCardData }) {
           <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Modifié {relativeTime(p.updatedAt)}</span>
             {p.duration && <span className="inline-flex items-center gap-1"><Gauge className="h-3.5 w-3.5" /> {p.duration}</span>}
-            <span className="inline-flex items-center gap-1"><Layers3 className="h-3.5 w-3.5" /> {p.doneCount}/5 étapes</span>
+            <span className="hidden items-center gap-1 sm:inline-flex"><Layers3 className="h-3.5 w-3.5" /> {p.doneCount}/5 étapes</span>
           </p>
         </div>
 
@@ -65,25 +60,30 @@ export function FeaturedProject({ project }: { project: ProjectCardData }) {
 
         <div className="[grid-area:score] lg:border-l lg:border-white/[0.06] lg:pl-6">
           {p.scores ? (
-            <div className="flex items-center gap-5 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 lg:flex-col lg:items-stretch lg:border-0 lg:bg-transparent lg:p-0">
-              <div className="flex justify-center"><ViralityRing value={p.scores.virality} id={p.id} size={92} /></div>
-              <div className="min-w-0 flex-1">
-                <ScoreBars scores={p.scores} />
-                {p.scores.rationale && <p className="mt-3 line-clamp-3 hidden text-[11px] leading-relaxed text-muted-foreground lg:block">{p.scores.rationale}</p>}
+            <>
+              {/* Phone: the four scores on one quiet line. */}
+              <dl className="grid grid-cols-4 gap-2 lg:hidden">
+                {([["Viralité", p.scores.virality], ["Hook", p.scores.hook], ["Rétention", p.scores.retention], ["Clarté", p.scores.clarity]] as const).map(([label, v]) => (
+                  <div key={label} className="flex flex-col-reverse rounded-xl bg-white/[0.03] px-1 py-2 text-center">
+                    <dt className="truncate text-[10px] text-muted-foreground">{label}</dt>
+                    <dd className="font-display text-base font-bold tabular-nums">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div className="hidden lg:block">
+                <div className="flex justify-center"><ViralityRing value={p.scores.virality} id={p.id} size={88} /></div>
+                <ScoreBars scores={p.scores} className="mt-4" />
               </div>
-            </div>
+            </>
           ) : (
-            <div className="flex h-full items-center gap-3 rounded-2xl border border-dashed border-white/10 p-4 text-xs text-muted-foreground lg:flex-col lg:justify-center lg:text-center">
-              <Sparkles className="h-5 w-5 shrink-0 text-brand-300" />
-              Le score de viralité, de hook, de rétention et de clarté apparaît dès que le script est écrit.
-            </div>
+            <p className="text-xs text-muted-foreground lg:flex lg:h-full lg:items-center lg:text-center">Les scores apparaissent dès que le script est écrit.</p>
           )}
         </div>
 
         <div className="flex flex-col gap-2 [grid-area:cta] sm:flex-row sm:items-center">
           <Link
             href={p.next.href}
-            className="group/cta relative inline-flex h-11 items-center justify-center gap-2 overflow-hidden rounded-xl bg-brand-gradient px-5 text-sm font-semibold text-white shadow-[0_10px_30px_-10px_rgba(219,39,119,0.8)] transition duration-300 hover:shadow-[0_14px_40px_-8px_rgba(219,39,119,0.95)] hover:brightness-110"
+            className="group/cta relative inline-flex h-11 items-center justify-center gap-2 overflow-hidden rounded-xl bg-brand-gradient px-5 text-sm font-semibold text-white shadow-[0_8px_24px_-12px_rgba(219,39,119,0.6)] transition duration-300 hover:brightness-110"
           >
             {finished ? p.next.label : "Continuer"} <ArrowRight className="h-4 w-4 transition-transform motion-safe:group-hover/cta:translate-x-0.5" />
           </Link>

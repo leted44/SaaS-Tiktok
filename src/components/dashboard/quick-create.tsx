@@ -10,11 +10,6 @@ import { TONES, TONE_LABELS, type Tone } from "@/lib/autopilot/template-shared";
 import { cn } from "@/lib/utils";
 
 const DURATIONS = [30, 45, 60];
-const IDEAS = [
-  "3 erreurs qui ruinent ton sommeil, et quoi faire à la place",
-  "La règle des 3 secondes qui rend n'importe quel TikTok viral",
-  "Pourquoi 90 % des gens échouent à épargner",
-];
 
 interface Props {
   aiConfigured: boolean;
@@ -67,19 +62,17 @@ export function QuickCreate({ aiConfigured, credits, cost, language }: Props) {
   }
 
   return (
-    <div id="quick-create" className="relative scroll-mt-24">
-      {/* Glow behind the card */}
-      <div aria-hidden className="pointer-events-none absolute -inset-6 rounded-[2.5rem] bg-[radial-gradient(60%_60%_at_30%_40%,rgba(139,92,246,0.35),transparent_70%),radial-gradient(50%_60%_at_80%_70%,rgba(236,72,153,0.22),transparent_70%)] blur-2xl" />
-      <div className="relative rounded-[1.75rem] bg-gradient-to-br from-violet-500/70 via-fuchsia-500/40 to-orange-400/60 p-px shadow-[0_30px_80px_-30px_rgba(124,58,237,0.7)]">
+    <div id="quick-create" className="scroll-mt-24">
+      <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] shadow-[0_24px_60px_-30px_rgba(0,0,0,0.8)] transition focus-within:border-violet-400/30">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             void generate();
           }}
-          className="rounded-[calc(1.75rem-1px)] bg-[#0c0916]/95 p-4 backdrop-blur-xl sm:p-6"
+          className="p-4 sm:p-6"
         >
           <label htmlFor="qc-topic" className="flex items-center gap-2 text-sm font-semibold">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-gradient shadow-glow-sm"><Sparkles className="h-3.5 w-3.5 text-white" /></span>
+            <Sparkles className="h-4 w-4 text-brand-300" />
             Que veux-tu créer ?
           </label>
 
@@ -98,7 +91,7 @@ export function QuickCreate({ aiConfigured, credits, cost, language }: Props) {
             maxLength={1200}
             disabled={loading}
             placeholder="Décris ton idée… ex. « Le sport fait grossir ton cerveau : ce que dit la science »"
-            className="mt-3 w-full resize-none rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-3.5 text-base leading-relaxed text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-violet-400/50 focus:bg-white/[0.05] focus:shadow-[0_0_0_4px_rgba(139,92,246,0.12)] disabled:opacity-60 sm:text-[17px]"
+            className="mt-3 w-full resize-none rounded-2xl border border-white/[0.06] bg-black/20 px-4 py-3.5 text-base leading-relaxed text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-white/15 focus:bg-white/[0.04] disabled:opacity-60 sm:text-[17px]"
           />
 
           {withUrl && (
@@ -146,30 +139,17 @@ export function QuickCreate({ aiConfigured, credits, cost, language }: Props) {
                 ? "La génération IA n'est pas configurée sur ce serveur (clé Anthropic manquante)."
                 : !enough
                   ? `Il faut ${cost} crédit${cost > 1 ? "s" : ""} pour un script — ton solde est de ${credits}.`
-                  : <>Hook, scènes et score de viralité en quelques secondes{cost > 0 ? ` · ${cost} crédit${cost > 1 ? "s" : ""}` : ""}. Ensuite, le studio pour la voix, les visuels et l'export. <span className="hidden sm:inline">⌘/Ctrl + Entrée</span></>}
+                  : <>Le script est écrit en quelques secondes, puis tu continues dans le studio{cost > 0 ? ` · ${cost} crédit${cost > 1 ? "s" : ""}` : ""}.</>}
             </p>
             <button
               type="submit"
               disabled={!ready}
-              className="group/cta relative inline-flex h-12 shrink-0 items-center justify-center gap-2 overflow-hidden rounded-2xl bg-brand-gradient px-6 text-sm font-semibold text-white shadow-[0_10px_40px_-10px_rgba(219,39,119,0.8)] transition duration-300 hover:shadow-[0_14px_50px_-8px_rgba(219,39,119,0.95)] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none motion-safe:active:scale-[0.98]"
+              className="group/cta relative inline-flex h-12 shrink-0 items-center justify-center gap-2 overflow-hidden rounded-2xl bg-brand-gradient px-6 text-sm font-semibold text-white shadow-[0_8px_24px_-12px_rgba(219,39,119,0.6)] transition duration-300 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none motion-safe:active:scale-[0.98]"
             >
-              <span aria-hidden className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent motion-safe:transition-transform motion-safe:duration-700 motion-safe:group-hover/cta:translate-x-full" />
               {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Écriture du script…</> : <><Wand2 className="h-4 w-4" /> Créer ma vidéo <ArrowRight className="h-4 w-4 transition-transform motion-safe:group-hover/cta:translate-x-0.5" /></>}
             </button>
           </div>
 
-          {!topic && !loading && (
-            <div className="mt-4 border-t border-white/[0.06] pt-3">
-              <p className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground/70">Besoin d'inspiration ?</p>
-              <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
-                {IDEAS.map((idea) => (
-                  <button key={idea} type="button" onClick={() => { setTopic(idea); textRef.current?.focus(); }} className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.02] px-3 py-1.5 text-left text-xs text-muted-foreground transition hover:border-violet-400/40 hover:bg-violet-500/10 hover:text-foreground">
-                    {idea}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </form>
       </div>
     </div>

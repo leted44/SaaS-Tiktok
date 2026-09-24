@@ -144,6 +144,13 @@ function loadProjects(userId: string) {
   });
 }
 
+/** "BENJAMIN" or "benjamin dupont" → "Benjamin". */
+function displayName(name: string | null): string | null {
+  const first = (name ?? "").trim().split(/\s+/)[0];
+  if (!first) return null;
+  return first.charAt(0).toLocaleUpperCase("fr") + first.slice(1).toLocaleLowerCase("fr");
+}
+
 export async function getDashboard() {
   const [user, workspace] = await Promise.all([getCurrentUser(), getCurrentWorkspace()]);
   const plan = effectivePlanDef(user);
@@ -195,7 +202,7 @@ export async function getDashboard() {
   const carouselSource = projects.find((p) => p.hasScript) ?? null;
 
   return {
-    user: { firstName: (user.name ?? "").trim().split(/\s+/)[0] || null, credits: user.credits, admin },
+    user: { firstName: displayName(user.name), credits: user.credits, admin },
     workspace: { name: workspace.name, language: workspace.defaultLanguage },
     plan: { name: plan.name, monthlyCredits: plan.monthlyCredits, autopilot: plan.autopilotQueue > 0, voiceCloning: plan.voiceCloning },
     totals: { projects: totals[0], scripts: totals[1], renders: totals[2], published: totals[3] },
