@@ -21,7 +21,9 @@ export function brandBackground(workspace: Pick<Workspace, "primaryColor">): Bac
  * content's language and the plan allows it, otherwise the first voice that
  * does. A French script read by an American voice is never a sensible default.
  */
-export function defaultVoiceFor(language: string, preferred: string | null, plan: Pick<PlanDefinition, "premiumVoices">): string {
+export function defaultVoiceFor(language: string, preferred: string | null, plan: Pick<PlanDefinition, "premiumVoices" | "voiceCloning">): string {
+  // The user's own clone, chosen in the brand kit, is kept: it speaks whatever language the script is in.
+  if (preferred === CUSTOM_VOICE_ID && plan.voiceCloning) return CUSTOM_VOICE_ID;
   const lang = language.slice(0, 2).toLowerCase();
   const usable = (id: string | null) => {
     const v = id ? VOICE_BY_ID[id] : null;
