@@ -30,7 +30,8 @@ export function fallbackSocialCopy({ hook, callToAction, hashtags }: FallbackInp
     tiktok: hook.trim(),
     instagram: [hook.trim(), callToAction.trim()].filter(Boolean).join("\n\n"),
     hashtagsTiktok: hashtags.slice(0, 5),
-    hashtagsInstagram: hashtags.slice(0, 15),
+    // Instagram allows up to 30, but posts with a short, tightly relevant set perform better.
+    hashtagsInstagram: hashtags.slice(0, 5),
   };
 }
 
@@ -38,7 +39,7 @@ export function fallbackSocialCopy({ hook, callToAction, hashtags }: FallbackInp
 export function platformHashtags(copy: SocialCopy, platform: Platform, fallback: string[]): string[] {
   const own = platform === "tiktok" ? copy.hashtagsTiktok : copy.hashtagsInstagram;
   if (own.length) return own;
-  return platform === "tiktok" ? fallback.slice(0, 5) : fallback;
+  return fallback.slice(0, 5);
 }
 
 /** Caption plus hashtags as a single block, ready to paste into the app in one go. */

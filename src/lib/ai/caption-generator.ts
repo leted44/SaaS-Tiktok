@@ -21,7 +21,7 @@ export const socialCopyFields = z
         "Instagram Reels caption in the script's language, HASHTAGS EXCLUDED. Line 1 is a curiosity hook — it is the only line shown before 'more'. Then 2 to 4 short lines of added value separated by blank lines; bullet points are welcome. Close on one explicit call to action, such as saving the Reel or answering a question. 2 to 4 emoji, never more.",
       ),
     hashtagsTiktok: z.array(z.string()).describe("5 to 7 tightly targeted hashtags, without the # symbol"),
-    hashtagsInstagram: z.array(z.string()).describe("10 to 15 hashtags without the # symbol, mixing niche reach and broad reach"),
+    hashtagsInstagram: z.array(z.string()).describe("Exactly 5 hashtags, without the # symbol — Instagram posts perform best with a short, tightly relevant set rather than a long list. Mix 2-3 niche tags with 2-3 broader-reach ones, no filler."),
   })
   .describe("Ready-to-paste post descriptions, written for each platform's own reading habits. Never a copy of the spoken script.");
 
@@ -36,6 +36,7 @@ Rules you always apply:
 - Always close on one explicit call to action: save the post, answer in the comments, follow for part 2. Never "link in bio" — TikTok and Instagram both throttle reach on posts pushing traffic off-platform.
 - TikTok is blunt and native. Instagram rewards added value: develop the idea a little further there.
 - Hashtags never appear inside the caption text. They are returned in their own lists.
+- Instagram hashtags: exactly 5, tightly relevant — never more, quality over volume.
 - Write in the requested language, and keep hashtags in that language plus a couple of global ones.`;
 
 export interface CaptionInput {
@@ -110,6 +111,7 @@ export function normalizeSocialCopy(copy: SocialCopy): SocialCopy {
     tiktok: copy.tiktok.trim(),
     instagram: copy.instagram.trim(),
     hashtagsTiktok: tags(copy.hashtagsTiktok, 7),
-    hashtagsInstagram: tags(copy.hashtagsInstagram, 15),
+    // Instagram caps out at 5 for best reach — enforced here even if the AI overshoots.
+    hashtagsInstagram: tags(copy.hashtagsInstagram, 5),
   };
 }
