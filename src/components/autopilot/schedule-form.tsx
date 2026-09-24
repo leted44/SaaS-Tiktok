@@ -62,7 +62,9 @@ export function ScheduleForm({ templates, initialTemplateId, customVoiceName, qu
   const [source, setSource] = useState<"mine" | "ai">("mine");
   const [spaceId, setSpaceId] = useState(NO_SPACE);
   const [brief, setBrief] = useState("");
-  const [aiCount, setAiCount] = useState(5);
+  // Raw text while typing (can be empty mid-edit); aiCount is the value actually used.
+  const [aiCountText, setAiCountText] = useState("5");
+  const aiCount = Math.max(1, Math.min(MAX_SERIES, Number(aiCountText) || 1));
   const ai = source === "ai";
 
   /** The theme follows the space picked, unless the user already wrote their own. */
@@ -229,7 +231,16 @@ export function ScheduleForm({ templates, initialTemplateId, customVoiceName, qu
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="ap-count">Nombre de vidéos</Label>
-                <Input id="ap-count" type="number" inputMode="numeric" min={1} max={MAX_SERIES} value={aiCount} onChange={(e) => setAiCount(Math.max(1, Math.min(MAX_SERIES, Number(e.target.value) || 1)))} />
+                <Input
+                  id="ap-count"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={MAX_SERIES}
+                  value={aiCountText}
+                  onChange={(e) => setAiCountText(e.target.value.replace(/[^\d]/g, "").slice(0, 2))}
+                  onBlur={() => setAiCountText(String(aiCount))}
+                />
               </div>
             </div>
           ) : mode === "single" ? (
