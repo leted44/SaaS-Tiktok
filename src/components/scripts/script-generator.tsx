@@ -35,6 +35,14 @@ const HOOKS = [
 ] as const;
 const LANGS = [["fr", "Français"], ["en", "Anglais"], ["es", "Espagnol"], ["de", "Allemand"], ["pt", "Portugais"], ["it", "Italien"], ["nl", "Néerlandais"], ["ja", "Japonais"]];
 const STEPS = ["Analyse du sujet", "Rédaction des hooks", "Structuration des scènes", "Calcul du score de viralité"];
+const NO_SPACE = "__none__";
+interface SpaceOption {
+  id: string;
+  name: string;
+  color: string;
+  language: string | null;
+  tone: string | null;
+}
 
 const EXAMPLES = [
   "Pourquoi 90% des gens échouent à épargner (et la seule règle qui règle ça)",
@@ -43,7 +51,7 @@ const EXAMPLES = [
   "La routine matinale que les neurosciences valident vraiment",
 ];
 
-export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initialTopic }: { credits: number; cost: number; aiConfigured: boolean; projectId?: string; initialTopic?: string }) {
+export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initialTopic, spaces = [] }: { credits: number; cost: number; aiConfigured: boolean; projectId?: string; initialTopic?: string; spaces?: SpaceOption[] }) {
   const router = useRouter();
   const [topic, setTopic] = useState(initialTopic ?? "");
   const [sourceUrl, setSourceUrl] = useState("");
@@ -54,6 +62,7 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
   const [duration, setDuration] = useState(45);
   const [cta, setCta] = useState("follow");
   const [audience, setAudience] = useState("");
+  const [spaceId, setSpaceId] = useState(NO_SPACE);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(0);
 
@@ -61,12 +70,20 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
   // isn't blocked here by a price the server would never charge it.
   const canGenerate = credits >= cost;
 
+  /** Only a starting point — the space's own language/ton are proposed, never forced. */
+  function pickSpace(id: string) {
+    setSpaceId(id);
+    const space = spaces.find((s) => s.id === id);
+    if (space?.language) setLanguage(space.language);
+    if (space?.tone) setTone(space.tone as (typeof TONES)[number]["id"]);
+  }
+
   async function onGenerate() {
     if (topic.trim().length < 3) return toast.error("Décrivez d'abord votre sujet.");
     setLoading(true);
     setStep(0);
     const timer = setInterval(() => setStep((s) => Math.min(STEPS.length - 1, s + 1)), 2200);
-    const res = await generateScriptAction({ projectId, topic, sourceUrl: sourceUrl || undefined, niche, tone, hookStyle, language, targetDurationSec: duration, callToActionGoal: cta, audience: audience || undefined });
+    const res = await generateScriptAction({ projectId, spaceId: projectId ? undefined : spaceId === NO_SPACE ? null : spaceId, topic, sourceUrl: sourceUrl || undefined, niche, tone, hookStyle, language, targetDurationSec: duration, callToActionGoal: cta, audience: audience || undefined });
     clearInterval(timer);
     setLoading(false);
     if (!res.ok) {
@@ -105,6 +122,19 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
             <Label htmlFor="url" className="inline-flex items-center gap-1"><Link2 className="h-3 w-3" /> URL source (optionnel)</Label>
             <Input id="url" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://article-ou-video-a-reprendre.com" />
           </div>
+
+          {!projectId && spaces.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Espace</Label>
+              <Select value={spaceId} onValueChange={pickSpace}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_SPACE}>Aucun espace</SelectItem>
+                  {spaces.map((s) => <SelectItem key={s.id} value={s.id}><span className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ background: s.color }} />{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-1.5">

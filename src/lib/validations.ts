@@ -119,6 +119,8 @@ export const loginSchema = z.object({
 
 export const generateScriptSchema = z.object({
   projectId: z.string().optional(),
+  /** Only used when creating a new project (no projectId): tags it with a space. */
+  spaceId: z.string().nullable().optional(),
   topic: z.string().min(3, "Décrivez votre sujet en quelques mots").max(1200),
   niche: z.string().max(80).default("general"),
   sourceUrl: z.string().url().optional().or(z.literal("")),
@@ -155,6 +157,7 @@ export const createProjectSchema = z.object({
   title: z.string().min(1).max(120),
   topic: z.string().max(1200).optional(),
   niche: z.string().max(80).optional(),
+  spaceId: z.string().nullable().optional(),
   aspectRatio: z.enum(["VERTICAL", "SQUARE", "HORIZONTAL"]).default("VERTICAL"),
   targetDurationSec: z.number().int().min(15).max(180).default(45),
 });

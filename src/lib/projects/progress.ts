@@ -40,6 +40,7 @@ export interface ProjectCardData {
   stage: ProjectStage;
   /** manual: marked by hand (and so can be unmarked), as opposed to published through a connected account. */
   posted: { at: Date | null; platforms: string[]; manual: boolean } | null;
+  space: { id: string; name: string; color: string } | null;
 }
 
 export type ProjectStage = "todo" | "ready" | "posted";
@@ -58,6 +59,8 @@ export const PROJECT_PROGRESS_SELECT = {
   episodeTotal: true,
   postedAt: true,
   postedPlatforms: true,
+  spaceId: true,
+  space: { select: { id: true, name: true, color: true } },
   scripts: { orderBy: { version: "desc" }, take: 3, select: { id: true, wordCount: true, estimatedDurationSec: true, viralityScore: true, hookScore: true, retentionScore: true, clarityScore: true, scoreRationale: true } },
   voiceovers: { where: { status: "READY" }, orderBy: { createdAt: "desc" }, take: 3, select: { scriptId: true, durationMs: true } },
   renderJobs: { orderBy: { createdAt: "desc" }, take: 4, select: { status: true, progress: true, outputUrl: true, thumbnailUrl: true } },
@@ -143,6 +146,7 @@ export function buildProjectProgress(p: ProjectProgressRow): ProjectCardData {
     hasScript: Boolean(script),
     stage: posted ? "posted" : finished ? "ready" : "todo",
     posted,
+    space: p.space,
   };
 }
 

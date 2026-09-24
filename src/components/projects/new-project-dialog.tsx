@@ -11,19 +11,23 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createProject } from "@/server/actions/projects";
+import type { SpaceOption } from "@/lib/spaces";
 
-export function NewProjectDialog() {
+const NO_SPACE = "__none__";
+
+export function NewProjectDialog({ spaces = [] }: { spaces?: SpaceOption[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [aspect, setAspect] = useState("VERTICAL");
   const [duration, setDuration] = useState("45");
+  const [spaceId, setSpaceId] = useState(NO_SPACE);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     const form = new FormData(e.currentTarget);
-    const res = await createProject({ title: form.get("title"), topic: form.get("topic"), niche: form.get("niche"), aspectRatio: aspect, targetDurationSec: Number(duration) });
+    const res = await createProject({ title: form.get("title"), topic: form.get("topic"), niche: form.get("niche"), aspectRatio: aspect, targetDurationSec: Number(duration), spaceId: spaceId === NO_SPACE ? null : spaceId });
     setLoading(false);
     if (!res.ok) return toast.error(res.error);
     setOpen(false);
@@ -75,6 +79,18 @@ export function NewProjectDialog() {
               </Select>
             </div>
           </div>
+          {spaces.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Espace</Label>
+              <Select value={spaceId} onValueChange={setSpaceId}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_SPACE}>Aucun espace</SelectItem>
+                  {spaces.map((s) => <SelectItem key={s.id} value={s.id}><span className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ background: s.color }} />{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Annuler</Button>
             <Button type="submit" variant="gradient" loading={loading}>Créer le projet</Button>

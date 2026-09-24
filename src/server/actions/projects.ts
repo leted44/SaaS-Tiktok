@@ -24,18 +24,20 @@ export async function createProject(input: unknown): Promise<ActionResult<{ id: 
       if (count >= planDef.maxProjects) throw new Error(`Votre forfait ${planDef.name} autorise ${planDef.maxProjects} projets. Passez à un forfait supérieur pour en créer davantage.`);
     }
     const workspace = await getCurrentWorkspace();
+    const space = data.spaceId ? await prisma.space.findFirst({ where: { id: data.spaceId, userId: user.id } }) : null;
     const project = await prisma.project.create({
       data: {
         userId: user.id,
         workspaceId: workspace.id,
+        spaceId: space?.id ?? null,
         title: data.title,
         topic: data.topic,
         niche: data.niche,
         aspectRatio: data.aspectRatio,
         targetDurationSec: data.targetDurationSec,
-        voiceId: workspace.defaultVoiceId,
+        voiceId: space?.voiceId ?? workspace.defaultVoiceId,
         musicTrackId: workspace.defaultMusicId,
-        language: workspace.defaultLanguage,
+        language: space?.language ?? workspace.defaultLanguage,
       },
     });
     revalidatePath("/projects");

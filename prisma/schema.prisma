@@ -146,6 +146,7 @@ model User {
   autopilotItems     AutopilotItem[]
   pushSubscriptions  PushSubscription[]
   videoTemplates     VideoTemplate[]
+  spaces             Space[]
 
   @@index([stripeCustomerId])
 }
@@ -253,6 +254,10 @@ model Project {
   topic             String?       @db.Text
   niche             String?
   sourceUrl         String?
+  // Which brand/theme this video belongs to, for accounts running more than
+  // one (e.g. two different Instagram pages). Optional: unassigned projects
+  // just don't show a tag.
+  spaceId           String?
   status            ProjectStatus @default(DRAFT)
   aspectRatio       AspectRatio   @default(VERTICAL)
   targetDurationSec Int           @default(45)
@@ -306,6 +311,7 @@ model Project {
 
   workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space       Space?         @relation(fields: [spaceId], references: [id], onDelete: SetNull)
   scripts     Script[]
   voiceovers  Voiceover[]
   renderJobs  RenderJob[]
@@ -316,6 +322,32 @@ model Project {
   @@index([workspaceId])
   @@index([userId, updatedAt])
   @@index([seriesId, episodeNumber])
+  @@index([spaceId])
+}
+
+// A brand or theme, for accounts juggling more than one — different
+// Instagram pages with nothing in common (different audience, tone, even
+// voice). Projects are optionally tagged with one; each space can also carry
+// its own defaults, prefilled (never forced) when a script is written in it,
+// so switching brands doesn't mean resetting the voice and tone by hand
+// every time.
+model Space {
+  id    String @id @default(cuid())
+  userId String
+  name  String
+  color String @default("#7C3AED")
+
+  language String?
+  tone     String?
+  voiceId  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects Project[]
+
+  @@index([userId])
 }
 
 model Script {

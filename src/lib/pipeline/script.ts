@@ -35,6 +35,7 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
     throw err;
   }
 
+  const space = data.spaceId ? await prisma.space.findFirst({ where: { id: data.spaceId, userId: user.id } }) : null;
   const projectId =
     data.projectId ??
     (
@@ -42,6 +43,7 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
         data: {
           userId: user.id,
           workspaceId: workspace.id,
+          spaceId: space?.id ?? null,
           title: result.script.title,
           topic: data.topic,
           niche: data.niche,
@@ -49,7 +51,7 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
           targetDurationSec: data.targetDurationSec,
           language: data.language,
           aspectRatio: workspace.defaultAspect,
-          voiceId: workspace.defaultVoiceId,
+          voiceId: space?.voiceId ?? workspace.defaultVoiceId,
           musicTrackId: workspace.defaultMusicId,
         },
       })
