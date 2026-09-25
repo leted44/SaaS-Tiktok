@@ -17,8 +17,14 @@ function hexToRgba(hex: string, alpha: number) {
 
 export const KineticCaptions: React.FC<Props> = ({ words, style, scale = 1 }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, width, height } = useVideoConfig();
   ensureFont(style.fontFamily);
+  // A vertical video posts full-bleed into TikTok's and Reels' own player, which
+  // draws caption, username and the action-button column over roughly the
+  // bottom quarter — the same chrome the carousel's story format has to clear.
+  // Square and horizontal video sit letterboxed inside that same player, so
+  // their own pixels never reach the real edge and need no extra room.
+  const isVertical = height > width;
 
   const pages = useMemo(() => paginateWords(words, style.wordsPerLine, style.maxLines), [words, style.wordsPerLine, style.maxLines]);
   const nowMs = (frame / fps) * 1000;
@@ -40,7 +46,9 @@ export const KineticCaptions: React.FC<Props> = ({ words, style, scale = 1 }) =>
   const fontSize = style.fontSize * scale;
   const strokeWidth = style.strokeWidth * scale;
   const justify = style.position === "top" ? "flex-start" : style.position === "bottom" ? "flex-end" : "center";
-  const paddingY = style.position === "center" ? 0 : 220 * scale;
+  const bottomSafe = isVertical && style.position === "bottom" ? 150 : 0;
+  const paddingTop = style.position === "center" ? 0 : 220 * scale;
+  const paddingBottom = style.position === "center" ? 0 : (220 + bottomSafe) * scale;
 
   const textShadow = [
     style.strokeWidth > 0 ? `0 0 ${strokeWidth}px ${style.strokeColor}` : null,
@@ -51,7 +59,7 @@ export const KineticCaptions: React.FC<Props> = ({ words, style, scale = 1 }) =>
     .join(", ");
 
   return (
-    <AbsoluteFill style={{ justifyContent: justify, alignItems: "center", paddingTop: paddingY, paddingBottom: paddingY, transform: `translateY(${style.verticalOffset}%)` }}>
+    <AbsoluteFill style={{ justifyContent: justify, alignItems: "center", paddingTop, paddingBottom, transform: `translateY(${style.verticalOffset}%)` }}>
       <div
         style={{
           ...entrance,
