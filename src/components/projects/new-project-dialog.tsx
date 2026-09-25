@@ -12,6 +12,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createProject } from "@/server/actions/projects";
 import type { SpaceOption } from "@/lib/spaces";
+import { FormatPicker } from "@/components/shared/format-picker";
+import { formatDestination, type ContentFormat } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 const NO_SPACE = "__none__";
 
@@ -22,6 +25,7 @@ export function NewProjectDialog({ spaces = [] }: { spaces?: SpaceOption[] }) {
   const [aspect, setAspect] = useState("VERTICAL");
   const [duration, setDuration] = useState("45");
   const [spaceId, setSpaceId] = useState(NO_SPACE);
+  const [format, setFormat] = useState<ContentFormat>("video");
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -31,7 +35,7 @@ export function NewProjectDialog({ spaces = [] }: { spaces?: SpaceOption[] }) {
     setLoading(false);
     if (!res.ok) return toast.error(res.error);
     setOpen(false);
-    router.push(`/studio/${res.data.id}`);
+    router.push(formatDestination(format, res.data.id));
   }
 
   return (
@@ -46,38 +50,46 @@ export function NewProjectDialog({ spaces = [] }: { spaces?: SpaceOption[] }) {
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-1.5">
+            <Label>Format</Label>
+            <FormatPicker value={format} onChange={setFormat} className="w-full justify-between" />
+          </div>
+          <div className="space-y-1.5">
             <Label htmlFor="title">Titre</Label>
             <Input id="title" name="title" required placeholder="3 erreurs qui ruinent votre sommeil" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="topic">Sujet / brief</Label>
-            <Textarea id="topic" name="topic" placeholder="De quoi devrait parler cette vidéo ?" rows={3} />
+            <Textarea id="topic" name="topic" placeholder={format === "carousel" ? "De quoi devrait parler ce carrousel ?" : "De quoi devrait parler cette vidéo ?"} rows={3} />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className={cn("grid gap-3", format === "carousel" ? "grid-cols-1" : "grid-cols-3")}>
             <div className="space-y-1.5">
               <Label htmlFor="niche">Niche</Label>
               <Input id="niche" name="niche" placeholder="Santé" />
             </div>
-            <div className="space-y-1.5">
-              <Label>Format</Label>
-              <Select value={aspect} onValueChange={setAspect}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="VERTICAL">9:16 Vertical</SelectItem>
-                  <SelectItem value="SQUARE">1:1 Carré</SelectItem>
-                  <SelectItem value="HORIZONTAL">16:9 Large</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Durée</Label>
-              <Select value={duration} onValueChange={setDuration}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {["15", "30", "45", "60", "90"].map((d) => <SelectItem key={d} value={d}>{d}s</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {format !== "carousel" && (
+              <>
+                <div className="space-y-1.5">
+                  <Label>Cadrage vidéo</Label>
+                  <Select value={aspect} onValueChange={setAspect}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="VERTICAL">9:16 Vertical</SelectItem>
+                      <SelectItem value="SQUARE">1:1 Carré</SelectItem>
+                      <SelectItem value="HORIZONTAL">16:9 Large</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Durée</Label>
+                  <Select value={duration} onValueChange={setDuration}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {["15", "30", "45", "60", "90"].map((d) => <SelectItem key={d} value={d}>{d}s</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
           </div>
           {spaces.length > 0 && (
             <div className="space-y-1.5">

@@ -7,6 +7,8 @@ import { ArrowRight, Link2, Loader2, SlidersHorizontal, Sparkles, Wand2, X } fro
 import { toast } from "sonner";
 import { generateScriptAction } from "@/server/actions/scripts";
 import { TONES, TONE_LABELS, type Tone } from "@/lib/autopilot/template-shared";
+import { FormatPicker } from "@/components/shared/format-picker";
+import { formatDestination, type ContentFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const DURATIONS = [30, 45, 60];
@@ -32,6 +34,7 @@ export function QuickCreate({ aiConfigured, credits, cost, language }: Props) {
   const [url, setUrl] = useState("");
   const [duration, setDuration] = useState(45);
   const [tone, setTone] = useState<Tone>("energetic");
+  const [format, setFormat] = useState<ContentFormat>("video");
   const [loading, setLoading] = useState(false);
 
   const enough = credits >= cost;
@@ -57,8 +60,8 @@ export function QuickCreate({ aiConfigured, credits, cost, language }: Props) {
       toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Obtenir des crédits", onClick: () => router.push("/billing") } : undefined });
       return;
     }
-    toast.success(`Script prêt — viralité ${res.data.viralityScore}/100`, { description: "Direction le studio pour la voix, les visuels et l'export." });
-    router.push(`/studio/${res.data.projectId}`);
+    toast.success(`Script prêt — viralité ${res.data.viralityScore}/100`, { description: format === "carousel" ? "Direction l'éditeur de carrousel." : "Direction le studio pour la voix, les visuels et l'export." });
+    router.push(formatDestination(format, res.data.projectId));
   }
 
   return (
@@ -71,10 +74,13 @@ export function QuickCreate({ aiConfigured, credits, cost, language }: Props) {
           }}
           className="p-4 sm:p-6"
         >
-          <label htmlFor="qc-topic" className="flex items-center gap-2 text-sm font-semibold">
-            <Sparkles className="h-4 w-4 text-brand-300" />
-            Que veux-tu créer ?
-          </label>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label htmlFor="qc-topic" className="flex items-center gap-2 text-sm font-semibold">
+              <Sparkles className="h-4 w-4 text-brand-300" />
+              Que veux-tu créer ?
+            </label>
+            <FormatPicker value={format} onChange={setFormat} />
+          </div>
 
           <textarea
             ref={textRef}
@@ -114,13 +120,15 @@ export function QuickCreate({ aiConfigured, credits, cost, language }: Props) {
                 <Link2 className="h-3.5 w-3.5" /> Partir d'un lien
               </button>
             )}
-            <div className="inline-flex h-8 items-center rounded-full border border-white/10 p-0.5" role="radiogroup" aria-label="Durée">
-              {DURATIONS.map((d) => (
-                <button key={d} type="button" role="radio" aria-checked={duration === d} onClick={() => setDuration(d)} className={cn("h-full rounded-full px-2.5 text-xs transition", duration === d ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground")}>
-                  {d} s
-                </button>
-              ))}
-            </div>
+            {format !== "carousel" && (
+              <div className="inline-flex h-8 items-center rounded-full border border-white/10 p-0.5" role="radiogroup" aria-label="Durée">
+                {DURATIONS.map((d) => (
+                  <button key={d} type="button" role="radio" aria-checked={duration === d} onClick={() => setDuration(d)} className={cn("h-full rounded-full px-2.5 text-xs transition", duration === d ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground")}>
+                    {d} s
+                  </button>
+                ))}
+              </div>
+            )}
             <label className="relative inline-flex h-8 items-center rounded-full border border-white/10 pl-3 pr-2 text-xs text-muted-foreground transition focus-within:border-white/25 hover:border-white/25">
               <span className="sr-only">Ton</span>
               <select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="h-full cursor-pointer appearance-none bg-transparent pr-4 text-foreground outline-none">
@@ -128,7 +136,10 @@ export function QuickCreate({ aiConfigured, credits, cost, language }: Props) {
               </select>
               <span aria-hidden className="pointer-events-none absolute right-2.5 text-[9px]">▾</span>
             </label>
-            <Link href={`/scripts${topic.trim() ? `?topic=${encodeURIComponent(topic.trim())}` : ""}`} className="inline-flex h-8 items-center gap-1.5 rounded-full px-2 text-xs text-muted-foreground transition hover:text-foreground">
+            <Link
+              href={`/scripts?${new URLSearchParams({ ...(topic.trim() ? { topic: topic.trim() } : {}), format }).toString()}`}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full px-2 text-xs text-muted-foreground transition hover:text-foreground"
+            >
               <SlidersHorizontal className="h-3.5 w-3.5" /> Plus d'options
             </Link>
           </div>
@@ -139,14 +150,23 @@ export function QuickCreate({ aiConfigured, credits, cost, language }: Props) {
                 ? "La génération IA n'est pas configurée sur ce serveur (clé Anthropic manquante)."
                 : !enough
                   ? `Il faut ${cost} crédit${cost > 1 ? "s" : ""} pour un script — ton solde est de ${credits}.`
-                  : <>Le script est écrit en quelques secondes, puis tu continues dans le studio{cost > 0 ? ` · ${cost} crédit${cost > 1 ? "s" : ""}` : ""}.</>}
+                  : (
+                    <>
+                      Le script est écrit en quelques secondes, puis tu continues {format === "carousel" ? "dans l'éditeur de carrousel" : format === "both" ? "dans le studio, avec le carrousel juste à côté" : "dans le studio"}
+                      {cost > 0 ? ` · ${cost} crédit${cost > 1 ? "s" : ""}` : ""}.
+                    </>
+                  )}
             </p>
             <button
               type="submit"
               disabled={!ready}
               className="group/cta relative inline-flex h-12 shrink-0 items-center justify-center gap-2 overflow-hidden rounded-2xl bg-brand-gradient px-6 text-sm font-semibold text-white shadow-[0_8px_24px_-12px_rgba(219,39,119,0.6)] transition duration-300 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none motion-safe:active:scale-[0.98]"
             >
-              {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Écriture du script…</> : <><Wand2 className="h-4 w-4" /> Créer ma vidéo <ArrowRight className="h-4 w-4 transition-transform motion-safe:group-hover/cta:translate-x-0.5" /></>}
+              {loading ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Écriture du script…</>
+              ) : (
+                <><Wand2 className="h-4 w-4" /> {format === "carousel" ? "Créer mon carrousel" : format === "both" ? "Créer les deux" : "Créer ma vidéo"} <ArrowRight className="h-4 w-4 transition-transform motion-safe:group-hover/cta:translate-x-0.5" /></>
+              )}
             </button>
           </div>
 

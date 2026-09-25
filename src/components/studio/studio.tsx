@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { PlayerRef } from "@remotion/player";
-import { FileText, Captions, Layers, Music2, Film, GalleryHorizontalEnd, ArrowLeft, Check, CheckCircle2, Loader2, Pencil, Undo2, Wand2 } from "lucide-react";
+import { FileText, Captions, Layers, Music2, Film, ArrowLeft, Check, CheckCircle2, Loader2, Pencil, Undo2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { CaptionsPanel } from "@/components/studio/captions-panel";
 import { VisualsPanel } from "@/components/studio/visuals-panel";
 import { AudioPanel } from "@/components/studio/audio-panel";
 import { ExportPanel } from "@/components/studio/export-panel";
+import { FormatSwitcher } from "@/components/studio/format-switcher";
 import { saveEditorState, renameProject, unmarkProjectPosted } from "@/server/actions/projects";
 import { POST_PLATFORM_LABELS, type PostPlatform } from "@/lib/projects/progress";
 import { getTrack } from "@/lib/music/library";
@@ -164,6 +165,7 @@ export function Studio(props: StudioProps) {
             )}
             <p className="text-xs text-muted-foreground">{project.aspectRatio === "VERTICAL" ? "9:16" : project.aspectRatio === "SQUARE" ? "1:1" : "16:9"} · {project.niche || "Sans niche"} · {activeScript ? `${activeScript.wordCount} mots · ~${activeScript.estimatedDurationSec}s` : "Aucun script"}</p>
           </div>
+          <FormatSwitcher projectId={project.id} active="video" />
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <span className={cn("inline-flex items-center gap-1.5 text-xs", saveStatus === "error" ? "text-red-300" : "text-muted-foreground")}>
@@ -211,27 +213,13 @@ export function Studio(props: StudioProps) {
         <div className="surface flex min-w-0 flex-col xl:sticky xl:top-24 xl:max-h-[calc(100vh-140px)]">
           <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="border-b border-white/[0.05] p-3">
-              <TabsList className="grid w-full grid-cols-6">
+              {/* The carousel used to hide here as a sixth, outbound tab — it now has an equal spot in the FormatSwitcher above, so this bar is video's own five. */}
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="script" aria-label="Script" className="flex-col gap-0.5 px-0.5 py-1 text-[10px] sm:flex-row sm:px-3 sm:text-xs"><FileText /><span>Script</span></TabsTrigger>
                 <TabsTrigger value="captions" aria-label="Sous-titres" className="flex-col gap-0.5 px-0.5 py-1 text-[10px] sm:flex-row sm:px-3 sm:text-xs"><Captions /><span>Sous-titres</span></TabsTrigger>
                 <TabsTrigger value="visuals" aria-label="Visuels" className="flex-col gap-0.5 px-0.5 py-1 text-[10px] sm:flex-row sm:px-3 sm:text-xs"><Layers /><span>Visuels</span></TabsTrigger>
                 <TabsTrigger value="audio" aria-label="Audio" className="flex-col gap-0.5 px-0.5 py-1 text-[10px] sm:flex-row sm:px-3 sm:text-xs"><Music2 /><span>Audio</span></TabsTrigger>
                 <TabsTrigger value="export" aria-label="Export" className="flex-col gap-0.5 px-0.5 py-1 text-[10px] sm:flex-row sm:px-3 sm:text-xs"><Film /><span>Export</span></TabsTrigger>
-                {/*
-                  A real navigation, not another in-place tab: the carousel is
-                  its own editor (own preview, own generate/save flow), not a
-                  view over this component's video state, so it gets its own
-                  page rather than a sixth TabsContent block. Styled to match
-                  the other triggers so it reads as equally at hand, not as a
-                  lesser link — the whole point of moving it into this bar.
-                */}
-                <Link
-                  href={`/studio/${project.id}/carousel`}
-                  aria-label="Carrousel"
-                  className="inline-flex flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-lg px-0.5 py-1 text-[10px] font-medium text-muted-foreground transition-all ring-focus hover:bg-white/[0.05] hover:text-foreground sm:flex-row sm:px-3 sm:text-xs [&_svg]:size-4"
-                >
-                  <GalleryHorizontalEnd /><span>Carrousel</span>
-                </Link>
               </TabsList>
             </div>
             <div className="min-h-0 min-w-0 flex-1 xl:overflow-y-auto">

@@ -14,6 +14,8 @@ import { Slider } from "@/components/ui/slider";
 import { Card, CardContent } from "@/components/ui/card";
 import { UpgradePrompt } from "@/components/shared/upgrade-prompt";
 import { generateScriptAction } from "@/server/actions/scripts";
+import { FormatPicker } from "@/components/shared/format-picker";
+import { formatDestination, type ContentFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const NICHES = ["Finance", "Fitness", "Santé", "Tech", "Business", "Marketing", "Motivation", "Éducation", "Beauté", "Cuisine", "Voyage", "Gaming", "Immobilier", "Parentalité", "Psychologie"];
@@ -51,7 +53,7 @@ const EXAMPLES = [
   "La routine matinale que les neurosciences valident vraiment",
 ];
 
-export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initialTopic, spaces = [] }: { credits: number; cost: number; aiConfigured: boolean; projectId?: string; initialTopic?: string; spaces?: SpaceOption[] }) {
+export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initialTopic, initialFormat, spaces = [] }: { credits: number; cost: number; aiConfigured: boolean; projectId?: string; initialTopic?: string; initialFormat?: ContentFormat; spaces?: SpaceOption[] }) {
   const router = useRouter();
   const [topic, setTopic] = useState(initialTopic ?? "");
   const [sourceUrl, setSourceUrl] = useState("");
@@ -63,6 +65,7 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
   const [cta, setCta] = useState("follow");
   const [audience, setAudience] = useState("");
   const [spaceId, setSpaceId] = useState(NO_SPACE);
+  const [format, setFormat] = useState<ContentFormat>(initialFormat ?? "video");
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(0);
 
@@ -91,7 +94,7 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
       return;
     }
     toast.success(`Script v${res.data.version} prêt — viralité ${res.data.viralityScore}/100`, { description: `${res.data.creditsLeft} crédits restants` });
-    router.push(`/studio/${res.data.projectId}`);
+    router.push(projectId ? `/studio/${res.data.projectId}` : formatDestination(format, res.data.projectId));
   }
 
   return (
@@ -104,8 +107,9 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
       {!canGenerate && <UpgradePrompt compact />}
 
       <Card className="overflow-hidden">
-        <div className="border-b border-white/[0.05] bg-brand-gradient-soft px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.05] bg-brand-gradient-soft px-6 py-4">
           <p className="inline-flex items-center gap-2 text-sm font-semibold"><Wand2 className="h-4 w-4 text-brand-300" /> Brief</p>
+          {!projectId && <FormatPicker value={format} onChange={setFormat} />}
         </div>
         <CardContent className="space-y-5 pt-6">
           <div className="space-y-1.5">
@@ -170,11 +174,13 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between"><Label>Durée cible</Label><span className="text-sm font-semibold tabular-nums">{duration}s</span></div>
-              <Slider value={[duration]} min={15} max={120} step={5} onValueChange={([v]) => setDuration(v)} />
-              <p className="text-xs text-muted-foreground">≈ {Math.round(duration * 2.6)} mots parlés</p>
-            </div>
+            {format !== "carousel" && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between"><Label>Durée cible</Label><span className="text-sm font-semibold tabular-nums">{duration}s</span></div>
+                <Slider value={[duration]} min={15} max={120} step={5} onValueChange={([v]) => setDuration(v)} />
+                <p className="text-xs text-muted-foreground">≈ {Math.round(duration * 2.6)} mots parlés</p>
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label>Appel à l'action</Label>
               <Select value={cta} onValueChange={setCta}>
@@ -198,7 +204,7 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
           <div className="flex flex-col gap-3 border-t border-white/[0.05] pt-5 sm:flex-row sm:items-center sm:justify-between">
             <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><Coins className="h-3.5 w-3.5" /> {cost === 0 ? "Gratuit sur ce compte" : `Coûte ${cost} crédit · ${credits} disponible${credits > 1 ? "s" : ""}`}</p>
             <Button size="lg" variant="gradient" onClick={onGenerate} loading={loading} disabled={!canGenerate || !aiConfigured}>
-              {loading ? STEPS[step] : <><Sparkles /> Générer le script <ArrowRight /></>}
+              {loading ? STEPS[step] : <><Sparkles /> {!projectId && format === "carousel" ? "Générer le script et le carrousel" : "Générer le script"} <ArrowRight /></>}
             </Button>
           </div>
         </CardContent>

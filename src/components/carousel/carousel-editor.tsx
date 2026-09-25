@@ -19,6 +19,7 @@ import { uploadAsset } from "@/lib/assets/upload-client";
 import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileSlug, tooLongForImage, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
 import { ART_DIRECTIONS, DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from "@/lib/carousel/art-direction";
 import { resolveTemplate } from "@/lib/carousel/templates";
+import { FormatSwitcher } from "@/components/studio/format-switcher";
 import type { SocialCopy } from "@/lib/social/captions";
 import { cn } from "@/lib/utils";
 
@@ -304,12 +305,15 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
     });
 
   const header = (
-    <div className="mb-5">
-      <Link href={`/studio/${projectId}`} className="inline-flex items-center gap-1 text-xs text-muted-foreground transition hover:text-foreground">
-        <ArrowLeft className="h-3.5 w-3.5" /> Retour au studio
-      </Link>
-      <h1 className="mt-2 font-display text-2xl font-bold tracking-tight">Carrousel</h1>
-      <p className="mt-0.5 truncate text-sm text-muted-foreground">{projectTitle}</p>
+    <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <Link href="/projects" className="inline-flex items-center gap-1 text-xs text-muted-foreground transition hover:text-foreground">
+          <ArrowLeft className="h-3.5 w-3.5" /> Projets
+        </Link>
+        <h1 className="mt-2 font-display text-2xl font-bold tracking-tight">Carrousel</h1>
+        <p className="mt-0.5 truncate text-sm text-muted-foreground">{projectTitle}</p>
+      </div>
+      <FormatSwitcher projectId={projectId} active="carousel" />
     </div>
   );
 

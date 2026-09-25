@@ -10,7 +10,7 @@ import { CREDIT_COSTS, isAdmin } from "@/lib/plans";
 export const metadata: Metadata = { title: "Générateur de script" };
 export const dynamic = "force-dynamic";
 
-export default async function ScriptsPage({ searchParams }: { searchParams: Promise<{ project?: string; topic?: string }> }) {
+export default async function ScriptsPage({ searchParams }: { searchParams: Promise<{ project?: string; topic?: string; format?: string }> }) {
   const params = await searchParams;
   const user = await getCurrentUser();
   const [scripts, spaces] = await Promise.all([
@@ -22,7 +22,7 @@ export default async function ScriptsPage({ searchParams }: { searchParams: Prom
     <div className="mx-auto max-w-7xl">
       <PageHeader title="Générateur de script & de hook IA" description={`Décrivez un sujet, une niche ou une URL. ${cost === 0 ? "La génération est gratuite sur ce compte" : `Chaque génération coûte ${cost} crédit`} et renvoie un hook, des scènes, un CTA et une analyse de viralité.`} />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <ScriptGenerator credits={user.credits} cost={cost} aiConfigured={integrations.ai()} projectId={params.project} initialTopic={params.topic} spaces={spaces} />
+        <ScriptGenerator credits={user.credits} cost={cost} aiConfigured={integrations.ai()} projectId={params.project} initialTopic={params.topic} initialFormat={params.format === "carousel" || params.format === "both" ? params.format : "video"} spaces={spaces} />
         <ScriptLibrary scripts={scripts.map((s) => ({ id: s.id, title: s.title, hook: s.hook, viralityScore: s.viralityScore, createdAt: s.createdAt.toISOString(), projectId: s.project.id, projectTitle: s.project.title, version: s.version, durationSec: s.estimatedDurationSec }))} />
       </div>
     </div>
