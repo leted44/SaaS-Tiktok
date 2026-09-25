@@ -25,6 +25,13 @@ interface Props {
   handle: string | null;
   /** Absolute URL of the slide's photo, already vetted by the caller. */
   imageUrl?: string | null;
+  /**
+   * The cover's photo, for the closing slide only. The CTA never gets its own
+   * AI visual — the ask should stay the focus — but in Immersive that made it
+   * a flat black void jammed between full-bleed photos on either side. A
+   * dimmed echo of the cover closes the series instead of breaking it.
+   */
+  closingImageUrl?: string | null;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -93,6 +100,16 @@ function immersiveScrim(format: CarouselFormat): string {
 }
 
 /**
+ * The closing slide's scrim: uniformly dim rather than clear-over-subject —
+ * there is no subject to protect here, only the ask, and the photo is a
+ * backdrop, not the point. Tinted with the template's own background so the
+ * photo's edges blend into it instead of reading as a hard-edged rectangle.
+ */
+function closingScrim(): string {
+  return "linear-gradient(180deg, rgba(11,9,7,0.86) 0%, rgba(11,9,7,0.93) 45%, rgba(11,9,7,0.97) 100%)";
+}
+
+/**
  * The title as words, with the emphasis marked.
  *
  * Satori has no inline styling inside a run of text, so a headline with one
@@ -125,13 +142,14 @@ export function headlineWords(title: string, emphasis: string): { text: string; 
   return words;
 }
 
-export function CarouselSlideView({ slide, index, total, step, format, tokens, handle, imageUrl }: Props) {
+export function CarouselSlideView({ slide, index, total, step, format, tokens, handle, imageUrl, closingImageUrl }: Props) {
   const { width, height } = FORMAT_SIZE[format];
   const padding = format === "square" ? 80 : 92;
   const compact = format === "square";
   const immersive = tokens.id === "immersive";
   // Full-bleed: the cover always, and in Immersive every content slide too.
   const bleedPhoto = Boolean(imageUrl) && (slide.kind === "cover" || (immersive && slide.kind === "content"));
+  const ctaBackdrop = immersive && slide.kind === "cta" && Boolean(closingImageUrl);
   const coverPhoto = slide.kind === "cover" && bleedPhoto;
   const bandPhoto = slide.kind === "content" && Boolean(imageUrl) && !bleedPhoto;
   const t = bleedPhoto ? onPhoto(tokens) : tokens;
@@ -249,10 +267,18 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
 
   return (
     <div style={col({ position: "relative", width, height, padding, background: t.background, color: t.text, fontFamily: "Inter", fontWeight: 400 })}>
-      {bleedPhoto ? (
-        <img src={imageUrl!} alt="" width={width} height={height} style={{ position: "absolute", top: 0, left: 0, width, height, objectFit: "cover" }} />
+      {bleedPhoto || ctaBackdrop ? (
+        <img
+          src={(imageUrl ?? closingImageUrl)!}
+          alt=""
+          width={width}
+          height={height}
+          style={{ position: "absolute", top: 0, left: 0, width, height, objectFit: "cover", opacity: ctaBackdrop ? 0.5 : 1 }}
+        />
       ) : null}
-      {bleedPhoto ? <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width, height, backgroundImage: immersive ? immersiveScrim(format) : PHOTO_SCRIM }} /> : null}
+      {bleedPhoto || ctaBackdrop ? (
+        <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width, height, backgroundImage: ctaBackdrop ? closingScrim() : immersive ? immersiveScrim(format) : PHOTO_SCRIM }} />
+      ) : null}
       {t.overlay ? <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width, height, backgroundImage: t.overlay }} /> : null}
 
       <div style={row({ justifyContent: "space-between", alignItems: "center", fontSize: 26, fontWeight: 600, color: t.muted })}>

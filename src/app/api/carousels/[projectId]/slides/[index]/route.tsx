@@ -43,10 +43,23 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
   const tokens = resolveTemplate(state.template, { primary: workspace.primaryColor, accent: workspace.accentColor });
   const { width, height } = FORMAT_SIZE[state.format];
   const fonts = await loadCarouselFonts();
+  const coverImageUrl = state.slides.find((s) => s.kind === "cover")?.image?.url;
 
   const download = new URL(req.url).searchParams.has("download");
   return new ImageResponse(
-    <CarouselSlideView slide={state.slides[i]} index={i} total={state.slides.length} step={step} format={state.format} tokens={tokens} handle={state.handle} imageUrl={renderableImageUrl(state.slides[i].image?.url)} />,
+    (
+      <CarouselSlideView
+        slide={state.slides[i]}
+        index={i}
+        total={state.slides.length}
+        step={step}
+        format={state.format}
+        tokens={tokens}
+        handle={state.handle}
+        imageUrl={renderableImageUrl(state.slides[i].image?.url)}
+        closingImageUrl={renderableImageUrl(coverImageUrl)}
+      />
+    ),
     {
       width,
       height,
