@@ -180,6 +180,8 @@ export const CREDIT_COSTS = {
   VOICE_CLONE: 50,
   // No voice and no video render: a few still images, so a fraction of a video's price.
   CAROUSEL: 2,
+  // Gemini's image model, ~0.035€/image — priced well above cost since it's optional per slide.
+  AI_IMAGE: 2,
 } as const;
 
 export interface CreditPack {

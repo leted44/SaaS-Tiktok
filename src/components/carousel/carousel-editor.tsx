@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowDown, ArrowUp, Coins, Download, Archive, GalleryHorizontalEnd, ImageIcon, ImagePlus, Loader2, MessageSquareText, Palette, Plus, RefreshCw, Search, Share2, Sparkles, Trash2, Type, Upload } from "lucide-react";
+import { ArrowLeft, ArrowDown, ArrowUp, Coins, Download, Archive, GalleryHorizontalEnd, ImageIcon, ImagePlus, Loader2, MessageSquareText, Palette, Plus, RefreshCw, Search, Share2, Sparkles, Trash2, Type, Upload, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { zipSync } from "fflate";
 import { nanoid } from "nanoid";
@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Section } from "@/components/ui/section";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
-import { generateCarouselAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
+import { generateCarouselAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
 import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, limitsFor, slideFileSlug, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
 import { resolveTemplate } from "@/lib/carousel/templates";
@@ -32,15 +32,17 @@ interface Props {
   script: { id: string; hashtags: string[]; socialCopy: SocialCopy } | null;
   cost: number;
   socialCopyCost: number;
+  aiImageCost: number;
   credits: number;
   aiConfigured: boolean;
   stockConfigured: boolean;
+  aiImagesConfigured: boolean;
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const withoutVersion = (s: CarouselSnapshot): CarouselState => ({ template: s.template, format: s.format, handle: s.handle, slides: s.slides });
 
-export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, credits, aiConfigured, stockConfigured }: Props) {
+export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits, aiConfigured, stockConfigured, aiImagesConfigured }: Props) {
   const router = useRouter();
   const [state, setState] = useState<CarouselState | null>(initial ? withoutVersion(initial) : null);
   const [version, setVersion] = useState(initial?.version ?? 0);
@@ -382,6 +384,9 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                   canDelete={s.kind === "content" && contentCount > 1}
                   canMoveUp={s.kind === "content" && state.slides[i - 1]?.kind === "content"}
                   canMoveDown={s.kind === "content" && state.slides[i + 1]?.kind === "content"}
+                  aiImageCost={aiImageCost}
+                  aiImagesConfigured={aiImagesConfigured}
+                  credits={credits}
                   onChange={(patch) => patchSlide(s.id, patch)}
                   onRemove={() => removeSlide(s.id)}
                   onMove={(dir) => moveSlide(s.id, dir)}
@@ -429,13 +434,16 @@ function Counter({ value, max }: { value: string; max: number }) {
 }
 
 /** One slide. Limits come from what the layout can hold in its tightest format, so a slide within them never overflows. */
-function SlideEditor({ projectId, slide, label, canDelete, canMoveUp, canMoveDown, onChange, onRemove, onMove }: {
+function SlideEditor({ projectId, slide, label, canDelete, canMoveUp, canMoveDown, aiImageCost, aiImagesConfigured, credits, onChange, onRemove, onMove }: {
   projectId: string;
   slide: CarouselSlide;
   label: string;
   canDelete: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  aiImageCost: number;
+  aiImagesConfigured: boolean;
+  credits: number;
   onChange: (patch: Partial<CarouselSlide>) => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
@@ -475,7 +483,15 @@ function SlideEditor({ projectId, slide, label, canDelete, canMoveUp, canMoveDow
           </div>
         )}
         {slide.kind !== "cta" && (
-          <ImageControl projectId={projectId} slide={slide} blockedReason={tooLongForPhoto ? `Pour ajouter une photo, raccourcis le titre à ${IMAGE_SLIDE_LIMITS.title} et le texte à ${IMAGE_SLIDE_LIMITS.body} caractères : la photo prend un tiers de la slide.` : null} onChange={(image) => onChange(image === null && slide.image?.source ? { image, rejectedImages: [...(slide.rejectedImages ?? []), slide.image.source].slice(-40) } : { image })} />
+          <ImageControl
+            projectId={projectId}
+            slide={slide}
+            aiImageCost={aiImageCost}
+            aiImagesConfigured={aiImagesConfigured}
+            credits={credits}
+            blockedReason={tooLongForPhoto ? `Pour ajouter une photo, raccourcis le titre à ${IMAGE_SLIDE_LIMITS.title} et le texte à ${IMAGE_SLIDE_LIMITS.body} caractères : la photo prend un tiers de la slide.` : null}
+            onChange={(image) => onChange(image === null && slide.image?.source ? { image, rejectedImages: [...(slide.rejectedImages ?? []), slide.image.source].slice(-40) } : { image })}
+          />
         )}
       </div>
     </div>
@@ -520,9 +536,12 @@ async function toJpeg(file: File): Promise<File> {
 }
 
 /** Photo of one slide: search both stock libraries, or bring your own. */
-function ImageControl({ projectId, slide, blockedReason, onChange }: {
+function ImageControl({ projectId, slide, aiImageCost, aiImagesConfigured, credits, blockedReason, onChange }: {
   projectId: string;
   slide: CarouselSlide;
+  aiImageCost: number;
+  aiImagesConfigured: boolean;
+  credits: number;
   blockedReason: string | null;
   onChange: (image: CarouselSlide["image"]) => void;
 }) {
@@ -532,7 +551,20 @@ function ImageControl({ projectId, slide, blockedReason, onChange }: {
   const [searching, setSearching] = useState(false);
   const [importing, setImporting] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [generatingAi, setGeneratingAi] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  async function generateAi() {
+    setGeneratingAi(true);
+    try {
+      const res = await generateSlideImageAction(projectId, slide.imageQuery || slide.title);
+      if (!res.ok) return toast.error(res.error);
+      onChange({ url: res.data.url });
+      setOpen(false);
+    } finally {
+      setGeneratingAi(false);
+    }
+  }
 
   async function search(q = query) {
     if (!q.trim()) return;
@@ -605,6 +637,12 @@ function ImageControl({ projectId, slide, blockedReason, onChange }: {
             <Button type="submit" size="icon-sm" variant="secondary" aria-label="Rechercher" loading={searching}><Search /></Button>
           </form>
           <p className="text-[10px] text-muted-foreground">Pexels et Pixabay — les mots-clés en anglais donnent plus de résultats.</p>
+          {aiImagesConfigured && (
+            <Button size="sm" variant="secondary" className="w-full text-[11px]" loading={generatingAi} disabled={credits < aiImageCost} onClick={generateAi}>
+              <Wand2 /> Générer avec l'IA {aiImageCost > 0 && <><Coins className="h-3 w-3" /> {aiImageCost}</>}
+            </Button>
+          )}
+          {aiImagesConfigured && credits < aiImageCost && <p className="text-[10px] text-amber-300">Crédits insuffisants pour générer une image IA.</p>}
           {hits && hits.length === 0 && !searching && <p className="py-3 text-center text-[11px] text-muted-foreground">Aucune photo trouvée. Essaie des mots plus simples et concrets.</p>}
           {hits && hits.length > 0 && (
             <div className="grid grid-cols-3 gap-1.5">

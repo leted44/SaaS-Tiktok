@@ -1,6 +1,9 @@
 import { nanoid } from "nanoid";
 import { env } from "@/lib/env";
 import { absoluteUrl, putObject, storageKey } from "@/lib/storage";
+import { generateSlideImage } from "@/lib/ai/image-generator";
+import type { CarouselFormat } from "@/lib/carousel/schema";
+import { FORMAT_SIZE } from "@/lib/carousel/schema";
 
 /**
  * Photos on carousel slides.
@@ -93,5 +96,20 @@ export async function copyStockImage(userId: string, sourceUrl: string): Promise
   if (!type) throw new CarouselImageError("Format d'image non pris en charge (JPEG ou PNG uniquement).");
 
   const stored = await putObject(storageKey(userId, "asset", `carousel-${nanoid(10)}.${type === "image/png" ? "png" : "jpg"}`), buf, type);
+  return stored.url;
+}
+
+/**
+ * Generate a photo for a slide with Gemini's image model and store it, same
+ * shape as {@link copyStockImage} so the rest of the carousel pipeline (the
+ * renderer, the editor) never needs to know which source produced an image.
+ */
+export async function generateAndStoreSlideImage(userId: string, subject: string, format: CarouselFormat): Promise<string> {
+  const { data, mimeType } = await generateSlideImage(subject, FORMAT_SIZE[format].label as "1:1" | "4:5" | "9:16");
+  if (data.length > MAX_BYTES) throw new CarouselImageError("L'image générée est trop lourde.");
+  const type = sniff(data);
+  if (!type) throw new CarouselImageError(`Format d'image inattendu renvoyé par l'IA (${mimeType}).`);
+
+  const stored = await putObject(storageKey(userId, "asset", `carousel-ai-${nanoid(10)}.${type === "image/png" ? "png" : "jpg"}`), data, type);
   return stored.url;
 }

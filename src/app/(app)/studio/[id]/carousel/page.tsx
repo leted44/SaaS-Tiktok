@@ -48,9 +48,11 @@ export default async function CarouselPage({ params }: { params: Promise<{ id: s
       }
       cost={admin ? 0 : CREDIT_COSTS.CAROUSEL}
       socialCopyCost={admin ? 0 : CREDIT_COSTS.SOCIAL_COPY}
+      aiImageCost={admin ? 0 : CREDIT_COSTS.AI_IMAGE}
       credits={user.credits}
       aiConfigured={integrations.ai()}
       stockConfigured={integrations.stock()}
+      aiImagesConfigured={integrations.aiImages()}
     />
   );
 }

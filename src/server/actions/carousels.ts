@@ -8,7 +8,7 @@ import { generateCarousel } from "@/lib/ai/carousel-generator";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
 import { carouselSlidesSchema, carouselStateSchema, stripEmoji, limitsFor, type CarouselState } from "@/lib/carousel/schema";
-import { copyStockImage, isOwnStorageUrl } from "@/lib/carousel/images";
+import { copyStockImage, generateAndStoreSlideImage, isOwnStorageUrl } from "@/lib/carousel/images";
 import { withAutoPhotos } from "@/lib/carousel/auto-photos";
 import { integrations } from "@/lib/env";
 import { guard, type ActionResult } from "@/server/action-result";
@@ -106,6 +106,30 @@ export async function importCarouselImageAction(projectId: string, sourceUrl: st
     const user = await requireDbUser();
     await prisma.carousel.findFirstOrThrow({ where: { projectId, userId: user.id }, select: { id: true } });
     return { url: await copyStockImage(user.id, sourceUrl), source: sourceUrl };
+  });
+}
+
+/**
+ * Generate a photo for one slide with AI, instead of searching stock — the
+ * exact scene the slide needs rather than the closest match a stock library
+ * happens to have. `subject` is the slide's own imageQuery (or its title, if
+ * that's empty): the same few English words already written for stock search.
+ */
+export async function generateSlideImageAction(projectId: string, subject: string): Promise<ActionResult<{ url: string; creditsLeft: number }>> {
+  return guard(async () => {
+    const user = await requireDbUser();
+    if (!integrations.aiImages()) throw new Error("La génération d'images IA n'est pas configurée.");
+    const row = await prisma.carousel.findFirstOrThrow({ where: { projectId, userId: user.id }, select: { format: true } });
+
+    const cost = isAdmin(user.role) ? 0 : CREDIT_COSTS.AI_IMAGE;
+    const creditsLeft = cost > 0 ? await chargeCredits(user.id, cost, "SCRIPT_GENERATION", "Image générée par IA") : user.credits;
+    try {
+      const url = await generateAndStoreSlideImage(user.id, subject.trim() || "an abstract, softly lit background texture", row.format as CarouselState["format"]);
+      return { url, creditsLeft };
+    } catch (err) {
+      if (cost > 0) await refundCredits(user.id, cost, "Remboursement — la génération d'image a échoué");
+      throw err;
+    }
   });
 }
 
