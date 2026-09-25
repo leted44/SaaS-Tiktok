@@ -23,7 +23,7 @@ export const legal = {
   /** Adresse du siège — obligatoire dans les mentions légales. */
   address: "",
   /** Adresse e-mail de contact, publique. Utilisée aussi pour les demandes RGPD. */
-  contactEmail: "",
+  contactEmail: "vidisprint@gmail.com",
   /** Numéro de TVA intracommunautaire, si assujetti. Facultatif en franchise de TVA. */
   vatNumber: "",
   // ──────────────────────────────────────────────────────────────────────────
