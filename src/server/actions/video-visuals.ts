@@ -9,7 +9,8 @@ import { existingSceneReference, generateSceneVisuals, videoAspect, type SceneTa
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
 import { DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from "@/lib/carousel/art-direction";
-import { visualLayersSchema, type VisualLayer } from "@/lib/validations";
+import { CAPTION_PRESET_FOR_VISUAL_STYLE, presetStyle } from "@/lib/captions/presets";
+import { captionStyleSchema, visualLayersSchema, type CaptionStyle, type VisualLayer } from "@/lib/validations";
 import { integrations } from "@/lib/env";
 import { guard, type ActionResult } from "@/server/action-result";
 
@@ -30,7 +31,7 @@ const asStyle = (value: unknown): VisualStyle | null => ((VISUAL_STYLES as reado
 export async function generateProjectVisualsAiAction(
   projectId: string,
   mode: "missing" | "all" = "missing",
-): Promise<ActionResult<{ layers: VisualLayer[]; visualStyle: string; generated: number; failed: number; creditsLeft: number }>> {
+): Promise<ActionResult<{ layers: VisualLayer[]; visualStyle: string; generated: number; failed: number; creditsLeft: number; captionStyle: CaptionStyle | null }>> {
   return guard(async () => {
     const user = await requireDbUser();
     if (!integrations.aiImages()) throw new Error("La génération d'images IA n'est pas configurée.");
@@ -41,6 +42,10 @@ export async function generateProjectVisualsAiAction(
     const voiceover = await prisma.voiceover.findFirst({ where: { projectId, scriptId: script.id, status: "READY" }, orderBy: { createdAt: "desc" } });
 
     const visualStyle = asStyle(project.visualStyle) ?? DEFAULT_VISUAL_STYLE;
+    // Only a project's first-ever style pick also switches its captions — matching
+    // the carousel's own template auto-pick at creation, never overriding a caption
+    // look chosen afterwards, deliberately, once AI visuals are already in use.
+    const isFirstStyle = project.visualStyle === null;
     const motif = project.visualMotif ?? "";
     const currentLayers = visualLayersSchema.parse(project.visualLayers ?? []);
 
@@ -53,7 +58,7 @@ export async function generateProjectVisualsAiAction(
       .filter((t) => t.description && (mode === "all" || !hasLayer.has(t.index)));
 
     if (!targets.length) {
-      return { layers: currentLayers, visualStyle, generated: 0, failed: 0, creditsLeft: user.credits };
+      return { layers: currentLayers, visualStyle, generated: 0, failed: 0, creditsLeft: user.credits, captionStyle: null };
     }
 
     const unit = isAdmin(user.role) ? 0 : CREDIT_COSTS.AI_IMAGE;
@@ -72,8 +77,11 @@ export async function generateProjectVisualsAiAction(
     const bySceneIndex = new Map(outcomes.filter((o) => o.layer).map((o) => [o.index, o.layer!]));
     const layers = [...currentLayers.filter((l) => l.sceneIndex === undefined || !bySceneIndex.has(l.sceneIndex)), ...bySceneIndex.values()];
 
-    await prisma.project.update({ where: { id: projectId }, data: { visualLayers: layers, visualStyle } });
+    const currentCaptionStyle = captionStyleSchema.safeParse(project.captionStyle).success ? captionStyleSchema.parse(project.captionStyle) : null;
+    const captionStyle = isFirstStyle ? presetStyle(CAPTION_PRESET_FOR_VISUAL_STYLE[visualStyle], currentCaptionStyle?.position) : undefined;
+
+    await prisma.project.update({ where: { id: projectId }, data: { visualLayers: layers, visualStyle, ...(captionStyle ? { captionStyle } : {}) } });
     revalidatePath(`/studio/${projectId}`);
-    return { layers, visualStyle, generated, failed: failures.length, creditsLeft };
+    return { layers, visualStyle, generated, failed: failures.length, creditsLeft, captionStyle: captionStyle ?? null };
   });
 }

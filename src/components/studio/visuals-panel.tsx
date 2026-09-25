@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { VisualLayer, VisualPoolItem, BackgroundStyle } from "@/lib/validations";
+import type { VisualLayer, VisualPoolItem, BackgroundStyle, CaptionStyle } from "@/lib/validations";
 import type { ShortVideoProps } from "@/lib/render/props";
 import { Progress } from "@/components/ui/progress";
 import { uploadAsset } from "@/lib/assets/upload-client";
@@ -43,6 +43,8 @@ interface Props {
   visualMotif: string;
   onVisualStyleChange: (style: string) => void;
   onMotifChange: (motif: string) => void;
+  /** Set only the first time a project picks a style — its captions adopt a matching look, once. */
+  onCaptionStyleChange: (style: CaptionStyle) => void;
   aiImagesConfigured: boolean;
   aiImageCost: number;
   credits: number;
@@ -67,6 +69,7 @@ export function VisualsPanel({
   visualMotif,
   onVisualStyleChange,
   onMotifChange,
+  onCaptionStyleChange,
   aiImagesConfigured,
   aiImageCost,
   credits,
@@ -288,12 +291,14 @@ export function VisualsPanel({
       if (!(await ensureSaved())) return;
       const res = await generateProjectVisualsAiAction(projectId, mode);
       if (!res.ok) return toast.error(res.error);
-      const { generated, failed, layers: newLayers, visualStyle: usedStyle } = res.data;
+      const { generated, failed, layers: newLayers, visualStyle: usedStyle, captionStyle: newCaptionStyle } = res.data;
       onLayersChange(newLayers);
       onVisualStyleChange(usedStyle);
+      if (newCaptionStyle) onCaptionStyleChange(newCaptionStyle);
       toast.success(
         `${generated} visuel${generated > 1 ? "s" : ""} créé${generated > 1 ? "s" : ""}` +
-          (failed ? ` · ${failed} échec${failed > 1 ? "s" : ""}, crédits remboursés` : ""),
+          (failed ? ` · ${failed} échec${failed > 1 ? "s" : ""}, crédits remboursés` : "") +
+          (newCaptionStyle ? " · sous-titres accordés au style" : ""),
       );
       router.refresh();
     } finally {

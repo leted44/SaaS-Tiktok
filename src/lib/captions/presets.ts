@@ -1,4 +1,5 @@
 import type { CaptionStyle, CaptionPresetId } from "@/lib/validations";
+import type { VisualStyle } from "@/lib/carousel/art-direction";
 
 export interface CaptionPreset {
   id: CaptionPresetId;
@@ -52,3 +53,17 @@ export function presetStyle(id: string | null | undefined, position?: string | n
 }
 
 export const CAPTION_FONTS = ["Inter", "Space Grotesk", "Playfair Display", "Montserrat", "Bebas Neue", "Poppins", "Oswald"];
+
+/**
+ * The caption look that reads as the same design decision as each AI art
+ * direction (lib/carousel/art-direction), so choosing a visual style also
+ * gives the text a matching voice instead of leaving it in the generic
+ * default while the scenes around it look deliberately directed.
+ */
+export const CAPTION_PRESET_FOR_VISUAL_STYLE: Record<VisualStyle, CaptionPresetId> = {
+  cinematic: "editorial", // warm serif, amber highlight — the same golden-hour elegance
+  studio: "minimal", // clean sans-serif, no stroke — the same bright, uncluttered magazine look
+  noir: "hormozi", // bold black stroke, gold highlight — the same high-contrast drama
+  illustration: "boxed", // bold graphic highlight — the same playful, native-app energy
+  pastel: "karaoke", // soft progressive reveal, no heavy stroke — the same airy lightness
+};

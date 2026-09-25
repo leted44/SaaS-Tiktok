@@ -67,12 +67,16 @@ export const ART_DIRECTIONS: Record<VisualStyle, ArtDirection> = {
  * above the text. An image composed for the wrong one gets its subject cropped
  * or buried under the headline.
  */
-export type VisualLayout = "bleed" | "band";
+export type VisualLayout = "bleed" | "band" | "frame";
 
 const COMPOSITION: Record<VisualLayout, string> = {
   bleed:
     "Vertical composition: place the main subject in the upper 60% of the frame, and keep the bottom third simple, darker and uncluttered — a headline will be laid over it.",
   band: "Wide horizontal composition: centre the subject with generous margins, nothing important near the edges.",
+  // A video scene: captions can land anywhere over it, not a fixed text band,
+  // so nothing is reserved — the photo is the whole frame, not a subject
+  // floating over empty space the way "bleed" deliberately leaves for a slide.
+  frame: "Fill the entire frame edge to edge with the subject and scene — no empty, plain or simplified area anywhere, nothing reserved for text.",
 };
 
 /**

@@ -254,6 +254,7 @@ export function Studio(props: StudioProps) {
                     visualMotif={state.visualMotif}
                     onVisualStyleChange={(v) => patch("visualStyle", v)}
                     onMotifChange={(v) => patch("visualMotif", v)}
+                    onCaptionStyleChange={(s) => patch("captionStyle", s)}
                     aiImagesConfigured={integrations.aiImages}
                     aiImageCost={planLimits.costs.aiImage}
                     credits={user.credits}

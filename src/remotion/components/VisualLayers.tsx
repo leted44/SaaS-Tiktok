@@ -23,7 +23,24 @@ function beatPulse(absoluteMs: number, grid: BeatGridSpec): number {
   return (1 - t) * (1 - t);
 }
 
-const KenBurns: React.FC<{ layer: VisualLayer; durationInFrames: number; startFrame: number; beatGrid: BeatGridSpec | null; children: React.ReactNode }> = ({ layer, durationInFrames, startFrame, beatGrid, children }) => {
+/**
+ * How much a layer's window is stretched past its nominal scene boundary on
+ * each side, so its fade-in overlaps the previous layer's hold and its own
+ * fade-out is covered by the next layer's fade-in — a real crossfade instead
+ * of a hard cut. Long enough to hide the seam, short enough to still read as
+ * a cut rather than a slow dissolve.
+ */
+const CROSSFADE_FRAMES = 8;
+
+const KenBurns: React.FC<{ layer: VisualLayer; durationInFrames: number; startFrame: number; beatGrid: BeatGridSpec | null; fadeInFrames: number; fadeOutFrames: number; children: React.ReactNode }> = ({
+  layer,
+  durationInFrames,
+  startFrame,
+  beatGrid,
+  fadeInFrames,
+  fadeOutFrames,
+  children,
+}) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const t = interpolate(frame, [0, Math.max(1, durationInFrames)], [0, 1], { extrapolateRight: "clamp" });
@@ -32,8 +49,8 @@ const KenBurns: React.FC<{ layer: VisualLayer; durationInFrames: number; startFr
   const pulse = beatGrid ? beatPulse(((startFrame + frame) / fps) * 1000, beatGrid) : 0;
   const scale = drift + pulse * BEAT_PUNCH;
   const x = layer.kenBurns === "pan-left" ? -t * 4 : layer.kenBurns === "pan-right" ? t * 4 : 0;
-  const fadeIn = interpolate(frame, [0, 10], [0, 1], { extrapolateRight: "clamp" });
-  const fadeOut = interpolate(frame, [durationInFrames - 10, durationInFrames], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const fadeIn = interpolate(frame, [0, fadeInFrames], [0, 1], { extrapolateRight: "clamp" });
+  const fadeOut = interpolate(frame, [durationInFrames - fadeOutFrames, durationInFrames], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
     <AbsoluteFill style={{ opacity: Math.min(fadeIn, fadeOut) * layer.opacity, transform: `scale(${scale}) translateX(${x}%)` }}>
       {children}
@@ -42,15 +59,29 @@ const KenBurns: React.FC<{ layer: VisualLayer; durationInFrames: number; startFr
 };
 
 export const VisualLayers: React.FC<{ layers: VisualLayer[]; beatGrid?: BeatGridSpec | null }> = ({ layers, beatGrid = null }) => {
-  const { fps } = useVideoConfig();
+  const { fps, durationInFrames: totalFrames } = useVideoConfig();
+  // Paint order follows array order in Remotion, and a crossfade needs the
+  // incoming layer on top of the outgoing one during their shared window —
+  // sort once here so a partial regeneration that appended new layers out of
+  // scene order can never paint a later scene underneath an earlier one.
+  const sorted = [...layers].sort((a, b) => a.startMs - b.startMs);
   return (
     <>
-      {layers.map((layer) => {
-        const from = Math.round((layer.startMs / 1000) * fps);
-        const duration = Math.max(1, Math.round(((layer.endMs - layer.startMs) / 1000) * fps));
+      {sorted.map((layer, i) => {
+        const nominalFrom = Math.round((layer.startMs / 1000) * fps);
+        const nominalTo = Math.max(nominalFrom + 1, Math.round((layer.endMs / 1000) * fps));
+        // The first/last layer has no neighbour to blend with on that side —
+        // keep its own entrance/exit fade instead of stretching past the video.
+        const leftOverlap = i === 0 ? 0 : Math.min(CROSSFADE_FRAMES, nominalFrom);
+        const rightTarget = i === sorted.length - 1 ? 0 : CROSSFADE_FRAMES;
+        const from = nominalFrom - leftOverlap;
+        const to = Math.min(totalFrames, nominalTo + rightTarget);
+        const duration = Math.max(1, to - from);
+        const fadeInFrames = i === 0 ? 10 : Math.max(1, leftOverlap);
+        const fadeOutFrames = i === sorted.length - 1 ? 10 : Math.max(1, to - nominalTo);
         return (
           <Sequence key={layer.id} from={from} durationInFrames={duration} layout="none">
-            <KenBurns layer={layer} durationInFrames={duration} startFrame={from} beatGrid={beatGrid}>
+            <KenBurns layer={layer} durationInFrames={duration} startFrame={from} beatGrid={beatGrid} fadeInFrames={fadeInFrames} fadeOutFrames={fadeOutFrames}>
               {layer.type === "image" && layer.src && (
                 <Img
                   src={layer.src}

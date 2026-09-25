@@ -51,9 +51,10 @@ async function one(
   timeoutMs: number,
 ): Promise<{ outcome: SceneVisualOutcome; bytes?: GeneratedImage }> {
   try {
-    // "bleed": a video visual is always the full frame behind the captions, never a
-    // banded thumbnail — the same composition rule the carousel's cover uses.
-    const prompt = composeImagePrompt({ scene: target.description, motif, style, layout: "bleed" });
+    // "frame": captions can land anywhere over a video scene, not a fixed text
+    // band, so nothing is reserved the way the carousel's "bleed" leaves room
+    // for a headline — the photo fills the whole frame.
+    const prompt = composeImagePrompt({ scene: target.description, motif, style, layout: "frame" });
     const bytes = await generateImage({ prompt, aspectRatio, reference, timeoutMs });
     const url = await storeGeneratedImage(userId, bytes, "video");
     const layer: VisualLayer = { id: nanoid(8), type: "image", src: url, startMs: target.startMs, endMs: target.endMs, fit: "cover", kenBurns: "in", opacity: 1, sceneIndex: target.index, source: aiSource(style) };
