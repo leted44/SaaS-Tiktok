@@ -15,7 +15,7 @@ export const legal = {
 
   // ─── À COMPLÉTER AVANT LA MISE EN LIGNE ───────────────────────────────────
   /** Nom et prénom de l'éditeur (ou raison sociale une fois la société créée). */
-  publisher: "",
+  publisher: "Teddy Benjamin",
   /** "Entrepreneur individuel", "SASU", … */
   legalForm: "Entrepreneur individuel",
   /** SIRET, une fois le statut auto-entrepreneur créé. */
