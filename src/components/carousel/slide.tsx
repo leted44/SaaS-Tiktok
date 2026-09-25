@@ -145,6 +145,17 @@ export function headlineWords(title: string, emphasis: string): { text: string; 
 export function CarouselSlideView({ slide, index, total, step, format, tokens, handle, imageUrl, closingImageUrl }: Props) {
   const { width, height } = FORMAT_SIZE[format];
   const padding = format === "square" ? 80 : 92;
+  /**
+   * TikTok draws its own UI over a posted photo — caption, username, the
+   * like/comment/share column, the swipe-position dots — inside roughly the
+   * bottom quarter of a 9:16 image. A 4:5 or 1:1 slide sits inside
+   * Instagram's own bounded card, chrome-free, so only the story format
+   * (TikTok's own aspect ratio) needs the extra clearance built into the
+   * layout instead of left to chance: everything below this line is safe to
+   * be true image with nothing readable on it, exactly the way a full-bleed
+   * photo already reads there.
+   */
+  const bottomSafe = format === "story" ? 320 : 0;
   const compact = format === "square";
   const immersive = tokens.id === "immersive";
   // Full-bleed: the cover always, and in Immersive every content slide too.
@@ -266,7 +277,7 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
   const segment = Math.max(18, Math.min(64, Math.floor((width - padding * 2 - 260) / total) - 8));
 
   return (
-    <div style={col({ position: "relative", width, height, padding, background: t.background, color: t.text, fontFamily: "Inter", fontWeight: 400 })}>
+    <div style={col({ position: "relative", width, height, paddingTop: padding, paddingLeft: padding, paddingRight: padding, paddingBottom: padding + bottomSafe, background: t.background, color: t.text, fontFamily: "Inter", fontWeight: 400 })}>
       {bleedPhoto || ctaBackdrop ? (
         <img
           src={(imageUrl ?? closingImageUrl)!}
