@@ -2,23 +2,33 @@ import { nanoid } from "nanoid";
 import type { Project, Script, Voiceover, Workspace } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildShortVideoProps } from "@/lib/render/build-props";
-import { scenesSchema, parseJson, type VisualLayer, type VisualPoolItem } from "@/lib/validations";
+import { scenesSchema, parseJson, type Scene, type VisualLayer, type VisualPoolItem } from "@/lib/validations";
 import { stockCandidates, type StockResult } from "@/lib/stock/search";
 import { integrations } from "@/lib/env";
 
 /**
- * The search words for each scene of the composition. The hook and the call to
- * action have no b-roll suggestion of their own, so they borrow the nearest
- * scene's — the same mapping the studio uses.
+ * One field of the script's scenes, mapped onto the composition's scenes. The
+ * hook and the call to action have no b-roll suggestion of their own, so
+ * they borrow the nearest scene's — the same mapping the studio uses.
  */
-export function sceneQueries(compositionSceneCount: number, script: Pick<Script, "scenes">): string[] {
+function sceneField(compositionSceneCount: number, script: Pick<Script, "scenes">, pick: (s: Scene | undefined) => string): string[] {
   const scriptScenes = parseJson(scenesSchema, script.scenes, []);
   const last = compositionSceneCount - 1;
   return Array.from({ length: compositionSceneCount }, (_, i) => {
-    if (i === 0) return scriptScenes[0]?.brollQuery ?? "";
-    if (i === last) return scriptScenes[scriptScenes.length - 1]?.brollQuery ?? "";
-    return scriptScenes[i - 1]?.brollQuery ?? "";
+    if (i === 0) return pick(scriptScenes[0]);
+    if (i === last) return pick(scriptScenes[scriptScenes.length - 1]);
+    return pick(scriptScenes[i - 1]);
   });
+}
+
+/** The stock search words for each scene of the composition. */
+export function sceneQueries(compositionSceneCount: number, script: Pick<Script, "scenes">): string[] {
+  return sceneField(compositionSceneCount, script, (s) => s?.brollQuery ?? "");
+}
+
+/** The AI-written scene description for each scene of the composition — the substance of an AI visual's prompt. */
+export function sceneVisualDescriptions(compositionSceneCount: number, script: Pick<Script, "scenes">): string[] {
+  return sceneField(compositionSceneCount, script, (s) => s?.visualDescription ?? "");
 }
 
 /** One stock pick per scene, never the same clip twice, from candidates listed per scene. */

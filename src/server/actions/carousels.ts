@@ -9,7 +9,7 @@ import { generateImage } from "@/lib/ai/image-generator";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
 import { carouselSlidesSchema, carouselStateFromRow, carouselStateSchema, stripEmoji, limitsFor, needsAiVisual, tooLongForImage, type CarouselState } from "@/lib/carousel/schema";
-import { copyStockImage, isOwnStorageUrl, storeGeneratedImage } from "@/lib/carousel/images";
+import { copyStockImage, isOwnStorageUrl, storeGeneratedImage } from "@/lib/ai/images";
 import { withAutoPhotos } from "@/lib/carousel/auto-photos";
 import { aiSource, DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from "@/lib/carousel/art-direction";
 import { coverReference, generateSeries, promptFor } from "@/lib/carousel/ai-visuals";

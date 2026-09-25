@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { CarouselSlideView } from "@/components/carousel/slide";
 import { resolveTemplate } from "@/lib/carousel/templates";
 import { loadCarouselFonts } from "@/lib/carousel/fonts";
-import { renderableImageUrl } from "@/lib/carousel/images";
+import { renderableImageUrl } from "@/lib/ai/images";
 import { carouselStateFromRow, slideFileSlug, FORMAT_SIZE } from "@/lib/carousel/schema";
 
 // Reads the bundled font files from disk.

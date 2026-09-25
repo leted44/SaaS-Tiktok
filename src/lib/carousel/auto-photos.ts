@@ -1,6 +1,6 @@
 import { fit } from "@/lib/ai/carousel-generator";
 import { IMAGE_SLIDE_LIMITS, type CarouselSlide } from "@/lib/carousel/schema";
-import { copyStockImage } from "@/lib/carousel/images";
+import { copyStockImage } from "@/lib/ai/images";
 import { stockCandidates } from "@/lib/stock/search";
 import { integrations } from "@/lib/env";
 

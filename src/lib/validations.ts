@@ -42,6 +42,8 @@ export const visualLayerSchema = z.object({
   kenBurns: z.enum(["none", "in", "out", "pan-left", "pan-right"]).default("in"),
   opacity: z.number().min(0).max(1).default(1),
   sceneIndex: z.number().int().min(0).optional(),
+  /** "ai:<style>" for a layer this app generated, so a style change knows which layers to redo. Absent for stock and uploads. */
+  source: z.string().max(60).optional(),
 });
 export type VisualLayer = z.infer<typeof visualLayerSchema>;
 export const visualLayersSchema = z.array(visualLayerSchema);
@@ -220,6 +222,10 @@ export const projectEditorStateSchema = z.object({
   musicBeatOffsetMs: z.number().min(0).max(60_000).nullable().default(null),
   beatSync: z.boolean().default(true),
   voiceId: z.string().nullable(),
+  /** Art direction of the AI scene visuals (lib/carousel/art-direction), null until they are used. */
+  visualStyle: z.string().nullable().default(null),
+  /** The recurring setting that ties the scenes' AI visuals together as one shoot. */
+  visualMotif: z.string().max(300).default(""),
 });
 export type ProjectEditorState = z.infer<typeof projectEditorStateSchema>;
 

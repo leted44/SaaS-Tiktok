@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Upload, Image as ImageIcon, Film, Trash2, Layers, Palette, Loader2, Sparkles, Search, Ban, LibraryBig, X, ChevronDown } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Upload, Image as ImageIcon, Film, Trash2, Layers, Palette, Loader2, Sparkles, Search, Ban, LibraryBig, X, ChevronDown, Wand2, RefreshCw, Coins } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { VisualLayer, VisualPoolItem, BackgroundStyle } from "@/lib/validations";
 import type { ShortVideoProps } from "@/lib/render/props";
@@ -15,11 +18,15 @@ import { Section } from "@/components/ui/section";
 import { cn } from "@/lib/utils";
 import { nanoid } from "nanoid";
 import { BackgroundControls, backgroundLabel } from "@/components/studio/background-controls";
+import { StylePicker } from "@/components/shared/style-picker";
+import { DEFAULT_VISUAL_STYLE, type VisualStyle } from "@/lib/carousel/art-direction";
+import { generateProjectVisualsAiAction } from "@/server/actions/video-visuals";
 
 interface Asset { id: string; type: string; url: string; name: string; mimeType: string }
 interface StockResult { id: string; type: "image" | "video"; url: string; thumbnailUrl: string; author: string; durationSec: number | null }
 
 interface Props {
+  projectId: string;
   layers: VisualLayer[];
   /** Visuals this project has chosen, whether or not they sit on a scene. */
   pool: VisualPoolItem[];
@@ -32,9 +39,42 @@ interface Props {
   onLayersChange: (l: VisualLayer[]) => void;
   onPoolChange: (p: VisualPoolItem[]) => void;
   onBackgroundChange: (b: BackgroundStyle) => void;
+  visualStyle: string | null;
+  visualMotif: string;
+  onVisualStyleChange: (style: string) => void;
+  onMotifChange: (motif: string) => void;
+  aiImagesConfigured: boolean;
+  aiImageCost: number;
+  credits: number;
+  hasScript: boolean;
+  /** Saves editor state immediately, bypassing the autosave debounce — the server reads the row back right after. */
+  ensureSaved: () => Promise<boolean>;
 }
 
-export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, stockConfigured, selectedScene, onLayersChange, onPoolChange, onBackgroundChange }: Props) {
+export function VisualsPanel({
+  projectId,
+  layers,
+  pool,
+  background,
+  scenes,
+  sceneQueries,
+  stockConfigured,
+  selectedScene,
+  onLayersChange,
+  onPoolChange,
+  onBackgroundChange,
+  visualStyle,
+  visualMotif,
+  onVisualStyleChange,
+  onMotifChange,
+  aiImagesConfigured,
+  aiImageCost,
+  credits,
+  hasScript,
+  ensureSaved,
+}: Props) {
+  const router = useRouter();
+  const [generatingAi, setGeneratingAi] = useState(false);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [uploading, setUploading] = useState<{ name: string; done: number; total: number; fraction: number; phase: "converting" | "uploading" } | null>(null);
@@ -230,6 +270,37 @@ export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, s
     }
   }
 
+  const style = (visualStyle as VisualStyle) || DEFAULT_VISUAL_STYLE;
+  const emptyScenes = scenes.map((_, i) => i).filter((i) => !layers.some((l) => l.sceneIndex === i));
+
+  /**
+   * AI visuals for the scenes still missing one, or every scene when `mode`
+   * is "all" — the video's own version of the carousel's series generation.
+   * The server reads this project's current style, motif and scenes, so
+   * unsaved edits go first; only the returned layers are taken back, the
+   * same way the carousel editor's own generation does, so anything typed
+   * while the request was in flight stays.
+   */
+  async function generateAiVisuals(mode: "missing" | "all") {
+    if (!scenes.length) return toast.error("Générez d'abord un script pour que les scènes existent.");
+    setGeneratingAi(true);
+    try {
+      if (!(await ensureSaved())) return;
+      const res = await generateProjectVisualsAiAction(projectId, mode);
+      if (!res.ok) return toast.error(res.error);
+      const { generated, failed, layers: newLayers, visualStyle: usedStyle } = res.data;
+      onLayersChange(newLayers);
+      onVisualStyleChange(usedStyle);
+      toast.success(
+        `${generated} visuel${generated > 1 ? "s" : ""} créé${generated > 1 ? "s" : ""}` +
+          (failed ? ` · ${failed} échec${failed > 1 ? "s" : ""}, crédits remboursés` : ""),
+      );
+      router.refresh();
+    } finally {
+      setGeneratingAi(false);
+    }
+  }
+
   /** Fill every scene that has no visual yet, keeping anything already placed. */
   async function autoFill() {
     const empty = scenes.map((_, i) => i).filter((i) => !layers.some((l) => l.sceneIndex === i));
@@ -350,6 +421,49 @@ export function VisualsPanel({ layers, pool, background, scenes, sceneQueries, s
           </p>
         )}
       </div>
+
+      {aiImagesConfigured && (
+        <Section title="Visuels IA" icon={Wand2} summary={style ? "Style choisi" : undefined} defaultOpen={emptyScenes.length > 0 && layers.length === 0}>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Direction artistique</Label>
+              <StylePicker value={style} onChange={onVisualStyleChange} />
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between"><Label>Fil conducteur</Label><span className="text-[11px] text-muted-foreground">{visualMotif.length}/300</span></div>
+              <Textarea
+                value={visualMotif}
+                maxLength={300}
+                rows={2}
+                placeholder="Ex. : filmé dans le même salon éclairé à la bougie, d'un plan à l'autre"
+                onChange={(e) => onMotifChange(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground">Le décor commun à tous les plans. C'est lui qui en fait une seule vidéo tournée d'un coup plutôt que des extraits sans rapport.</p>
+            </div>
+
+            {emptyScenes.length > 0 ? (
+              <Button variant="gradient" className="w-full" onClick={() => generateAiVisuals("missing")} loading={generatingAi} disabled={!hasScript || autoFilling || credits < emptyScenes.length * aiImageCost}>
+                <Wand2 /> Générer {emptyScenes.length} visuel{emptyScenes.length > 1 ? "s" : ""} IA {aiImageCost > 0 && <><Coins className="h-3.5 w-3.5" /> {emptyScenes.length * aiImageCost}</>}
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                className="w-full"
+                onClick={() => window.confirm(`Recréer les ${scenes.length} visuels de la vidéo ? ${scenes.length * aiImageCost} crédits.`) && generateAiVisuals("all")}
+                loading={generatingAi}
+                disabled={!hasScript || autoFilling || !scenes.length || credits < scenes.length * aiImageCost}
+              >
+                <RefreshCw /> Tout régénérer {aiImageCost > 0 && <><Coins className="h-3.5 w-3.5" /> {scenes.length * aiImageCost}</>}
+              </Button>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              {emptyScenes.length > 0
+                ? "Les scènes déjà remplies, à la main ou par la banque d'images, ne sont jamais touchées. Le premier plan est créé d'abord et sert de référence de lumière et de couleurs aux suivants."
+                : "Tous les plans ont un visuel. Pour en changer un seul : retirez-le puis générez à nouveau."}
+            </p>
+          </div>
+        </Section>
+      )}
 
       <Section title="Importer un fichier" icon={Upload} summary={assets.length ? `${assets.length} importé${assets.length > 1 ? "s" : ""}` : "Aucun"}>
         <div

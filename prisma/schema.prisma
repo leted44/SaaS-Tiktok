@@ -291,6 +291,11 @@ model Project {
   // reachable after it is taken off a scene — the URL exists nowhere else.
   visualPool      Json?
   backgroundStyle Json?
+  // Art direction of the AI visuals (lib/carousel/art-direction — shared with
+  // the carousel) and the recurring setting that makes a video's scenes read
+  // as one shot rather than stock clips from unrelated sources.
+  visualStyle String?
+  visualMotif String?
 
   thumbnailUrl   String?
   activeScriptId String?

@@ -1,6 +1,6 @@
 import { generateImage, AiImageError, type GeneratedImage } from "@/lib/ai/image-generator";
 import { aiSource, composeImagePrompt, type VisualStyle } from "@/lib/carousel/art-direction";
-import { readOwnImage, storeGeneratedImage } from "@/lib/carousel/images";
+import { readOwnImage, storeGeneratedImage } from "@/lib/ai/images";
 import { imageAspect, imageLayout, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
 
 /**

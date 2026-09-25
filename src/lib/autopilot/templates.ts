@@ -6,7 +6,7 @@ import { VOICES, VOICE_BY_ID, sortVoices } from "@/lib/tts/voices";
 import { CUSTOM_VOICE_ID } from "@/lib/tts/resolve-voice";
 import { getTrack } from "@/lib/music/library";
 import { effectivePlanDef, clampResolution, type PlanDefinition } from "@/lib/plans";
-import { isOwnStorageUrl } from "@/lib/carousel/images";
+import { isOwnStorageUrl } from "@/lib/ai/images";
 import { templateInputSchema, MIN_DURATION_SEC, MAX_DURATION_SEC, type TemplateInput } from "@/lib/autopilot/template-shared";
 
 /** Error whose message is written for the user and safe to show as is. */

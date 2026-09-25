@@ -50,28 +50,35 @@ export function Studio(props: StudioProps) {
     musicBeatOffsetMs: project.musicBeatOffsetMs,
     beatSync: project.beatSync,
     voiceId: project.voiceId,
+    visualStyle: project.visualStyle,
+    visualMotif: project.visualMotif,
   });
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const lastSaved = useRef(JSON.stringify(state));
   const dirty = JSON.stringify(state) !== lastSaved.current;
 
+  /** Save immediately, bypassing the debounce — for an action the server reads the row back for right after, such as generating AI visuals from the current style and motif. */
+  const saveNow = useCallback(async (): Promise<boolean> => {
+    const snapshot = JSON.stringify(state);
+    if (snapshot === lastSaved.current) return true;
+    const res = await saveEditorState(project.id, state);
+    if (!res.ok) {
+      setSaveStatus("error");
+      toast.error(res.error);
+      return false;
+    }
+    lastSaved.current = snapshot;
+    setSaveStatus("saved");
+    return true;
+  }, [state, project.id]);
+
   // Debounced autosave of editor state.
   useEffect(() => {
     if (!dirty) return;
     setSaveStatus("saving");
-    const t = setTimeout(async () => {
-      const snapshot = JSON.stringify(state);
-      const res = await saveEditorState(project.id, state);
-      if (res.ok) {
-        lastSaved.current = snapshot;
-        setSaveStatus("saved");
-      } else {
-        setSaveStatus("error");
-        toast.error(res.error);
-      }
-    }, 900);
+    const t = setTimeout(() => void saveNow(), 900);
     return () => clearTimeout(t);
-  }, [state, dirty, project.id]);
+  }, [dirty, saveNow]);
 
   const activeScript = scripts.find((s) => s.id === activeScriptId) ?? scripts[0] ?? null;
 
@@ -231,7 +238,28 @@ export function Studio(props: StudioProps) {
                   <CaptionsPanel style={state.captionStyle} onChange={(s) => patch("captionStyle", s)} />
                 </TabsContent>
                 <TabsContent value="visuals" className="mt-0">
-                  <VisualsPanel layers={state.visualLayers} background={state.backgroundStyle} scenes={liveProps.scenes} sceneQueries={sceneQueries} stockConfigured={integrations.stock} selectedScene={selectedScene} pool={state.visualPool} onPoolChange={(p) => patch("visualPool", p)} onLayersChange={(l) => patch("visualLayers", l)} onBackgroundChange={(b) => patch("backgroundStyle", b)} />
+                  <VisualsPanel
+                    projectId={project.id}
+                    layers={state.visualLayers}
+                    background={state.backgroundStyle}
+                    scenes={liveProps.scenes}
+                    sceneQueries={sceneQueries}
+                    stockConfigured={integrations.stock}
+                    selectedScene={selectedScene}
+                    pool={state.visualPool}
+                    onPoolChange={(p) => patch("visualPool", p)}
+                    onLayersChange={(l) => patch("visualLayers", l)}
+                    onBackgroundChange={(b) => patch("backgroundStyle", b)}
+                    visualStyle={state.visualStyle}
+                    visualMotif={state.visualMotif}
+                    onVisualStyleChange={(v) => patch("visualStyle", v)}
+                    onMotifChange={(v) => patch("visualMotif", v)}
+                    aiImagesConfigured={integrations.aiImages}
+                    aiImageCost={planLimits.costs.aiImage}
+                    credits={user.credits}
+                    hasScript={Boolean(activeScript)}
+                    ensureSaved={saveNow}
+                  />
                 </TabsContent>
                 <TabsContent value="audio" className="mt-0">
                   <AudioPanel

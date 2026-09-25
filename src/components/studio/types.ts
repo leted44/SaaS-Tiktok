@@ -23,6 +23,8 @@ export interface StudioProject {
   visualLayers: VisualLayer[];
   visualPool: VisualPoolItem[];
   backgroundStyle: BackgroundStyle;
+  visualStyle: string | null;
+  visualMotif: string;
   postedAt: string | null;
   postedPlatforms: string[];
 }
@@ -90,11 +92,11 @@ export interface StudioProps {
   renders: StudioRender[];
   previewProps: ShortVideoProps | null;
   user: { credits: number; plan: string };
-  planLimits: { watermark: boolean; maxResolution: "720p" | "1080p" | "4K"; premiumVoices: boolean; voiceCloning: boolean; autopilot: boolean; costs: { "720p": number; "1080p": number; "4K": number; voicePer30s: number; voiceClone: number; socialCopy: number; script: number } };
+  planLimits: { watermark: boolean; maxResolution: "720p" | "1080p" | "4K"; premiumVoices: boolean; voiceCloning: boolean; autopilot: boolean; costs: { "720p": number; "1080p": number; "4K": number; voicePer30s: number; voiceClone: number; socialCopy: number; script: number; aiImage: number } };
   voices: { id: string; name: string; style: string; gender: string; language: string; premium: boolean }[];
   customVoice: { name: string; sampleUrl: string } | null;
   tracks: { id: string; name: string; mood: string; url: string; premium: boolean }[];
-  integrations: { ai: boolean; tts: boolean; stock: boolean };
+  integrations: { ai: boolean; tts: boolean; stock: boolean; aiImages: boolean };
 }
 
 export interface EditorState {
@@ -111,4 +113,6 @@ export interface EditorState {
   musicBeatOffsetMs: number | null;
   beatSync: boolean;
   voiceId: string | null;
+  visualStyle: string | null;
+  visualMotif: string;
 }

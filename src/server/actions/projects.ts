@@ -120,6 +120,8 @@ export async function saveEditorState(projectId: string, input: unknown): Promis
         musicBeatOffsetMs: hasMusic ? state.musicBeatOffsetMs : null,
         beatSync: state.beatSync,
         voiceId: state.voiceId,
+        visualStyle: state.visualStyle,
+        visualMotif: state.visualMotif,
       },
     });
     return undefined;

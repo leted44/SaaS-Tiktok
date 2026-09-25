@@ -4,15 +4,16 @@ import { absoluteUrl, putObject, storageKey } from "@/lib/storage";
 import type { GeneratedImage } from "@/lib/ai/image-generator";
 
 /**
- * Photos on carousel slides.
+ * Photos behind a carousel slide or a video scene — the visuals shared
+ * infrastructure both formats' AI art-direction pipelines are built on.
  *
- * A slide image is always a copy in our own storage, never a link to the stock
+ * An image is always a copy in our own storage, never a link to the stock
  * site. Pixabay asks that its images be downloaded rather than hotlinked; a
  * copy also renders faster and cannot disappear from under a published post.
- * And because the renderer fetches whatever URL a slide holds, only two kinds
- * of URL are ever accepted: stock URLs, to copy from, and our storage, to
- * render — anything else would let a crafted request make the server fetch
- * arbitrary addresses.
+ * And because the renderer fetches whatever URL a slide or a layer holds,
+ * only two kinds of URL are ever accepted: stock URLs, to copy from, and our
+ * storage, to render — anything else would let a crafted request make the
+ * server fetch arbitrary addresses.
  */
 
 const STOCK_HOSTS = new Set(["images.pexels.com", "pixabay.com", "cdn.pixabay.com"]);
@@ -65,7 +66,7 @@ function sniff(buf: Buffer): "image/jpeg" | "image/png" | null {
   return null;
 }
 
-export class CarouselImageError extends Error {}
+export class AiImageStoreError extends Error {}
 
 /**
  * Copy a stock photo into the user's storage and return the stored URL.
@@ -74,7 +75,7 @@ export class CarouselImageError extends Error {}
  * checked — a content-type header can claim anything.
  */
 export async function copyStockImage(userId: string, sourceUrl: string): Promise<string> {
-  if (!isStockUrl(sourceUrl)) throw new CarouselImageError("Cette image ne vient pas d'une banque d'images autorisée.");
+  if (!isStockUrl(sourceUrl)) throw new AiImageStoreError("Cette image ne vient pas d'une banque d'images autorisée.");
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20_000);
@@ -82,16 +83,16 @@ export async function copyStockImage(userId: string, sourceUrl: string): Promise
   try {
     res = await fetch(largerRendition(sourceUrl), { signal: controller.signal, redirect: "follow" });
   } catch {
-    throw new CarouselImageError("La banque d'images ne répond pas. Réessayez dans un instant.");
+    throw new AiImageStoreError("La banque d'images ne répond pas. Réessayez dans un instant.");
   } finally {
     clearTimeout(timer);
   }
-  if (!res.ok) throw new CarouselImageError(`Impossible de récupérer cette image (${res.status}).`);
+  if (!res.ok) throw new AiImageStoreError(`Impossible de récupérer cette image (${res.status}).`);
 
   const buf = Buffer.from(await res.arrayBuffer());
-  if (buf.length > MAX_BYTES) throw new CarouselImageError("Cette image est trop lourde.");
+  if (buf.length > MAX_BYTES) throw new AiImageStoreError("Cette image est trop lourde.");
   const type = sniff(buf);
-  if (!type) throw new CarouselImageError("Format d'image non pris en charge (JPEG ou PNG uniquement).");
+  if (!type) throw new AiImageStoreError("Format d'image non pris en charge (JPEG ou PNG uniquement).");
 
   const stored = await putObject(storageKey(userId, "asset", `carousel-${nanoid(10)}.${type === "image/png" ? "png" : "jpg"}`), buf, type);
   return stored.url;
@@ -101,12 +102,17 @@ export async function copyStockImage(userId: string, sourceUrl: string): Promise
  * Store an AI-generated image in the user's storage, checked the same way as
  * a stock copy, so the renderer and the editor never need to know which
  * source produced a slide's image.
+ *
+ * `kind` only namespaces the filename (carousel slides keep their original
+ * "carousel-ai-" prefix, so the schema's legacy sourceless-image detection
+ * keeps matching files generated before every image carried its own
+ * `source`); it has no effect on validation or storage.
  */
-export async function storeGeneratedImage(userId: string, image: GeneratedImage): Promise<string> {
-  if (image.data.length > MAX_BYTES) throw new CarouselImageError("L'image générée est trop lourde.");
+export async function storeGeneratedImage(userId: string, image: GeneratedImage, kind: "carousel" | "video" = "carousel"): Promise<string> {
+  if (image.data.length > MAX_BYTES) throw new AiImageStoreError("L'image générée est trop lourde.");
   const type = sniff(image.data);
-  if (!type) throw new CarouselImageError(`Format d'image inattendu renvoyé par l'IA (${image.mimeType}).`);
-  const stored = await putObject(storageKey(userId, "asset", `carousel-ai-${nanoid(10)}.${type === "image/png" ? "png" : "jpg"}`), image.data, type);
+  if (!type) throw new AiImageStoreError(`Format d'image inattendu renvoyé par l'IA (${image.mimeType}).`);
+  const stored = await putObject(storageKey(userId, "asset", `${kind}-ai-${nanoid(10)}.${type === "image/png" ? "png" : "jpg"}`), image.data, type);
   return stored.url;
 }
 
