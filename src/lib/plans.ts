@@ -43,7 +43,7 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     priorityRendering: false,
     autopilotQueue: 0,
     features: [
-      "30 crédits / mois",
+      "30 crédits offerts à l'inscription (~2 vidéos d'essai)",
       "Générateur de script IA",
       "Voix IA standard",
       "Sous-titres dynamiques",
@@ -51,11 +51,37 @@ export const PLANS: Record<Plan, PlanDefinition> = {
       "5 projets",
     ],
   },
+  STARTER: {
+    id: "STARTER",
+    name: "Starter",
+    tagline: "Pour débuter sérieusement, trois vidéos par semaine.",
+    monthlyCredits: 210,
+    priceMonthly: 1200,
+    priceYearly: 11500,
+    maxProjects: -1,
+    maxWorkspaces: 1,
+    maxSocialAccounts: 1,
+    watermark: false,
+    maxResolution: "1080p",
+    premiumVoices: false,
+    voiceCloning: false,
+    scheduling: false,
+    priorityRendering: false,
+    autopilotQueue: 0,
+    features: [
+      "210 crédits / mois (~12 vidéos)",
+      "Sans filigrane, exports 1080p",
+      "Générateur de script IA, descriptions et hashtags",
+      "Voix IA standard",
+      "Sous-titres dynamiques",
+      "Projets illimités",
+    ],
+  },
   CREATOR: {
     id: "CREATOR",
     name: "Créateur",
     tagline: "Pour les créateurs solo qui publient chaque jour.",
-    monthlyCredits: 400,
+    monthlyCredits: 510,
     priceMonthly: 2900,
     priceYearly: 27800,
     maxProjects: -1,
@@ -69,7 +95,7 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     priorityRendering: false,
     autopilotQueue: 0,
     features: [
-      "400 crédits / mois (~30 vidéos)",
+      "510 crédits / mois (~30 vidéos)",
       "Sans filigrane, exports 1080p",
       "Voix IA premium",
       "Tous les styles de sous-titres",
@@ -82,7 +108,7 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     id: "PRO",
     name: "Pro",
     tagline: "Pour les créateurs confirmés et petites équipes.",
-    monthlyCredits: 1200,
+    monthlyCredits: 1700,
     priceMonthly: 7900,
     priceYearly: 75800,
     maxProjects: -1,
@@ -96,7 +122,7 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     priorityRendering: true,
     autopilotQueue: 30,
     features: [
-      "1 200 crédits / mois (~100 vidéos)",
+      "1 700 crédits / mois (~100 vidéos en 1080p)",
       "Tout ce qui est inclus dans Créateur",
       "Clonez votre propre voix (IA)",
       "3 espaces de marque",
@@ -124,7 +150,7 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     priorityRendering: true,
     autopilotQueue: 200,
     features: [
-      "4 000 crédits / mois",
+      "4 000 crédits / mois (~235 vidéos en 1080p)",
       "Tout ce qui est inclus dans Pro",
       "Pilote automatique étendu (200 vidéos en file)",
       "Clonage vocal illimité",
@@ -136,7 +162,12 @@ export const PLANS: Record<Plan, PlanDefinition> = {
   },
 };
 
-export const PLAN_ORDER: Plan[] = ["FREE", "CREATOR", "PRO", "AGENCY"];
+export const PLAN_ORDER: Plan[] = ["FREE", "STARTER", "CREATOR", "PRO", "AGENCY"];
+
+/** FREE's credits are a one-off welcome grant, never refilled — unlike every paid plan's. */
+export function creditAllowanceLabel(plan: PlanDefinition): string {
+  return plan.priceMonthly === 0 ? `${plan.monthlyCredits} crédits offerts à l'inscription` : `${plan.monthlyCredits.toLocaleString("fr-FR")} crédits / mois`;
+}
 
 /** Credit cost of each billable operation. */
 export const CREDIT_COSTS = {

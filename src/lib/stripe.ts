@@ -33,7 +33,7 @@ export function creditsForPackPrice(priceId: string): number | null {
 
 export function planForPrice(priceId: string | null | undefined): Plan | null {
   if (!priceId) return null;
-  for (const plan of ["CREATOR", "PRO", "AGENCY"] as const) {
+  for (const plan of ["STARTER", "CREATOR", "PRO", "AGENCY"] as const) {
     const p = env.stripe.prices[plan];
     if (p.month === priceId || p.year === priceId) return plan;
   }

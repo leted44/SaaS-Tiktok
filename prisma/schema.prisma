@@ -20,6 +20,7 @@ enum UserRole {
 
 enum Plan {
   FREE
+  STARTER
   CREATOR
   PRO
   AGENCY

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { startSubscriptionCheckout } from "@/server/actions/billing";
-import { PLANS, PLAN_ORDER, type BillingInterval } from "@/lib/plans";
+import { PLANS, PLAN_ORDER, creditAllowanceLabel, type BillingInterval } from "@/lib/plans";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { Plan } from "@prisma/client";
 
@@ -32,7 +32,7 @@ export function PlanGrid({ currentPlan, stripeConfigured }: { currentPlan: Plan;
           </button>
         ))}
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
         {PLAN_ORDER.map((id) => {
           const plan = PLANS[id];
           const price = interval === "month" ? plan.priceMonthly : Math.round(plan.priceYearly / 12);
@@ -46,7 +46,7 @@ export function PlanGrid({ currentPlan, stripeConfigured }: { currentPlan: Plan;
                 <span className="font-display text-3xl font-bold">{price === 0 ? "Gratuit" : formatCurrency(price)}</span>
                 {price > 0 && <span className="text-xs text-muted-foreground">/mois{interval === "year" && ", facturé annuellement"}</span>}
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">{plan.monthlyCredits} crédits / mois</p>
+              <p className="mt-1 text-xs text-muted-foreground">{creditAllowanceLabel(plan)}</p>
               <ul className="mt-5 flex-1 space-y-2 text-sm">
                 {plan.features.map((f) => <li key={f} className="flex gap-2 text-muted-foreground"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />{f}</li>)}
               </ul>

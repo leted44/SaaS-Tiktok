@@ -23,7 +23,7 @@ export function formatNumber(n: number): string {
   return new Intl.NumberFormat("fr-FR").format(n);
 }
 
-export function formatCurrency(cents: number, currency = "USD"): string {
+export function formatCurrency(cents: number, currency = "EUR"): string {
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency, minimumFractionDigits: 0 }).format(cents / 100);
 }
 

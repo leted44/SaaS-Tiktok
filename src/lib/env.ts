@@ -53,6 +53,7 @@ export const env = {
     webhookSecret: read("STRIPE_WEBHOOK_SECRET"),
     publishableKey: read("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"),
     prices: {
+      STARTER: { month: read("STRIPE_PRICE_STARTER_MONTHLY"), year: read("STRIPE_PRICE_STARTER_YEARLY") },
       CREATOR: { month: read("STRIPE_PRICE_CREATOR_MONTHLY"), year: read("STRIPE_PRICE_CREATOR_YEARLY") },
       PRO: { month: read("STRIPE_PRICE_PRO_MONTHLY"), year: read("STRIPE_PRICE_PRO_YEARLY") },
       AGENCY: { month: read("STRIPE_PRICE_AGENCY_MONTHLY"), year: read("STRIPE_PRICE_AGENCY_YEARLY") },

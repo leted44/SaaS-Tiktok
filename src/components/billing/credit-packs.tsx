@@ -24,7 +24,7 @@ export function CreditPacks({ stripeConfigured }: { stripeConfigured: boolean })
         <div key={p.id} className="surface flex items-center justify-between p-5">
           <div>
             <p className="inline-flex items-center gap-2 font-semibold"><Coins className="h-4 w-4 text-brand-300" /> {p.label} {p.bonus && <Badge variant="success">{p.bonus}</Badge>}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{formatCurrency(p.price)} · {(p.price / p.credits / 100).toFixed(3)} $/crédit</p>
+            <p className="mt-1 text-sm text-muted-foreground">{formatCurrency(p.price)} · {(p.price / p.credits / 100).toLocaleString("fr-FR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} €/crédit</p>
           </div>
           <Button variant="secondary" onClick={() => buy(p.id)} loading={loading === p.id} disabled={!stripeConfigured}>Acheter</Button>
         </div>

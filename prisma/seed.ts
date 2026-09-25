@@ -16,7 +16,7 @@ async function main() {
   const user = await prisma.user.upsert({
     where: { email },
     update: {},
-    create: { email, name: "Demo Creator", passwordHash, plan: "CREATOR", subscriptionStatus: "ACTIVE", credits: 400, lifetimeCredits: 400 },
+    create: { email, name: "Demo Creator", passwordHash, plan: "CREATOR", subscriptionStatus: "ACTIVE", credits: 510, lifetimeCredits: 510 },
   });
 
   const workspace = await prisma.workspace.upsert({

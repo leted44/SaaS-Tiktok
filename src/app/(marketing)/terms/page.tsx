@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage, Article, Row } from "@/components/legal/legal-page";
 import { legal } from "@/lib/legal";
-import { PLANS, PLAN_ORDER } from "@/lib/plans";
+import { PLANS, PLAN_ORDER, creditAllowanceLabel } from "@/lib/plans";
 
 export const metadata: Metadata = {
   title: "Conditions d'utilisation",
@@ -34,7 +34,7 @@ export default function TermsPage() {
             const p = PLANS[id];
             return (
               <Row key={id} label={`${p.name}${p.priceMonthly === 0 ? " (gratuit)" : ` — ${(p.priceMonthly / 100).toFixed(0)} €/mois`}`}>
-                {p.monthlyCredits} crédits par mois · exports {p.maxResolution}{p.watermark ? " avec filigrane" : " sans filigrane"}
+                {creditAllowanceLabel(p)} · exports {p.maxResolution}{p.watermark ? " avec filigrane" : " sans filigrane"}
               </Row>
             );
           })}

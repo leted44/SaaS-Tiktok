@@ -111,15 +111,15 @@ export default function LandingPage() {
       <section id="pricing" className="container py-24">
         <Reveal className="mx-auto max-w-2xl text-center">
           <h2 className="font-display text-3xl font-bold tracking-tight md:text-5xl">Une tarification qui suit votre production.</h2>
-          <p className="mt-4 text-muted-foreground">Les crédits couvrent les scripts, les voix et les rendus. Une vidéo de 45 secondes coûte environ 15 crédits.</p>
+          <p className="mt-4 text-muted-foreground">Les crédits couvrent les scripts, les voix et les rendus. Une vidéo de 45 secondes en 1080p coûte 17 crédits.</p>
         </Reveal>
-        <div className="mt-14 grid gap-4 lg:grid-cols-4">
+        <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {PLAN_ORDER.map((id, i) => {
             const plan = PLANS[id];
             return (
               <Reveal key={id} delay={i * 0.05}>
                 <div className={cn("surface relative flex h-full flex-col p-6", plan.highlight && "border-primary/50 shadow-glow")}>
-                  {plan.highlight && <Badge variant="gradient" className="absolute -top-3 left-6">Most popular</Badge>}
+                  {plan.highlight && <Badge variant="gradient" className="absolute -top-3 left-6">Le plus populaire</Badge>}
                   <h3 className="font-display text-xl font-bold">{plan.name}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">{plan.tagline}</p>
                   <div className="mt-6 flex items-baseline gap-1">
@@ -144,7 +144,7 @@ export default function LandingPage() {
         </div>
         <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-4 w-4" /> Paiement sécurisé par Stripe</span>
-          <span className="inline-flex items-center gap-1.5"><Zap className="h-4 w-4" /> Les crédits n'expirent jamais sur les forfaits payants</span>
+          <span className="inline-flex items-center gap-1.5"><Zap className="h-4 w-4" /> Les crédits achetés en recharge n'expirent jamais</span>
         </div>
       </section>
 

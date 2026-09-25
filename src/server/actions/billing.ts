@@ -7,7 +7,7 @@ import { integrations } from "@/lib/env";
 import type { BillingInterval } from "@/lib/plans";
 import { guard, type ActionResult } from "@/server/action-result";
 
-export async function startSubscriptionCheckout(plan: "CREATOR" | "PRO" | "AGENCY", interval: BillingInterval): Promise<ActionResult<{ url: string }>> {
+export async function startSubscriptionCheckout(plan: "STARTER" | "CREATOR" | "PRO" | "AGENCY", interval: BillingInterval): Promise<ActionResult<{ url: string }>> {
   return guard(async () => {
     const user = await requireUser();
     if (!integrations.stripe()) throw new Error("La facturation n'est pas encore configurée. Ajoutez vos clés Stripe pour activer le paiement.");
