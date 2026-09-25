@@ -81,33 +81,99 @@ function onPhoto(t: TemplateTokens): TemplateTokens {
 
 const PHOTO_SCRIM = "linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.05) 24%, rgba(0,0,0,0.2) 46%, rgba(0,0,0,0.8) 70%, rgba(0,0,0,0.94) 100%)";
 
+/**
+ * The Immersive scrim: clear over the subject, which the image prompt keeps in
+ * the upper part of the frame, then a deep fall to near-black under the text.
+ * The square format has less height, so its text starts higher and the dark
+ * part has to as well.
+ */
+function immersiveScrim(format: CarouselFormat): string {
+  const [clear, dark] = format === "square" ? [18, 52] : [30, 62];
+  return `linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0) ${clear}%, rgba(0,0,0,0.35) ${(clear + dark) / 2}%, rgba(0,0,0,0.86) ${dark}%, rgba(0,0,0,0.96) 100%)`;
+}
+
+/**
+ * The title as words, with the emphasis marked.
+ *
+ * Satori has no inline styling inside a run of text, so a headline with one
+ * coloured phrase is laid out as a wrapping row of words. Typography is
+ * applied to the whole title first, so the non-breaking spaces it inserts
+ * (before "?", between a number and its unit) keep those pairs in one word
+ * and never split across lines.
+ */
+export function headlineWords(title: string, emphasis: string): { text: string; hot: boolean }[][] {
+  const set = typeset(title);
+  const wanted = emphasis.trim() ? typeset(emphasis.trim()).toLowerCase() : "";
+  let start = wanted ? set.toLowerCase().indexOf(wanted) : -1;
+  let end = start < 0 ? -1 : start + wanted.length;
+  // Only the words take the accent colour: a comma or a full stop stays in the text colour.
+  const PUNCT = /[\s.,;:!?…«»"'’ -]/;
+  while (start >= 0 && start < end && PUNCT.test(set[start])) start++;
+  while (start >= 0 && end > start && PUNCT.test(set[end - 1])) end--;
+
+  const words: { text: string; hot: boolean }[][] = [];
+  let at = 0;
+  for (const word of set.split(" ")) {
+    if (word) {
+      const a = Math.max(0, Math.min(word.length, start - at));
+      const b = Math.max(0, Math.min(word.length, end - at));
+      const segments = start < 0 || b <= a ? [{ text: word, hot: false }] : [{ text: word.slice(0, a), hot: false }, { text: word.slice(a, b), hot: true }, { text: word.slice(b), hot: false }];
+      words.push(segments.filter((s) => s.text));
+    }
+    at += word.length + 1;
+  }
+  return words;
+}
+
 export function CarouselSlideView({ slide, index, total, step, format, tokens, handle, imageUrl }: Props) {
   const { width, height } = FORMAT_SIZE[format];
   const padding = format === "square" ? 80 : 92;
   const compact = format === "square";
-  const coverPhoto = slide.kind === "cover" && Boolean(imageUrl);
-  const bandPhoto = slide.kind === "content" && Boolean(imageUrl);
-  const t = coverPhoto ? onPhoto(tokens) : tokens;
+  const immersive = tokens.id === "immersive";
+  // Full-bleed: the cover always, and in Immersive every content slide too.
+  const bleedPhoto = Boolean(imageUrl) && (slide.kind === "cover" || (immersive && slide.kind === "content"));
+  const coverPhoto = slide.kind === "cover" && bleedPhoto;
+  const bandPhoto = slide.kind === "content" && Boolean(imageUrl) && !bleedPhoto;
+  const t = bleedPhoto ? onPhoto(tokens) : tokens;
   const editorial = t.id === "editorial" && !coverPhoto;
-  const titleSize = Math.round(headlineSize(slide.title, slide.kind, format) * (bandPhoto ? 0.84 : 1));
+  // Anton is condensed: at the same size it carries far fewer pixels per word, so it is set larger.
+  const faceScale = t.headlineFont === "Anton" ? 1.16 : 1;
+  const photoScale = bandPhoto || (bleedPhoto && slide.kind === "content") ? 0.84 : 1;
+  const titleSize = Math.round(headlineSize(slide.title, slide.kind, format) * photoScale * faceScale);
 
-  const headline = (text: string, marginTop: number): ReactNode => (
-    <div
-      style={{
-        display: "flex",
-        marginTop,
-        fontFamily: t.headlineFont,
-        fontWeight: t.headlineWeight,
-        fontSize: titleSize,
-        lineHeight: editorial ? 1.08 : 1.02,
-        letterSpacing: t.headlineTracking,
-        textTransform: t.headlineCase,
-        color: t.text,
-      }}
-    >
-      {typeset(text)}
-    </div>
-  );
+  const headline = (text: string, marginTop: number): ReactNode => {
+    const words = headlineWords(text, slide.emphasis);
+    // Measured on Anton: an accented capital (É, À) tops out at 1.10 em above the baseline.
+    // Below a 1.18 line height it touches the line above — French needs the room English does not.
+    const lineHeight = t.headlineFont === "Anton" ? 1.18 : editorial ? 1.08 : 1.02;
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          marginTop,
+          columnGap: Math.round(titleSize * (t.headlineFont === "Anton" ? 0.22 : 0.26)),
+          fontFamily: t.headlineFont,
+          fontWeight: t.headlineWeight,
+          fontSize: titleSize,
+          lineHeight,
+          letterSpacing: t.headlineTracking,
+          textTransform: t.headlineCase,
+          color: t.text,
+        }}
+      >
+        {words.map((segments, i) => (
+          <div key={i} style={{ display: "flex" }}>
+            {segments.map((s, j) => (
+              <span key={j} style={{ lineHeight, color: s.hot ? t.accent : t.text }}>
+                {s.text}
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   const body = (text: string, marginTop: number, color: string, scale = 1): ReactNode =>
     text ? (
@@ -136,12 +202,24 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
       <div style={col({ flexGrow: 1, justifyContent: coverPhoto ? "flex-end" : "center", paddingBottom: coverPhoto ? 48 : 0 })}>
         {slide.kicker ? label(slide.kicker) : null}
         {headline(slide.title, slide.kicker ? 36 : 0)}
-        {bar(coverPhoto ? 40 : 48)}
-        {body(slide.body, coverPhoto ? 34 : 44, t.muted)}
+        {/* The poster headline already carries the slide; a rule under it would only compete. */}
+        {immersive ? null : bar(coverPhoto ? 40 : 48)}
+        {body(slide.body, immersive ? 30 : coverPhoto ? 34 : 44, immersive ? "rgba(255,255,255,0.88)" : t.muted)}
       </div>
     );
   } else if (slide.kind === "cta") {
     main = <CtaBody slide={slide} t={t} compact={compact} handle={handle} headline={headline} body={body} label={label} />;
+  } else if (bleedPhoto) {
+    main = (
+      <div style={col({ flexGrow: 1, justifyContent: "flex-end", paddingBottom: 36 })}>
+        <div style={row({ alignItems: "center", gap: 20 })}>
+          <div style={{ display: "flex", fontFamily: t.headlineFont, fontWeight: t.headlineWeight, fontSize: 64, lineHeight: 1, color: t.accent }}>{pad(step)}</div>
+          {slide.kicker ? label(slide.kicker) : null}
+        </div>
+        {headline(slide.title, 18)}
+        {body(slide.body, 24, "rgba(255,255,255,0.9)", 0.92)}
+      </div>
+    );
   } else if (bandPhoto) {
     main = (
       <div style={col({ flexGrow: 1, justifyContent: "center" })}>
@@ -157,7 +235,7 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
   } else {
     main = (
       <div style={col({ flexGrow: 1, justifyContent: "center" })}>
-        <div style={{ display: "flex", fontFamily: t.headlineFont, fontWeight: t.headlineWeight, fontSize: editorial ? 132 : 120, lineHeight: 1, letterSpacing: -4, color: t.accent }}>{pad(step)}</div>
+        <div style={{ display: "flex", fontFamily: t.headlineFont, fontWeight: t.headlineWeight, fontSize: editorial ? 132 : immersive ? 150 : 120, lineHeight: 1, letterSpacing: immersive ? 0 : -4, color: t.accent }}>{pad(step)}</div>
         {slide.kicker ? <div style={{ display: "flex", marginTop: 28 }}>{label(slide.kicker)}</div> : null}
         {headline(slide.title, slide.kicker ? 28 : 36)}
         {bar(40)}
@@ -171,10 +249,10 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
 
   return (
     <div style={col({ position: "relative", width, height, padding, background: t.background, color: t.text, fontFamily: "Inter", fontWeight: 400 })}>
-      {coverPhoto ? (
+      {bleedPhoto ? (
         <img src={imageUrl!} alt="" width={width} height={height} style={{ position: "absolute", top: 0, left: 0, width, height, objectFit: "cover" }} />
       ) : null}
-      {coverPhoto ? <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width, height, backgroundImage: PHOTO_SCRIM }} /> : null}
+      {bleedPhoto ? <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width, height, backgroundImage: immersive ? immersiveScrim(format) : PHOTO_SCRIM }} /> : null}
       {t.overlay ? <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width, height, backgroundImage: t.overlay }} /> : null}
 
       <div style={row({ justifyContent: "space-between", alignItems: "center", fontSize: 26, fontWeight: 600, color: t.muted })}>

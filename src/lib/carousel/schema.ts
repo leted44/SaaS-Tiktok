@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { slugify } from "@/lib/utils";
+import { VISUAL_STYLES, aiSource, isAiSource, type VisualLayout, type VisualStyle } from "@/lib/carousel/art-direction";
 
 /**
  * One slide of a carousel.
@@ -18,6 +19,10 @@ export const carouselSlideSchema = z.object({
   action: z.string().max(90).default(""),
   /** Search words for a matching photo, written by the AI. Pre-fills the image search. */
   imageQuery: z.string().max(80).default(""),
+  /** The scene an AI visual depicts for this slide — written by the AI, editable. Style and framing are added separately. */
+  imagePrompt: z.string().max(600).default(""),
+  /** The one to three words of the title set in the accent colour — the punch of the line. */
+  emphasis: z.string().max(60).default(""),
   /**
    * A photo behind the cover or above a content slide. Always a copy in our own
    * storage. `source` is the stock photo it was copied from, so filling the empty
@@ -51,10 +56,44 @@ export function limitsFor(slide: Pick<CarouselSlide, "kind" | "image">) {
   return slide.kind === "content" && slide.image ? { ...base, ...IMAGE_SLIDE_LIMITS } : base;
 }
 
+/** A content slide whose text would be cut by the room an image takes. */
+export function tooLongForImage(slide: Pick<CarouselSlide, "kind" | "title" | "body">): boolean {
+  return slide.kind === "content" && (slide.title.length > IMAGE_SLIDE_LIMITS.title || slide.body.length > IMAGE_SLIDE_LIMITS.body);
+}
+
+/** Where a slide's image came from, for the editor's labels. */
+export function imageOrigin(image: CarouselSlide["image"]): "ai" | "stock" | "upload" | null {
+  if (!image) return null;
+  // The first AI images were stored without a source; their file name still says what they are.
+  if (isAiSource(image.source) || (!image.source && image.url.includes("-carousel-ai-"))) return "ai";
+  return image.source ? "stock" : "upload";
+}
+
+/**
+ * Whether a slide still needs an AI visual in this style: it has no image, a
+ * stock photo (the mix of sources is what breaks a series), or an AI image
+ * made in another style. A photo the user uploaded themselves is theirs and
+ * is never replaced.
+ */
+export function needsAiVisual(slide: CarouselSlide, style: VisualStyle): boolean {
+  if (slide.kind === "cta") return false;
+  const origin = imageOrigin(slide.image);
+  if (origin === null || origin === "stock") return true;
+  return origin === "ai" && slide.image!.source !== aiSource(style);
+}
+
 export const carouselSlidesSchema = z.array(carouselSlideSchema).min(2).max(12);
 
-export const CAROUSEL_TEMPLATES = ["minimal", "bold", "editorial", "brand"] as const;
+export const CAROUSEL_TEMPLATES = ["immersive", "minimal", "bold", "editorial", "brand"] as const;
 export type CarouselTemplate = (typeof CAROUSEL_TEMPLATES)[number];
+
+/**
+ * How a slide's image is laid out: the cover is always full-bleed; content
+ * slides are full-bleed in the Immersive template and a band elsewhere.
+ */
+export function imageLayout(kind: CarouselSlide["kind"], template: CarouselTemplate): VisualLayout {
+  return kind === "cover" || template === "immersive" ? "bleed" : "band";
+}
 
 export const CAROUSEL_FORMATS = ["portrait", "story", "square"] as const;
 export type CarouselFormat = (typeof CAROUSEL_FORMATS)[number];
@@ -66,13 +105,34 @@ export const FORMAT_SIZE: Record<CarouselFormat, { width: number; height: number
   square: { width: 1080, height: 1080, label: "1:1", hint: "Carré" },
 };
 
+/**
+ * The aspect ratio to generate an image at, so it fills its frame without
+ * losing the subject to cropping. A band is roughly as wide as the slide's
+ * text column and a third of its height; each maps to the nearest ratio the
+ * image model supports.
+ */
+export function imageAspect(layout: VisualLayout, format: CarouselFormat): "1:1" | "4:5" | "9:16" | "16:9" | "5:4" | "21:9" {
+  if (layout === "bleed") return FORMAT_SIZE[format].label as "1:1" | "4:5" | "9:16";
+  return format === "story" ? "5:4" : format === "square" ? "21:9" : "16:9";
+}
+
 export const carouselStateSchema = z.object({
   template: z.enum(CAROUSEL_TEMPLATES),
   format: z.enum(CAROUSEL_FORMATS),
   handle: z.string().max(40).nullable(),
   slides: carouselSlidesSchema,
+  /** Art direction every AI visual of this carousel is generated in. Null until AI visuals are used. */
+  visualStyle: z.enum(VISUAL_STYLES).nullable().default(null),
+  /** The recurring setting that ties the images together as one series. */
+  visualMotif: z.string().max(300).default(""),
 });
 export type CarouselState = z.infer<typeof carouselStateSchema>;
+
+/** The stored row, read as editor state. An unknown style (a preset since removed) reads as none rather than failing the whole carousel. */
+export function carouselStateFromRow(row: { template: string; format: string; handle: string | null; slides: unknown; visualStyle?: string | null; visualMotif?: string | null }) {
+  const visualStyle = (VISUAL_STYLES as readonly string[]).includes(row.visualStyle ?? "") ? row.visualStyle : null;
+  return carouselStateSchema.safeParse({ template: row.template, format: row.format, handle: row.handle, slides: row.slides, visualStyle, visualMotif: row.visualMotif ?? "" });
+}
 
 /**
  * The slide fonts carry no emoji glyphs, so an emoji in the text renders as an

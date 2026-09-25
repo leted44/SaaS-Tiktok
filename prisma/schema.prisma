@@ -451,6 +451,10 @@ model Carousel {
   // Signature shown on every slide, e.g. "@moncompte".
   handle    String?
   slides    Json
+  // Art direction of the AI visuals (lib/carousel/art-direction) and the
+  // recurring setting that makes them read as one series.
+  visualStyle String?
+  visualMotif String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

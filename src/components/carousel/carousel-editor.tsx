@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowDown, ArrowUp, Coins, Download, Archive, GalleryHorizontalEnd, ImageIcon, ImagePlus, Loader2, MessageSquareText, Palette, Plus, RefreshCw, Search, Share2, Sparkles, Trash2, Type, Upload, Wand2 } from "lucide-react";
+import { ArrowLeft, ArrowDown, ArrowUp, Check, Coins, Download, Archive, GalleryHorizontalEnd, ImageIcon, ImagePlus, Loader2, MessageSquareText, Palette, Plus, RefreshCw, Search, Share2, Sparkles, Trash2, Type, Upload, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { zipSync } from "fflate";
 import { nanoid } from "nanoid";
@@ -14,9 +14,10 @@ import { Label } from "@/components/ui/label";
 import { Section } from "@/components/ui/section";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
-import { generateCarouselAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
+import { generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
-import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, limitsFor, slideFileSlug, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
+import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileSlug, tooLongForImage, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
+import { ART_DIRECTIONS, DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from "@/lib/carousel/art-direction";
 import { resolveTemplate } from "@/lib/carousel/templates";
 import type { SocialCopy } from "@/lib/social/captions";
 import { cn } from "@/lib/utils";
@@ -40,13 +41,21 @@ interface Props {
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
-const withoutVersion = (s: CarouselSnapshot): CarouselState => ({ template: s.template, format: s.format, handle: s.handle, slides: s.slides });
+const withoutVersion = (s: CarouselSnapshot): CarouselState => ({ template: s.template, format: s.format, handle: s.handle, slides: s.slides, visualStyle: s.visualStyle, visualMotif: s.visualMotif });
+/** Images a new AI carousel usually needs: the cover and six content slides. */
+const TYPICAL_IMAGES = 7;
 
-export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits, aiConfigured, stockConfigured, aiImagesConfigured }: Props) {
+export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured }: Props) {
   const router = useRouter();
   const [state, setState] = useState<CarouselState | null>(initial ? withoutVersion(initial) : null);
   const [version, setVersion] = useState(initial?.version ?? 0);
+  const [credits, setCredits] = useState(initialCredits);
   const [generating, setGenerating] = useState(false);
+  /** Where a creation stands: the text is written first, then the visuals, as two requests. */
+  const [phase, setPhase] = useState<null | "text" | "visuals">(null);
+  const [createVisuals, setCreateVisuals] = useState<"ai" | "stock">(aiImagesConfigured ? "ai" : "stock");
+  const [createStyle, setCreateStyle] = useState<VisualStyle>(DEFAULT_VISUAL_STYLE);
+  const [visualsBusy, setVisualsBusy] = useState(false);
   const [filling, setFilling] = useState(false);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<null | "share" | "download" | "zip">(null);
@@ -90,18 +99,80 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
 
   const slideUrl = (i: number, v: number, download = false) => `/api/carousels/${projectId}/slides/${i}?v=${v}${download ? "&download=1" : ""}`;
 
-  async function generate() {
-    if (state && !window.confirm("Réécrire tous les textes du carrousel ? De nouvelles photos sont cherchées pour chaque slide ; le modèle, le format et la signature sont conservés.")) return;
-    setGenerating(true);
-    const res = await generateCarouselAction(projectId);
-    setGenerating(false);
-    if (!res.ok) return toast.error(res.error);
-    const next = withoutVersion(res.data.carousel);
+  /** Take a carousel the server just wrote as the editor's state, as saved. */
+  function apply(snapshot: CarouselSnapshot) {
+    const next = withoutVersion(snapshot);
     lastSaved.current = JSON.stringify(next);
     setState(next);
-    setVersion(res.data.carousel.version);
-    toast.success(`Carrousel prêt · ${next.slides.length} slides${cost > 0 ? ` · ${cost} crédits` : ""}`);
-    router.refresh();
+    setVersion(snapshot.version);
+  }
+
+  /**
+   * Ask the server for the AI visuals and take back only the images: text
+   * typed while they were being made stays, and the autosave then persists
+   * both together.
+   */
+  async function requestVisuals(mode: "missing" | "all"): Promise<boolean> {
+    const res = await generateCarouselVisualsAction(projectId, mode);
+    if (!res.ok) {
+      toast.error(res.error);
+      return false;
+    }
+    const snapshot = res.data.carousel;
+    const images = new Map(snapshot.slides.map((s) => [s.id, s.image]));
+    lastSaved.current = JSON.stringify(withoutVersion(snapshot));
+    setVersion(snapshot.version);
+    setCredits(res.data.creditsLeft);
+    setState((prev) =>
+      prev ? { ...prev, visualStyle: snapshot.visualStyle, slides: prev.slides.map((s) => (images.has(s.id) ? { ...s, image: images.get(s.id) ?? null } : s)) } : withoutVersion(snapshot),
+    );
+    const { generated, failed, tooLong } = res.data;
+    toast.success(
+      `${generated} visuel${generated > 1 ? "s" : ""} créé${generated > 1 ? "s" : ""}` +
+        (failed ? ` · ${failed} échec${failed > 1 ? "s" : ""}, crédits remboursés — ${mode === "all" ? "ces slides gardent leur image précédente" : "relance pour les compléter"}` : "") +
+        (tooLong ? ` · ${tooLong} slide${tooLong > 1 ? "s" : ""} trop longue${tooLong > 1 ? "s" : ""} pour une image` : ""),
+    );
+    return true;
+  }
+
+  async function generateVisuals(mode: "missing" | "all") {
+    if (!state) return;
+    setVisualsBusy(true);
+    try {
+      if (dirty && (await persist(state)) === null) return;
+      await requestVisuals(mode);
+    } finally {
+      setVisualsBusy(false);
+    }
+  }
+
+  async function generate() {
+    const ai = aiImagesConfigured && (state ? state.visualStyle !== null : createVisuals === "ai");
+    const visualStyle = state?.visualStyle ?? createStyle;
+    if (state) {
+      const message = ai
+        ? `Réécrire tous les textes et recréer les visuels IA ? ${cost} crédits pour le texte, puis ${aiImageCost} par image. Le modèle, le format, la signature et le style sont conservés.`
+        : "Réécrire tous les textes du carrousel ? De nouvelles photos sont cherchées pour chaque slide ; le modèle, le format et la signature sont conservés.";
+      if (!window.confirm(message)) return;
+    }
+    setGenerating(true);
+    setPhase("text");
+    try {
+      const res = await generateCarouselAction(projectId, { visuals: ai ? "ai" : "stock", visualStyle });
+      if (!res.ok) return toast.error(res.error);
+      apply(res.data.carousel);
+      setCredits(res.data.creditsLeft);
+      if (ai) {
+        setPhase("visuals");
+        await requestVisuals("missing");
+      } else {
+        toast.success(`Carrousel prêt · ${res.data.carousel.slides.length} slides${cost > 0 ? ` · ${cost} crédits` : ""}`);
+      }
+      router.refresh();
+    } finally {
+      setGenerating(false);
+      setPhase(null);
+    }
   }
 
   /** A photo on every slide that has none; photos already placed and all text stay. */
@@ -228,7 +299,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       if (!s) return s;
       const ctaAt = s.slides.findIndex((x) => x.kind === "cta");
       const slides = [...s.slides];
-      slides.splice(ctaAt < 0 ? slides.length : ctaAt, 0, { id: nanoid(8), kind: "content", kicker: "", title: "Nouvelle idée", body: "", action: "", imageQuery: "", image: null });
+      slides.splice(ctaAt < 0 ? slides.length : ctaAt, 0, { id: nanoid(8), kind: "content", kicker: "", title: "Nouvelle idée", body: "", action: "", imageQuery: "", imagePrompt: "", emphasis: "", image: null });
       return { ...s, slides };
     });
 
@@ -242,29 +313,74 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
     </div>
   );
 
-  if (!state) {
+  if (generating && phase) {
     return (
       <div className="mx-auto max-w-3xl min-w-0">
         {header}
-        <EmptyState
-          icon={GalleryHorizontalEnd}
-          title="Transforme ton script en carrousel"
-          description={
-            hasScript
-              ? "L'IA réécrit ton idée pour être lue slide par slide : une couverture qui donne envie de glisser, une idée par slide, une fin qui pousse à enregistrer."
-              : "Il faut d'abord un script dans ce projet : le carrousel est écrit à partir de lui."
-          }
-          action={
-            hasScript ? (
-              <Button variant="gradient" onClick={generate} loading={generating} disabled={!aiConfigured || credits < cost}>
-                <Sparkles /> Créer le carrousel {cost > 0 && <><Coins className="h-3.5 w-3.5" /> {cost}</>}
-              </Button>
-            ) : (
-              <Button asChild variant="secondary"><Link href={`/studio/${projectId}`}>Retour au studio</Link></Button>
-            )
-          }
-        />
-        {hasScript && credits < cost && <p className="mt-3 text-center text-xs text-red-300">Crédits insuffisants ({credits}/{cost}). <Link href="/billing" className="underline">Recharger</Link></p>}
+        <CreationProgress phase={phase} withVisuals={aiImagesConfigured && (state ? state.visualStyle !== null : createVisuals === "ai")} />
+      </div>
+    );
+  }
+
+  if (!state) {
+    if (!hasScript) {
+      return (
+        <div className="mx-auto max-w-3xl min-w-0">
+          {header}
+          <EmptyState
+            icon={GalleryHorizontalEnd}
+            title="Transforme ton script en carrousel"
+            description="Il faut d'abord un script dans ce projet : le carrousel est écrit à partir de lui."
+            action={<Button asChild variant="secondary"><Link href={`/studio/${projectId}`}>Retour au studio</Link></Button>}
+          />
+        </div>
+      );
+    }
+    const ai = aiImagesConfigured && createVisuals === "ai";
+    const estimate = cost + (ai ? aiImageCost * TYPICAL_IMAGES : 0);
+    return (
+      <div className="mx-auto max-w-3xl min-w-0">
+        {header}
+        <div className="surface space-y-5 p-5">
+          <div>
+            <GalleryHorizontalEnd className="h-6 w-6 text-brand-300" />
+            <h2 className="mt-2 font-display text-lg font-bold">Transforme ton script en carrousel</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Une couverture qui arrête le scroll, une idée par slide, une fin qui pousse à enregistrer et à partager.</p>
+          </div>
+
+          {aiImagesConfigured && (
+            <div className="space-y-2">
+              <Label>Visuels</Label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <ChoiceCard selected={createVisuals === "ai"} onClick={() => setCreateVisuals("ai")} title="Images IA en série" badge="Recommandé">
+                  Une image créée pour chaque slide, dans un seul style et un même décor : le carrousel se lit comme une vraie série.
+                </ChoiceCard>
+                <ChoiceCard selected={createVisuals === "stock"} onClick={() => setCreateVisuals("stock")} title="Banque d'images">
+                  Photos Pexels et Pixabay. Gratuit, mais chaque photo garde son propre style.
+                </ChoiceCard>
+              </div>
+            </div>
+          )}
+
+          {ai && (
+            <div className="space-y-2">
+              <Label>Direction artistique</Label>
+              <StylePicker value={createStyle} onChange={setCreateStyle} />
+            </div>
+          )}
+
+          <div>
+            <Button variant="gradient" className="w-full" onClick={generate} disabled={!aiConfigured || credits < estimate}>
+              <Sparkles /> Créer le carrousel {estimate > 0 && <><Coins className="h-3.5 w-3.5" /> {ai ? `≈ ${estimate}` : estimate}</>}
+            </Button>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              {ai
+                ? `${cost} crédits pour le texte, puis ${aiImageCost} par image (environ ${TYPICAL_IMAGES}). Une image qui échoue est remboursée.`
+                : "Des photos sont cherchées pour chaque slide, gratuitement."}
+            </p>
+            {credits < estimate && <p className="mt-1 text-xs text-red-300">Crédits insuffisants ({credits}/{estimate}). <Link href="/billing" className="underline">Recharger</Link></p>}
+          </div>
+        </div>
       </div>
     );
   }
@@ -273,6 +389,12 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const contentCount = state.slides.filter((s) => s.kind === "content").length;
   const photoSlots = state.slides.filter((s) => s.kind !== "cta").length;
   const photoCount = state.slides.filter((s) => s.kind !== "cta" && s.image).length;
+  const style = state.visualStyle ?? DEFAULT_VISUAL_STYLE;
+  const pendingVisuals = state.slides.filter((s) => needsAiVisual(s, style) && !tooLongForImage(s)).length;
+  const regenerable = state.slides.filter((s) => s.kind !== "cta" && !tooLongForImage(s)).length;
+  const aiCount = state.slides.filter((s) => imageOrigin(s.image) === "ai").length;
+  /** Before an AI generation touches a slide the server reads it from the database, so unsaved edits go first. */
+  const ensureSaved = async () => !dirty || (await persist(state)) !== null;
   let contentIndex = 0;
 
   return (
@@ -322,15 +444,22 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Modèle</Label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-5 gap-1.5">
                 {CAROUSEL_TEMPLATES.map((id) => {
                   const t = resolveTemplate(id, brand);
                   const selected = state.template === id;
+                  const poster = t.headlineFont === "Anton";
                   return (
-                    <button key={id} type="button" onClick={() => set({ template: id })} className={cn("rounded-lg border p-1.5 text-left transition", selected ? "border-primary/60 bg-primary/10" : "border-white/10 hover:border-white/20")}>
-                      <div className="flex aspect-[4/5] flex-col justify-center gap-1.5 overflow-hidden rounded-md px-2" style={{ background: t.background }}>
+                    <button key={id} type="button" onClick={() => set({ template: id })} className={cn("rounded-lg border p-1 text-left transition", selected ? "border-primary/60 bg-primary/10" : "border-white/10 hover:border-white/20")}>
+                      <div
+                        className="flex aspect-[4/5] flex-col justify-center gap-1.5 overflow-hidden rounded-md px-1.5"
+                        style={{ background: poster ? `linear-gradient(180deg, #6b4a2b 0%, #2a1c12 45%, ${t.background} 75%)` : t.background }}
+                      >
                         <div className="h-1 w-5 rounded-full" style={{ background: t.accent }} />
-                        <span className="text-lg font-extrabold leading-none" style={{ color: t.text, fontFamily: t.headlineFont === "Playfair Display" ? "Georgia, 'Times New Roman', serif" : "inherit" }}>
+                        <span
+                          className={cn("leading-none", poster ? "text-base uppercase" : "text-lg font-extrabold")}
+                          style={{ color: t.text, fontFamily: poster ? "Impact, 'Arial Narrow Bold', 'Arial Narrow', sans-serif" : t.headlineFont === "Playfair Display" ? "Georgia, 'Times New Roman', serif" : "inherit" }}
+                        >
                           Aa
                         </span>
                         <div className="h-1 w-4/5 rounded-full" style={{ background: t.muted }} />
@@ -363,12 +492,68 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
           </div>
         </Section>
 
-        <Section title="Photos" icon={ImageIcon} summary={`${photoCount} / ${photoSlots} slides`} defaultOpen>
-          <p className="text-xs text-muted-foreground">Ajoute une photo sur chaque slide qui n'en a pas. Les photos déjà en place et les textes ne bougent pas.</p>
-          <Button variant="gradient" className="mt-3 w-full" onClick={fillPhotos} loading={filling} disabled={!stockConfigured || generating || busy !== null}>
-            <Sparkles /> Remplir les slides vides
-          </Button>
-          <p className="mt-2 text-[11px] text-muted-foreground">{stockConfigured ? "Gratuit. Pour changer une photo précise : ouvre la slide dans Textes, puis Changer." : "La recherche de photos n'est pas configurée."}</p>
+        <Section title="Visuels" icon={ImageIcon} summary={`${photoCount} / ${photoSlots} slides${aiCount ? ` · ${aiCount} IA` : ""}`} defaultOpen>
+          {aiImagesConfigured ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Direction artistique</Label>
+                <StylePicker value={style} onChange={(v) => set({ visualStyle: v })} />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between"><Label>Fil conducteur</Label><Counter value={state.visualMotif} max={300} /></div>
+                <Textarea
+                  value={state.visualMotif}
+                  maxLength={300}
+                  rows={2}
+                  placeholder="Ex. : chaque aliment présenté dans une cuillère en bois, au-dessus d'un verger flou"
+                  onChange={(e) => set({ visualMotif: e.target.value })}
+                />
+                <p className="text-[11px] text-muted-foreground">Le décor commun à toutes les images. C'est lui qui en fait une série plutôt qu'une suite de photos sans rapport.</p>
+              </div>
+
+              {pendingVisuals > 0 ? (
+                <Button variant="gradient" className="w-full" onClick={() => generateVisuals("missing")} loading={visualsBusy} disabled={generating || filling || busy !== null || credits < pendingVisuals * aiImageCost}>
+                  <Wand2 /> Générer {pendingVisuals} visuel{pendingVisuals > 1 ? "s" : ""} IA {aiImageCost > 0 && <><Coins className="h-3.5 w-3.5" /> {pendingVisuals * aiImageCost}</>}
+                </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => window.confirm(`Recréer les ${regenerable} images du carrousel ? ${regenerable * aiImageCost} crédits.`) && generateVisuals("all")}
+                  loading={visualsBusy}
+                  disabled={generating || filling || busy !== null || regenerable === 0 || credits < regenerable * aiImageCost}
+                >
+                  <RefreshCw /> Tout régénérer {aiImageCost > 0 && <><Coins className="h-3.5 w-3.5" /> {regenerable * aiImageCost}</>}
+                </Button>
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                {pendingVisuals > 0
+                  ? "Les photos de banque et les images d'un autre style sont remplacées ; tes propres photos restent. La couverture est créée d'abord et sert de référence de lumière et de couleurs aux autres."
+                  : "Toutes les images sont dans ce style. Pour en changer une seule : ouvre la slide dans Textes."}
+              </p>
+              {state.template !== "immersive" && (
+                <p className="rounded-lg border border-amber-300/20 bg-amber-300/5 p-2.5 text-[11px] text-amber-200">
+                  Le modèle Immersif met chaque visuel en plein écran, avec un fond sombre continu d'une slide à l'autre.{" "}
+                  <button type="button" className="font-semibold underline" onClick={() => set({ template: "immersive" })}>Passer en Immersif</button>
+                </p>
+              )}
+              {stockConfigured && photoCount < photoSlots && (
+                <div className="border-t border-white/[0.06] pt-3">
+                  <Button variant="ghost" size="sm" className="w-full text-xs" onClick={fillPhotos} loading={filling} disabled={generating || visualsBusy || busy !== null}>
+                    <ImagePlus /> Remplir les slides vides avec la banque d'images (gratuit)
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">Ajoute une photo sur chaque slide qui n'en a pas. Les photos déjà en place et les textes ne bougent pas.</p>
+              <Button variant="gradient" className="mt-3 w-full" onClick={fillPhotos} loading={filling} disabled={!stockConfigured || generating || busy !== null}>
+                <Sparkles /> Remplir les slides vides
+              </Button>
+              <p className="mt-2 text-[11px] text-muted-foreground">{stockConfigured ? "Gratuit. Pour changer une photo précise : ouvre la slide dans Textes, puis Changer." : "La recherche de photos n'est pas configurée."}</p>
+            </>
+          )}
         </Section>
 
         <Section title="Textes" icon={Type} count={state.slides.length}>
@@ -387,6 +572,11 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                   aiImageCost={aiImageCost}
                   aiImagesConfigured={aiImagesConfigured}
                   credits={credits}
+                  ensureSaved={ensureSaved}
+                  onGenerated={(generatedStyle, creditsLeft) => {
+                    setCredits(creditsLeft);
+                    if (!state.visualStyle) set({ visualStyle: generatedStyle });
+                  }}
                   onChange={(patch) => patchSlide(s.id, patch)}
                   onRemove={() => removeSlide(s.id)}
                   onMove={(dir) => moveSlide(s.id, dir)}
@@ -408,7 +598,10 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
         )}
 
         <Section title="Réécrire avec l'IA" icon={RefreshCw} summary={cost > 0 ? `${cost} crédits` : undefined}>
-          <p className="text-xs text-muted-foreground">Repart du script actuel du projet et réécrit tous les textes. De nouvelles photos sont cherchées pour chaque slide. Le modèle, le format et la signature sont conservés.</p>
+          <p className="text-xs text-muted-foreground">
+            Repart du script actuel du projet et réécrit tous les textes.{" "}
+            {aiImagesConfigured && state.visualStyle ? `Les visuels IA sont recréés dans le même style (${aiImageCost} crédits par image).` : "De nouvelles photos sont cherchées pour chaque slide."} Le modèle, le format et la signature sont conservés.
+          </p>
           <Button variant="secondary" size="sm" className="mt-3 w-full" onClick={generate} loading={generating} disabled={!aiConfigured || !hasScript || credits < cost || filling}>
             <Sparkles /> Réécrire le carrousel {cost > 0 && <><Coins className="h-3.5 w-3.5" /> {cost}</>}
           </Button>
@@ -434,7 +627,7 @@ function Counter({ value, max }: { value: string; max: number }) {
 }
 
 /** One slide. Limits come from what the layout can hold in its tightest format, so a slide within them never overflows. */
-function SlideEditor({ projectId, slide, label, canDelete, canMoveUp, canMoveDown, aiImageCost, aiImagesConfigured, credits, onChange, onRemove, onMove }: {
+function SlideEditor({ projectId, slide, label, canDelete, canMoveUp, canMoveDown, aiImageCost, aiImagesConfigured, credits, ensureSaved, onGenerated, onChange, onRemove, onMove }: {
   projectId: string;
   slide: CarouselSlide;
   label: string;
@@ -444,13 +637,16 @@ function SlideEditor({ projectId, slide, label, canDelete, canMoveUp, canMoveDow
   aiImageCost: number;
   aiImagesConfigured: boolean;
   credits: number;
+  ensureSaved: () => Promise<boolean>;
+  onGenerated: (style: VisualStyle, creditsLeft: number) => void;
   onChange: (patch: Partial<CarouselSlide>) => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
 }) {
   const limit = limitsFor(slide);
-  // A photo takes a third of a content slide, so it only fits once the text is short enough.
-  const tooLongForPhoto = slide.kind === "content" && !slide.image && (slide.title.length > IMAGE_SLIDE_LIMITS.title || slide.body.length > IMAGE_SLIDE_LIMITS.body);
+  // An image takes part of a content slide, so it only fits once the text is short enough.
+  const tooLongForPhoto = !slide.image && tooLongForImage(slide);
+  const emphasisMissing = Boolean(slide.emphasis.trim()) && !slide.title.toLowerCase().includes(slide.emphasis.trim().toLowerCase());
 
   return (
     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
@@ -472,6 +668,13 @@ function SlideEditor({ projectId, slide, label, canDelete, canMoveUp, canMoveDow
           <Textarea value={slide.title} maxLength={limit.title} rows={2} className="font-medium" onChange={(e) => onChange({ title: e.target.value })} />
         </div>
         <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <Label className="text-[11px]">Mots en couleur</Label>
+            {emphasisMissing && <span className="text-[10px] text-amber-300">absents du titre</span>}
+          </div>
+          <Input value={slide.emphasis} maxLength={60} className="h-8 text-xs" placeholder="1 à 3 mots copiés du titre" onChange={(e) => onChange({ emphasis: e.target.value })} />
+        </div>
+        <div className="space-y-1">
           <div className="flex items-center justify-between"><Label className="text-[11px]">Texte</Label><Counter value={slide.body} max={limit.body} /></div>
           <Textarea value={slide.body} maxLength={limit.body} rows={slide.kind === "cta" ? 2 : 3} onChange={(e) => onChange({ body: e.target.value })} />
         </div>
@@ -489,8 +692,12 @@ function SlideEditor({ projectId, slide, label, canDelete, canMoveUp, canMoveDow
             aiImageCost={aiImageCost}
             aiImagesConfigured={aiImagesConfigured}
             credits={credits}
-            blockedReason={tooLongForPhoto ? `Pour ajouter une photo, raccourcis le titre à ${IMAGE_SLIDE_LIMITS.title} et le texte à ${IMAGE_SLIDE_LIMITS.body} caractères : la photo prend un tiers de la slide.` : null}
-            onChange={(image) => onChange(image === null && slide.image?.source ? { image, rejectedImages: [...(slide.rejectedImages ?? []), slide.image.source].slice(-40) } : { image })}
+            ensureSaved={ensureSaved}
+            onGenerated={onGenerated}
+            onPromptChange={(imagePrompt) => onChange({ imagePrompt })}
+            blockedReason={tooLongForPhoto ? `Pour ajouter une image, raccourcis le titre à ${IMAGE_SLIDE_LIMITS.title} et le texte à ${IMAGE_SLIDE_LIMITS.body} caractères : l'image prend une partie de la slide.` : null}
+            // A stock photo taken off is remembered so "Remplir" never proposes it again.
+            onChange={(image) => onChange(image === null && slide.image?.source?.startsWith("http") ? { image, rejectedImages: [...(slide.rejectedImages ?? []), slide.image.source].slice(-40) } : { image })}
           />
         )}
       </div>
@@ -535,17 +742,21 @@ async function toJpeg(file: File): Promise<File> {
   }
 }
 
-/** Photo of one slide: search both stock libraries, or bring your own. */
-function ImageControl({ projectId, slide, aiImageCost, aiImagesConfigured, credits, blockedReason, onChange }: {
+/** Image of one slide: an AI visual in the carousel's art direction, a stock photo, or the user's own. */
+function ImageControl({ projectId, slide, aiImageCost, aiImagesConfigured, credits, blockedReason, ensureSaved, onGenerated, onPromptChange, onChange }: {
   projectId: string;
   slide: CarouselSlide;
   aiImageCost: number;
   aiImagesConfigured: boolean;
   credits: number;
   blockedReason: string | null;
+  ensureSaved: () => Promise<boolean>;
+  onGenerated: (style: VisualStyle, creditsLeft: number) => void;
+  onPromptChange: (prompt: string) => void;
   onChange: (image: CarouselSlide["image"]) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [stockOpen, setStockOpen] = useState(!aiImagesConfigured);
   const [query, setQuery] = useState(slide.imageQuery || slide.title);
   const [hits, setHits] = useState<StockHit[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -553,13 +764,17 @@ function ImageControl({ projectId, slide, aiImageCost, aiImagesConfigured, credi
   const [uploading, setUploading] = useState(false);
   const [generatingAi, setGeneratingAi] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const origin = imageOrigin(slide.image);
 
   async function generateAi() {
     setGeneratingAi(true);
     try {
-      const res = await generateSlideImageAction(projectId, slide.imageQuery || slide.title);
+      // The server reads the slide and the carousel's style from the database.
+      if (!(await ensureSaved())) return;
+      const res = await generateSlideImageAction(projectId, slide.id, slide.imagePrompt);
       if (!res.ok) return toast.error(res.error);
-      onChange({ url: res.data.url });
+      onChange({ url: res.data.url, source: res.data.source });
+      onGenerated(res.data.visualStyle, res.data.creditsLeft);
       setOpen(false);
     } finally {
       setGeneratingAi(false);
@@ -581,9 +796,15 @@ function ImageControl({ projectId, slide, aiImageCost, aiImagesConfigured, credi
     }
   }
 
-  function openPicker() {
-    setOpen(true);
+  function openStock() {
+    setStockOpen(true);
     if (!hits) void search();
+  }
+
+  function togglePanel() {
+    if (open) return setOpen(false);
+    setOpen(true);
+    if (stockOpen && !hits) void search();
   }
 
   async function pick(hit: StockHit) {
@@ -609,6 +830,8 @@ function ImageControl({ projectId, slide, aiImageCost, aiImagesConfigured, credi
     }
   }
 
+  const originLabel = origin === "ai" ? "IA" : origin === "stock" ? "Banque" : origin === "upload" ? "Ta photo" : null;
+
   return (
     <div className="space-y-2 border-t border-white/[0.06] pt-2">
       <div className="flex items-center gap-2">
@@ -618,48 +841,144 @@ function ImageControl({ projectId, slide, aiImageCost, aiImagesConfigured, credi
           <div className="flex h-12 w-10 shrink-0 items-center justify-center rounded border border-dashed border-white/15 text-muted-foreground"><ImageIcon className="h-4 w-4" /></div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-medium">{slide.kind === "cover" ? "Photo de fond" : "Photo"}</p>
-          <p className="truncate text-[10px] text-muted-foreground">{slide.image ? (slide.kind === "cover" ? "Plein cadre, texte en blanc par-dessus" : "En bandeau au-dessus du texte") : "Aucune — le design seul"}</p>
+          <p className="flex items-center gap-1.5 text-[11px] font-medium">
+            {slide.kind === "cover" ? "Image de fond" : "Image"}
+            {originLabel && <span className={cn("rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wide", origin === "ai" ? "bg-primary/20 text-brand-200" : "bg-white/[0.08] text-muted-foreground")}>{originLabel}</span>}
+          </p>
+          <p className="truncate text-[10px] text-muted-foreground">{slide.image ? "Visible sur la slide" : "Aucune — le design seul"}</p>
         </div>
-        <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" disabled={Boolean(blockedReason)} onClick={() => (open ? setOpen(false) : openPicker())}>
+        <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" disabled={Boolean(blockedReason)} onClick={togglePanel}>
           <ImagePlus /> {slide.image ? "Changer" : "Ajouter"}
         </Button>
         {slide.image && (
-          <Button size="icon-sm" variant="ghost" aria-label="Retirer la photo" className="text-red-300" onClick={() => onChange(null)}><Trash2 /></Button>
+          <Button size="icon-sm" variant="ghost" aria-label="Retirer l'image" className="text-red-300" onClick={() => onChange(null)}><Trash2 /></Button>
         )}
       </div>
       {blockedReason && <p className="text-[10px] text-amber-300">{blockedReason}</p>}
 
       {open && (
-        <div className="space-y-2 rounded-lg border border-white/[0.06] bg-black/20 p-2">
-          <form className="flex gap-1.5" onSubmit={(e) => { e.preventDefault(); void search(); }}>
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ex. : woman journaling" className="h-8 text-xs" />
-            <Button type="submit" size="icon-sm" variant="secondary" aria-label="Rechercher" loading={searching}><Search /></Button>
-          </form>
-          <p className="text-[10px] text-muted-foreground">Pexels et Pixabay — les mots-clés en anglais donnent plus de résultats.</p>
+        <div className="space-y-3 rounded-lg border border-white/[0.06] bg-black/20 p-2.5">
           {aiImagesConfigured && (
-            <Button size="sm" variant="secondary" className="w-full text-[11px]" loading={generatingAi} disabled={credits < aiImageCost} onClick={generateAi}>
-              <Wand2 /> Générer avec l'IA {aiImageCost > 0 && <><Coins className="h-3 w-3" /> {aiImageCost}</>}
-            </Button>
-          )}
-          {aiImagesConfigured && credits < aiImageCost && <p className="text-[10px] text-amber-300">Crédits insuffisants pour générer une image IA.</p>}
-          {hits && hits.length === 0 && !searching && <p className="py-3 text-center text-[11px] text-muted-foreground">Aucune photo trouvée. Essaie des mots plus simples et concrets.</p>}
-          {hits && hits.length > 0 && (
-            <div className="grid grid-cols-3 gap-1.5">
-              {hits.slice(0, 12).map((h) => (
-                <button key={h.id} type="button" onClick={() => pick(h)} disabled={importing !== null} className="relative aspect-[4/5] overflow-hidden rounded-md border border-white/10 transition hover:border-primary/60 disabled:opacity-60">
-                  <img src={h.thumbnailUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
-                  {importing === h.id && <span className="absolute inset-0 flex items-center justify-center bg-black/50"><Loader2 className="h-4 w-4 animate-spin" /></span>}
-                </button>
-              ))}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between"><Label className="text-[11px]">Scène à illustrer</Label><Counter value={slide.imagePrompt} max={600} /></div>
+              <Textarea
+                value={slide.imagePrompt}
+                maxLength={600}
+                rows={3}
+                className="text-xs"
+                placeholder="Ex. : un bol de bouillon fumant posé sur une table en bois, près d'une fenêtre"
+                onChange={(e) => onPromptChange(e.target.value)}
+              />
+              <p className="text-[10px] text-muted-foreground">Décris le sujet, pas le style : la direction artistique et le fil conducteur s'ajoutent tout seuls.</p>
+              <Button size="sm" variant="gradient" className="w-full text-[11px]" loading={generatingAi} disabled={credits < aiImageCost} onClick={generateAi}>
+                <Wand2 /> {origin === "ai" ? "Régénérer" : "Générer"} avec l'IA {aiImageCost > 0 && <><Coins className="h-3 w-3" /> {aiImageCost}</>}
+              </Button>
+              {credits < aiImageCost && <p className="text-[10px] text-amber-300">Crédits insuffisants pour générer une image.</p>}
             </div>
           )}
-          <Button size="sm" variant="outline" className="w-full text-[11px]" loading={uploading} onClick={() => fileRef.current?.click()}>
-            <Upload /> Importer ma propre photo
-          </Button>
+
+          {aiImagesConfigured && !stockOpen ? (
+            <div className="grid grid-cols-2 gap-1.5 border-t border-white/[0.06] pt-2.5">
+              <Button size="sm" variant="outline" className="text-[11px]" onClick={openStock}><Search /> Banque d'images</Button>
+              <Button size="sm" variant="outline" className="text-[11px]" loading={uploading} onClick={() => fileRef.current?.click()}><Upload /> Ma photo</Button>
+            </div>
+          ) : (
+            <div className={cn("space-y-2", aiImagesConfigured && "border-t border-white/[0.06] pt-2.5")}>
+              <form className="flex gap-1.5" onSubmit={(e) => { e.preventDefault(); void search(); }}>
+                <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ex. : woman journaling" className="h-8 text-xs" />
+                <Button type="submit" size="icon-sm" variant="secondary" aria-label="Rechercher" loading={searching}><Search /></Button>
+              </form>
+              <p className="text-[10px] text-muted-foreground">Pexels et Pixabay — les mots-clés en anglais donnent plus de résultats.</p>
+              {hits && hits.length === 0 && !searching && <p className="py-3 text-center text-[11px] text-muted-foreground">Aucune photo trouvée. Essaie des mots plus simples et concrets.</p>}
+              {hits && hits.length > 0 && (
+                <div className="grid grid-cols-3 gap-1.5">
+                  {hits.slice(0, 12).map((h) => (
+                    <button key={h.id} type="button" onClick={() => pick(h)} disabled={importing !== null} className="relative aspect-[4/5] overflow-hidden rounded-md border border-white/10 transition hover:border-primary/60 disabled:opacity-60">
+                      <img src={h.thumbnailUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                      {importing === h.id && <span className="absolute inset-0 flex items-center justify-center bg-black/50"><Loader2 className="h-4 w-4 animate-spin" /></span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <Button size="sm" variant="outline" className="w-full text-[11px]" loading={uploading} onClick={() => fileRef.current?.click()}>
+                <Upload /> Importer ma propre photo
+              </Button>
+            </div>
+          )}
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
         </div>
       )}
+    </div>
+  );
+}
+
+/** The five art directions, each previewed by its palette. */
+function StylePicker({ value, onChange }: { value: VisualStyle; onChange: (style: VisualStyle) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      {VISUAL_STYLES.map((id) => {
+        const art = ART_DIRECTIONS[id];
+        const selected = value === id;
+        return (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => onChange(id)}
+            className={cn("relative rounded-lg border p-2 text-left transition", selected ? "border-primary/60 bg-primary/10" : "border-white/10 hover:border-white/20")}
+          >
+            <div className="flex h-7 overflow-hidden rounded-md">
+              {art.swatch.map((c) => <div key={c} className="flex-1" style={{ background: c }} />)}
+            </div>
+            <p className="mt-1.5 text-xs font-semibold">{art.label}</p>
+            <p className="text-[10px] leading-snug text-muted-foreground">{art.hint}</p>
+            {selected && <Check className="absolute right-1.5 top-1.5 h-3.5 w-3.5 rounded-full bg-primary p-0.5 text-white" />}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ChoiceCard({ selected, onClick, title, badge, children }: { selected: boolean; onClick: () => void; title: string; badge?: string; children: ReactNode }) {
+  return (
+    <button type="button" aria-pressed={selected} onClick={onClick} className={cn("rounded-xl border p-3 text-left transition", selected ? "border-primary/60 bg-primary/10" : "border-white/10 hover:border-white/20")}>
+      <p className="flex items-center gap-2 text-sm font-semibold">
+        <span className={cn("flex h-4 w-4 shrink-0 items-center justify-center rounded-full border", selected ? "border-primary bg-primary" : "border-white/30")}>{selected && <Check className="h-3 w-3 text-white" />}</span>
+        {title}
+        {badge && <span className="rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-semibold text-brand-200">{badge}</span>}
+      </p>
+      <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{children}</p>
+    </button>
+  );
+}
+
+/** Creating is two requests — the writing, then the images — shown as the two steps they are. */
+function CreationProgress({ phase, withVisuals }: { phase: "text" | "visuals"; withVisuals: boolean }) {
+  const steps = [
+    { id: "text", label: "Écriture des slides", hint: "Titres, textes, mots en couleur et scènes à illustrer" },
+    ...(withVisuals ? [{ id: "visuals", label: "Création des visuels", hint: "La couverture d'abord, puis toutes les images dans son style — environ 30 secondes" }] : []),
+  ];
+  const at = steps.findIndex((s) => s.id === phase);
+  return (
+    <div className="surface space-y-4 p-5">
+      <div>
+        <p className="font-display text-lg font-bold">Ton carrousel se prépare</p>
+        <p className="text-sm text-muted-foreground">Reste sur cette page, ça ne prend qu'un moment.</p>
+      </div>
+      <ol className="space-y-3">
+        {steps.map((s, i) => (
+          <li key={s.id} className="flex gap-3">
+            <span className={cn("mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border", i < at ? "border-emerald-400/50 bg-emerald-400/15 text-emerald-300" : i === at ? "border-primary/60 bg-primary/15 text-brand-200" : "border-white/10 text-muted-foreground")}>
+              {i < at ? <Check className="h-3.5 w-3.5" /> : i === at ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <span className="text-[11px]">{i + 1}</span>}
+            </span>
+            <div>
+              <p className={cn("text-sm font-medium", i > at && "text-muted-foreground")}>{s.label}</p>
+              <p className="text-xs text-muted-foreground">{s.hint}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

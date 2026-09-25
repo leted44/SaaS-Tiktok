@@ -13,6 +13,8 @@ const FILES = [
   { name: "Inter", weight: 600, file: "Inter-SemiBold.ttf" },
   { name: "Inter", weight: 800, file: "Inter-ExtraBold.ttf" },
   { name: "Playfair Display", weight: 700, file: "PlayfairDisplay-Bold.ttf" },
+  // Condensed poster face of the Immersive template (SIL Open Font License, see Anton-OFL.txt).
+  { name: "Anton", weight: 400, file: "Anton-Regular.ttf" },
 ] as const;
 
 export type LoadedFont = { name: string; data: ArrayBuffer; weight: 400 | 600 | 700 | 800; style: "normal" };

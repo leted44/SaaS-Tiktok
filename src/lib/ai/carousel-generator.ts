@@ -3,28 +3,42 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod/v4";
 import { nanoid } from "nanoid";
 import { env } from "@/lib/env";
-import { SLIDE_LIMITS, stripEmoji, type CarouselSlide } from "@/lib/carousel/schema";
+import { IMAGE_SLIDE_LIMITS, SLIDE_LIMITS, stripEmoji, type CarouselSlide } from "@/lib/carousel/schema";
+import { ART_DIRECTIONS, type VisualStyle } from "@/lib/carousel/art-direction";
+
+const EMPHASIS = "The 1 to 3 consecutive words of the title that carry its punch — the surprising number, the key noun, the twist — copied EXACTLY as they appear in the title. They are set in the accent colour.";
+const IMAGE_BRIEF = "Brief for an image model, in the script's language, 1 to 2 sentences: the one concrete subject that makes this idea visible (a food, an object, a person doing something, a place), staged within the visualMotif, with its action, setting and framing. No lighting, colour or camera words — the art direction adds them.";
 
 export const carouselFields = z.object({
+  visualMotif: z
+    .string()
+    .describe(
+      "In the script's language, one sentence: the recurring setting or prop that makes every image of this carousel read as one series, the way a strong Instagram account repeats one staging and only changes the subject — e.g. 'chaque aliment présenté dans une cuillère en bois rustique, au-dessus d'un verger flou'. Concrete and photographable. No lighting or colour words.",
+    ),
   coverKicker: z.string().describe("A 1 to 3 word category label for the topic, e.g. 'Psychologie', 'Nutrition', 'Business'. 32 characters maximum."),
   coverTitle: z
     .string()
-    .describe("The cover headline: the single strongest promise or counter-intuitive claim of the idea, written to make someone swipe. 90 characters maximum. No question unless it is irresistible."),
-  coverSubtitle: z.string().describe("One short line under the headline that makes the swipe feel worth it, e.g. 'Voici comment.' or the key tension. 140 characters maximum."),
+    .describe("The cover headline: the single strongest promise or counter-intuitive claim of the idea, written to make someone swipe. 70 characters maximum — short headlines stop the scroll. No question unless it is irresistible."),
+  coverEmphasis: z.string().describe(EMPHASIS),
+  coverSubtitle: z.string().describe("One short line under the headline that makes the swipe feel worth it, e.g. 'Voici comment.' or the key tension. 110 characters maximum."),
+  coverImagePrompt: z.string().describe(`${IMAGE_BRIEF} This is the cover: it must make the promise of the headline visible at a glance.`),
   coverImageQuery: z
     .string()
     .describe("2 to 4 ENGLISH words describing one concrete, photographable scene for a stock-photo search behind the cover — a person, a place or an object, never an abstract idea. Example: 'woman journaling morning light'."),
   slides: z
     .array(
       z.object({
-        title: z.string().describe("One complete, punchy statement carrying the idea of the slide — never a vague label like 'Le problème'. 110 characters maximum."),
-        body: z.string().describe("One to three short sentences that explain, prove or illustrate the title with something concrete. 320 characters maximum, ideally under 220."),
-        imageQuery: z.string().describe("2 to 4 ENGLISH words for a stock photo that illustrates this slide concretely. Used only if the creator decides to add a photo."),
+        title: z.string().describe(`One complete, punchy statement carrying the idea of the slide — never a vague label like 'Le problème'. ${IMAGE_SLIDE_LIMITS.title} characters maximum.`),
+        emphasis: z.string().describe(EMPHASIS),
+        body: z.string().describe(`One or two short sentences that explain, prove or illustrate the title with something concrete. ${IMAGE_SLIDE_LIMITS.body} characters maximum — a photo shares the slide.`),
+        imagePrompt: z.string().describe(IMAGE_BRIEF),
+        imageQuery: z.string().describe("2 to 4 ENGLISH words for a stock photo that illustrates this slide concretely."),
       }),
     )
-    .describe("Between 5 and 8 content slides. Each slide carries exactly one idea, and together they build: tension, then mechanism, then what to do."),
+    .describe("Between 5 and 7 content slides. Each slide carries exactly one idea, and together they build: tension, then mechanism, then what to do."),
   ctaKicker: z.string().describe("A 1 to 3 word label for the closing slide, e.g. 'À toi de jouer', 'En résumé'. 32 characters maximum."),
   ctaTitle: z.string().describe("The closing headline: one concrete takeaway or first action the reader can do today. 70 characters maximum."),
+  ctaEmphasis: z.string().describe(EMPHASIS),
   ctaBody: z.string().describe("One short sentence that makes the takeaway stick. 140 characters maximum."),
   ctaAction: z
     .string()
@@ -45,7 +59,13 @@ Rules you always apply:
 - The last slide ends on one explicit ask — comment a keyword, share, or follow — adapted from the script's own call to action. It is the moment the reader decides what to do next: never waste it.
 - No emoji anywhere — the slide fonts cannot draw them. No hashtags. No numbering in titles — the design numbers the slides.
 - Keep the script's language, its tone, and its way of addressing the reader (tu or vous).
-- Respect every length limit. A slide that runs long is cut off in the image.`;
+- Respect every length limit. A slide that runs long is cut off in the image.
+
+Every cover and content slide carries a full image, so you are also the art director of the series:
+- The visualMotif is what makes eight images look like one professional account instead of eight unrelated pictures: one recurring staging (a prop, a surface, a place) in which each slide's subject appears. Pick one that fits the topic and can host every subject.
+- Each image brief shows ONE concrete subject that makes that slide's idea visible — never an abstract concept, a chart, a diagram, a screen, a document, or anything carrying written words, numbers or a clock face.
+- When a slide is about a food, an object or a gesture, stage that thing within the motif. When a person helps, show them in a natural, flattering, fully clothed situation, never a close-up of hands.
+- Every image must match the tone of the account: a health topic never shows anything unappetising, gory or embarrassing.`;
 
 export interface CarouselInput {
   title: string;
@@ -56,6 +76,21 @@ export interface CarouselInput {
   niche?: string | null;
   toneOfVoice?: string | null;
   targetAudience?: string | null;
+  /** The look the images will be generated in — the briefs are written to suit it (an illustration can show characters a photo shouldn't). */
+  visualStyle: VisualStyle;
+}
+
+export interface GeneratedCarousel {
+  slides: CarouselSlide[];
+  visualMotif: string;
+}
+
+/** The emphasis as it is spelled in the title, or nothing when the model's pick is not actually in it. */
+export function emphasisIn(title: string, emphasis: string): string {
+  const wanted = stripEmoji(emphasis).trim();
+  if (!wanted) return "";
+  const at = title.toLowerCase().indexOf(wanted.toLowerCase());
+  return at < 0 ? "" : title.slice(at, at + wanted.length);
 }
 
 export class CarouselGenerationError extends Error {
@@ -86,11 +121,13 @@ export function fit(text: string, max: number): string {
   return `${(space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:.–-]+$/, "")}…`;
 }
 
-export async function generateCarousel(input: CarouselInput): Promise<CarouselSlide[]> {
+export async function generateCarousel(input: CarouselInput): Promise<GeneratedCarousel> {
   const anthropic = getClient();
+  const art = ART_DIRECTIONS[input.visualStyle];
 
   const userPrompt = [
     `Language: ${input.language}`,
+    `Art direction of the images: ${art.label} — ${art.prompt}`,
     input.niche ? `Niche: ${input.niche}` : null,
     input.toneOfVoice ? `Brand voice guidelines: ${input.toneOfVoice}` : null,
     input.targetAudience ? `Audience: ${input.targetAudience}` : null,
@@ -125,9 +162,48 @@ export async function generateCarousel(input: CarouselInput): Promise<CarouselSl
 
   const L = SLIDE_LIMITS;
   const none = { action: "", image: null };
-  return [
-    { ...none, id: nanoid(8), kind: "cover", kicker: fit(out.coverKicker, L.cover.kicker), title: fit(out.coverTitle, L.cover.title), body: fit(out.coverSubtitle, L.cover.body), imageQuery: fit(out.coverImageQuery, 80) },
-    ...out.slides.slice(0, 8).map((s) => ({ ...none, id: nanoid(8), kind: "content" as const, kicker: "", title: fit(s.title, L.content.title), body: fit(s.body, L.content.body), imageQuery: fit(s.imageQuery, 80) })),
-    { id: nanoid(8), kind: "cta", kicker: fit(out.ctaKicker, L.cta.kicker), title: fit(out.ctaTitle, L.cta.title), body: fit(out.ctaBody, L.cta.body), action: fit(out.ctaAction, L.cta.action), imageQuery: "", image: null },
+  const brief = (text: string) => stripEmoji(text).replace(/\s+/g, " ").trim().slice(0, 600);
+  const coverTitle = fit(out.coverTitle, L.cover.title);
+  const ctaTitle = fit(out.ctaTitle, L.cta.title);
+  const slides: CarouselSlide[] = [
+    {
+      ...none,
+      id: nanoid(8),
+      kind: "cover",
+      kicker: fit(out.coverKicker, L.cover.kicker),
+      title: coverTitle,
+      emphasis: emphasisIn(coverTitle, out.coverEmphasis),
+      body: fit(out.coverSubtitle, L.cover.body),
+      imageQuery: fit(out.coverImageQuery, 80),
+      imagePrompt: brief(out.coverImagePrompt),
+    },
+    ...out.slides.slice(0, 8).map((s) => {
+      // Written for a slide that carries a photo, so held to the photo limits.
+      const title = fit(s.title, IMAGE_SLIDE_LIMITS.title);
+      return {
+        ...none,
+        id: nanoid(8),
+        kind: "content" as const,
+        kicker: "",
+        title,
+        emphasis: emphasisIn(title, s.emphasis),
+        body: fit(s.body, IMAGE_SLIDE_LIMITS.body),
+        imageQuery: fit(s.imageQuery, 80),
+        imagePrompt: brief(s.imagePrompt),
+      };
+    }),
+    {
+      id: nanoid(8),
+      kind: "cta",
+      kicker: fit(out.ctaKicker, L.cta.kicker),
+      title: ctaTitle,
+      emphasis: emphasisIn(ctaTitle, out.ctaEmphasis),
+      body: fit(out.ctaBody, L.cta.body),
+      action: fit(out.ctaAction, L.cta.action),
+      imageQuery: "",
+      imagePrompt: "",
+      image: null,
+    },
   ];
+  return { slides, visualMotif: brief(out.visualMotif).slice(0, 300) };
 }

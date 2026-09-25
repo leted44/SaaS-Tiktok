@@ -1,9 +1,7 @@
 import { nanoid } from "nanoid";
 import { env } from "@/lib/env";
 import { absoluteUrl, putObject, storageKey } from "@/lib/storage";
-import { generateSlideImage } from "@/lib/ai/image-generator";
-import type { CarouselFormat } from "@/lib/carousel/schema";
-import { FORMAT_SIZE } from "@/lib/carousel/schema";
+import type { GeneratedImage } from "@/lib/ai/image-generator";
 
 /**
  * Photos on carousel slides.
@@ -100,16 +98,32 @@ export async function copyStockImage(userId: string, sourceUrl: string): Promise
 }
 
 /**
- * Generate a photo for a slide with Gemini's image model and store it, same
- * shape as {@link copyStockImage} so the rest of the carousel pipeline (the
- * renderer, the editor) never needs to know which source produced an image.
+ * Store an AI-generated image in the user's storage, checked the same way as
+ * a stock copy, so the renderer and the editor never need to know which
+ * source produced a slide's image.
  */
-export async function generateAndStoreSlideImage(userId: string, subject: string, format: CarouselFormat): Promise<string> {
-  const { data, mimeType } = await generateSlideImage(subject, FORMAT_SIZE[format].label as "1:1" | "4:5" | "9:16");
-  if (data.length > MAX_BYTES) throw new CarouselImageError("L'image générée est trop lourde.");
-  const type = sniff(data);
-  if (!type) throw new CarouselImageError(`Format d'image inattendu renvoyé par l'IA (${mimeType}).`);
-
-  const stored = await putObject(storageKey(userId, "asset", `carousel-ai-${nanoid(10)}.${type === "image/png" ? "png" : "jpg"}`), data, type);
+export async function storeGeneratedImage(userId: string, image: GeneratedImage): Promise<string> {
+  if (image.data.length > MAX_BYTES) throw new CarouselImageError("L'image générée est trop lourde.");
+  const type = sniff(image.data);
+  if (!type) throw new CarouselImageError(`Format d'image inattendu renvoyé par l'IA (${image.mimeType}).`);
+  const stored = await putObject(storageKey(userId, "asset", `carousel-ai-${nanoid(10)}.${type === "image/png" ? "png" : "jpg"}`), image.data, type);
   return stored.url;
+}
+
+/**
+ * Read back an image already in our storage — the cover, handed to the image
+ * model as the style reference for the rest of the series. Null when it is
+ * not ours or cannot be read: generation then goes on without a reference.
+ */
+export async function readOwnImage(url: string): Promise<GeneratedImage | null> {
+  if (!isOwnStorageUrl(url)) return null;
+  try {
+    const res = await fetch(absoluteUrl(url), { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) return null;
+    const data = Buffer.from(await res.arrayBuffer());
+    const type = data.length <= MAX_BYTES ? sniff(data) : null;
+    return type ? { data, mimeType: type } : null;
+  } catch {
+    return null;
+  }
 }

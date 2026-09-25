@@ -6,7 +6,7 @@ import { CarouselSlideView } from "@/components/carousel/slide";
 import { resolveTemplate } from "@/lib/carousel/templates";
 import { loadCarouselFonts } from "@/lib/carousel/fonts";
 import { renderableImageUrl } from "@/lib/carousel/images";
-import { carouselStateSchema, slideFileSlug, FORMAT_SIZE } from "@/lib/carousel/schema";
+import { carouselStateFromRow, slideFileSlug, FORMAT_SIZE } from "@/lib/carousel/schema";
 
 // Reads the bundled font files from disk.
 export const runtime = "nodejs";
@@ -31,7 +31,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
   });
   if (!carousel) return NextResponse.json({ error: "Carrousel introuvable" }, { status: 404 });
 
-  const parsed = carouselStateSchema.safeParse({ template: carousel.template, format: carousel.format, handle: carousel.handle, slides: carousel.slides });
+  const parsed = carouselStateFromRow(carousel);
   if (!parsed.success) return NextResponse.json({ error: "Carrousel illisible" }, { status: 422 });
   const state = parsed.data;
 

@@ -4,7 +4,7 @@ import { getProjectForCarousel } from "@/server/queries";
 import { CarouselEditor } from "@/components/carousel/carousel-editor";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
 import { integrations } from "@/lib/env";
-import { carouselStateSchema } from "@/lib/carousel/schema";
+import { carouselStateFromRow } from "@/lib/carousel/schema";
 import { parseJson } from "@/lib/validations";
 import { fallbackSocialCopy, socialCopySchema } from "@/lib/social/captions";
 
@@ -26,9 +26,7 @@ export default async function CarouselPage({ params }: { params: Promise<{ id: s
   const { project, user, activeScript } = data;
   const admin = isAdmin(user.role);
 
-  const stored = project.carousel
-    ? carouselStateSchema.safeParse({ template: project.carousel.template, format: project.carousel.format, handle: project.carousel.handle, slides: project.carousel.slides })
-    : null;
+  const stored = project.carousel ? carouselStateFromRow(project.carousel) : null;
 
   return (
     <CarouselEditor

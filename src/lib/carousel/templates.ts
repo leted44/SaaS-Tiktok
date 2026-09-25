@@ -24,8 +24,8 @@ export interface TemplateTokens {
   track: string;
   /** Background of inset cards (the call-to-action block). */
   surface: string;
-  headlineFont: "Inter" | "Playfair Display";
-  headlineWeight: 700 | 800;
+  headlineFont: "Inter" | "Playfair Display" | "Anton";
+  headlineWeight: 400 | 700 | 800;
   headlineCase: "none" | "uppercase";
   headlineTracking: number;
 }
@@ -92,6 +92,29 @@ function legibleAccent(color: string, background: string): string {
 
 export function resolveTemplate(id: CarouselTemplate, brand: Brand): TemplateTokens {
   switch (id) {
+    case "immersive": {
+      // Built for AI visuals: every slide a full-bleed image under a warm near-black,
+      // poster headlines, the brand colour reserved for the words that matter.
+      const background = "#0B0907";
+      const accent = legibleAccent(brand.accent, background);
+      return {
+        id,
+        name: "Immersif",
+        background,
+        overlay: `radial-gradient(circle at 50% 115%, ${accent}33 0%, transparent 58%)`,
+        text: "#FFFFFF",
+        muted: "rgba(255,255,255,0.74)",
+        accent,
+        onAccent: readableOn(accent),
+        rule: "rgba(255,255,255,0.18)",
+        track: "rgba(255,255,255,0.24)",
+        surface: "rgba(255,255,255,0.08)",
+        headlineFont: "Anton",
+        headlineWeight: 400,
+        headlineCase: "uppercase",
+        headlineTracking: 0.5,
+      };
+    }
     case "bold": {
       const background = "#0B0B10";
       const accent = legibleAccent(brand.accent, background);
