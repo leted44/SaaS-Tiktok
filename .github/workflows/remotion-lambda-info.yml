@@ -1,0 +1,30 @@
+name: Remotion Lambda function info (diagnostic, read-only)
+
+# Manually triggered. Prints the deployed Lambda function's memory/disk/timeout
+# so a render failure can be diagnosed without touching AWS directly. Makes no
+# changes to anything.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  info:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: List Remotion Lambda functions
+        env:
+          RAW_ACCESS_KEY_ID: ${{ secrets.REMOTION_AWS_ACCESS_KEY_ID }}
+          RAW_SECRET_ACCESS_KEY: ${{ secrets.REMOTION_AWS_SECRET_ACCESS_KEY }}
+        run: |
+          export REMOTION_AWS_ACCESS_KEY_ID="$(printf '%s' "$RAW_ACCESS_KEY_ID" | tr -d '[:space:]')"
+          export REMOTION_AWS_SECRET_ACCESS_KEY="$(printf '%s' "$RAW_SECRET_ACCESS_KEY" | tr -d '[:space:]')"
+          export REMOTION_AWS_REGION=us-east-1
+          npx remotion lambda functions ls
