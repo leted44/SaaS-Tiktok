@@ -98,7 +98,7 @@ export interface StudioProps {
     premiumVoices: boolean;
     voiceCloning: boolean;
     autopilot: boolean;
-    costs: { "720p": number; "1080p": number; "4K": number; voicePer30s: number; voiceClone: number; socialCopy: number; script: number; aiImage: number; videoClipStandard: number; videoClipPro: number };
+    costs: { "720p": number; "1080p": number; "4K": number; voicePer30s: number; voiceClone: number; socialCopy: number; script: number; aiImage: number; videoClipStandard: number; videoClipStandardLong: number; videoClipPro: number; videoClipProLong: number };
   };
   voices: { id: string; name: string; style: string; gender: string; language: string; premium: boolean }[];
   customVoice: { name: string; sampleUrl: string } | null;

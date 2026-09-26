@@ -535,6 +535,7 @@ model VideoClipJob {
   imageUrl    String       @db.Text
   prompt      String       @db.Text
   tier        String       @default("standard") // "standard" | "pro" — which Kling endpoint
+  duration    String       @default("5") // "5" | "10" — Kling's own two fixed clip lengths; picked from the scene's length at submit time
   status      RenderStatus @default(QUEUED)
   attempts    Int          @default(0)
   maxAttempts Int          @default(3)

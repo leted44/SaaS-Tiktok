@@ -23,6 +23,7 @@ import { DEFAULT_VISUAL_STYLE, type VisualStyle } from "@/lib/carousel/art-direc
 import { generateProjectVisualsAiAction } from "@/server/actions/video-visuals";
 import { animateSceneClipAction, cancelVideoClipJobAction } from "@/server/actions/video-clips";
 import type { VideoClipTier } from "@/lib/ai/video-clip-generator";
+import { klingDurationFor } from "@/lib/plans";
 
 interface Asset { id: string; type: string; url: string; name: string; mimeType: string }
 interface StockResult { id: string; type: "image" | "video"; url: string; thumbnailUrl: string; author: string; durationSec: number | null }
@@ -54,7 +55,7 @@ interface Props {
   /** Saves editor state immediately, bypassing the autosave debounce — the server reads the row back right after. */
   ensureSaved: () => Promise<boolean>;
   videoClipsConfigured: boolean;
-  videoClipCosts: { standard: number; pro: number };
+  videoClipCosts: { standard: number; standardLong: number; pro: number; proLong: number };
 }
 
 export function VisualsPanel({
@@ -681,7 +682,7 @@ function LayerRow({
   onUpdate: (patch: Partial<VisualLayer>) => void;
   onRemove: () => void;
   videoClipsConfigured: boolean;
-  videoClipCosts: { standard: number; pro: number };
+  videoClipCosts: { standard: number; standardLong: number; pro: number; proLong: number };
   credits: number;
   clipJob: { jobId: string; status: string } | null;
   onAnimate: (tier: VideoClipTier) => void;
@@ -689,6 +690,8 @@ function LayerRow({
 }) {
   const [open, setOpen] = useState(false);
   const animating = clipJob !== null;
+  const isLong = klingDurationFor(layer.endMs - layer.startMs) === "10";
+  const animateCost = { standard: isLong ? videoClipCosts.standardLong : videoClipCosts.standard, pro: isLong ? videoClipCosts.proLong : videoClipCosts.pro };
 
   return (
     <li className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-2">
@@ -740,14 +743,19 @@ function LayerRow({
               <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px] text-red-300" onClick={onCancelAnimate}>Annuler</Button>
             </div>
           ) : (
-            <div className="flex gap-1.5">
-              <Button size="sm" variant="secondary" className="h-7 flex-1 gap-1 text-[11px]" disabled={credits < videoClipCosts.standard} onClick={() => onAnimate("standard")}>
-                <Wand2 className="h-3 w-3" /> Animer <Coins className="h-3 w-3" /> {videoClipCosts.standard}
-              </Button>
-              <Button size="sm" variant="secondary" className="h-7 flex-1 gap-1 text-[11px]" disabled={credits < videoClipCosts.pro} onClick={() => onAnimate("pro")}>
-                <Wand2 className="h-3 w-3" /> Qualité sup. <Coins className="h-3 w-3" /> {videoClipCosts.pro}
-              </Button>
-            </div>
+            <>
+              {klingDurationFor(layer.endMs - layer.startMs) === "10" && (
+                <p className="mb-1.5 text-[10px] text-amber-300/80">Scène de plus de 5s : un clip 10s est généré (coût plus élevé) pour couvrir toute la durée.</p>
+              )}
+              <div className="flex gap-1.5">
+                <Button size="sm" variant="secondary" className="h-7 flex-1 gap-1 text-[11px]" disabled={credits < animateCost.standard} onClick={() => onAnimate("standard")}>
+                  <Wand2 className="h-3 w-3" /> Animer <Coins className="h-3 w-3" /> {animateCost.standard}
+                </Button>
+                <Button size="sm" variant="secondary" className="h-7 flex-1 gap-1 text-[11px]" disabled={credits < animateCost.pro} onClick={() => onAnimate("pro")}>
+                  <Wand2 className="h-3 w-3" /> Qualité sup. <Coins className="h-3 w-3" /> {animateCost.pro}
+                </Button>
+              </div>
+            </>
           )}
         </div>
       )}

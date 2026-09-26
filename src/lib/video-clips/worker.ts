@@ -51,7 +51,7 @@ async function runVideoClipJob(job: VideoClipJob): Promise<VideoClipOutcome> {
   const tier = job.tier as VideoClipTier;
   try {
     if (!job.falRequestId) {
-      const { requestId } = await submitImageToVideo(job.imageUrl, job.prompt, tier);
+      const { requestId } = await submitImageToVideo(job.imageUrl, job.prompt, tier, job.duration as "5" | "10");
       await saveFalRequestId(job.id, requestId);
       return { jobId: job.id, status: "in_progress" };
     }

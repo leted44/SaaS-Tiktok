@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireDbUser } from "@/lib/auth";
 import { chargeCredits, refundCredits } from "@/lib/credits";
-import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
+import { isAdmin, klingDurationFor, videoClipCost } from "@/lib/plans";
 import { integrations } from "@/lib/env";
 import { visualLayersSchema } from "@/lib/validations";
 import { sceneVisualDescriptions } from "@/lib/pipeline/visuals";
@@ -44,13 +44,14 @@ export async function animateSceneClipAction(projectId: string, layerId: string,
     }
     const prompt = `${description || "Scène de vidéo courte, style réaliste."} Mouvement subtil, naturel et réaliste — pas de tremblement de caméra, pas de mouvement de caméra brusque, aucun texte ni logo ne doit apparaître.`;
 
-    const cost = isAdmin(user.role) ? 0 : CREDIT_COSTS[tier === "pro" ? "VIDEO_CLIP_PRO" : "VIDEO_CLIP_STANDARD"];
-    const creditsLeft = cost > 0 ? await chargeCredits(user.id, cost, "SCRIPT_GENERATION", `Animation de scène (Kling ${tier})`) : user.credits;
+    const duration = klingDurationFor(layer.endMs - layer.startMs);
+    const cost = isAdmin(user.role) ? 0 : videoClipCost(tier, duration);
+    const creditsLeft = cost > 0 ? await chargeCredits(user.id, cost, "SCRIPT_GENERATION", `Animation de scène (Kling ${tier}, ${duration}s)`) : user.credits;
 
     let job;
     try {
       job = await prisma.videoClipJob.create({
-        data: { projectId, userId: user.id, layerId, imageUrl: absoluteUrl(layer.src), prompt, tier, creditsCharged: cost },
+        data: { projectId, userId: user.id, layerId, imageUrl: absoluteUrl(layer.src), prompt, tier, duration, creditsCharged: cost },
       });
     } catch (err) {
       if (cost > 0) await refundCredits(user.id, cost, "Remboursement — la mise en file de l'animation a échoué");

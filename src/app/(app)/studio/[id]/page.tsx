@@ -93,7 +93,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         voiceCloning: plan.voiceCloning,
         autopilot: plan.autopilotQueue > 0,
         costs: admin
-          ? { "720p": 0, "1080p": 0, "4K": 0, voicePer30s: 0, voiceClone: 0, socialCopy: 0, script: 0, aiImage: 0, videoClipStandard: 0, videoClipPro: 0 }
+          ? { "720p": 0, "1080p": 0, "4K": 0, voicePer30s: 0, voiceClone: 0, socialCopy: 0, script: 0, aiImage: 0, videoClipStandard: 0, videoClipStandardLong: 0, videoClipPro: 0, videoClipProLong: 0 }
           : {
               "720p": renderCost("720p"),
               "1080p": renderCost("1080p"),
@@ -104,7 +104,9 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
               script: CREDIT_COSTS.SCRIPT_GENERATION,
               aiImage: CREDIT_COSTS.AI_IMAGE,
               videoClipStandard: CREDIT_COSTS.VIDEO_CLIP_STANDARD,
+              videoClipStandardLong: CREDIT_COSTS.VIDEO_CLIP_STANDARD_LONG,
               videoClipPro: CREDIT_COSTS.VIDEO_CLIP_PRO,
+              videoClipProLong: CREDIT_COSTS.VIDEO_CLIP_PRO_LONG,
             },
       }}
       voices={[

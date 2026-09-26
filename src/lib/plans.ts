@@ -182,12 +182,29 @@ export const CREDIT_COSTS = {
   CAROUSEL: 2,
   // Gemini's image model, ~0.035€/image — priced well above cost since it's optional per slide.
   AI_IMAGE: 2,
-  // Kling image-to-video via fal.ai, ~0.65€/0.85€ raw per 8s clip (standard/pro) —
-  // a real generation, not a still, so priced in its own tier rather than
-  // folded into AI_IMAGE. Adjust once real per-clip invoices are in.
+  // Kling image-to-video via fal.ai. Kling only ever renders 5s or 10s — never
+  // a scene's actual length — so a short scene (~0.38€/0.51€ raw for 5s,
+  // standard/pro) and a long one (~0.77€/1.03€ raw for 10s) cost meaningfully
+  // different amounts to generate; folding them into one price would either
+  // overcharge every short scene or undercharge every long one.
   VIDEO_CLIP_STANDARD: 20,
+  VIDEO_CLIP_STANDARD_LONG: 35,
   VIDEO_CLIP_PRO: 30,
+  VIDEO_CLIP_PRO_LONG: 50,
 } as const;
+
+/** The only two lengths Kling's image-to-video endpoints accept. */
+export type KlingDuration = "5" | "10";
+
+/** Kling has no "match this scene's length" option — pick whichever of its two fixed lengths covers the scene without falling short. */
+export function klingDurationFor(sceneDurationMs: number): KlingDuration {
+  return sceneDurationMs > 5000 ? "10" : "5";
+}
+
+export function videoClipCost(tier: "standard" | "pro", duration: KlingDuration): number {
+  if (tier === "pro") return duration === "10" ? CREDIT_COSTS.VIDEO_CLIP_PRO_LONG : CREDIT_COSTS.VIDEO_CLIP_PRO;
+  return duration === "10" ? CREDIT_COSTS.VIDEO_CLIP_STANDARD_LONG : CREDIT_COSTS.VIDEO_CLIP_STANDARD;
+}
 
 export interface CreditPack {
   id: "credits_100" | "credits_500" | "credits_2000";

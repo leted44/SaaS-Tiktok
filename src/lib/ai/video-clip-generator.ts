@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import type { KlingDuration } from "@/lib/plans";
 
 /**
  * Animates one scene's still into a short clip with Kling (image-to-video),
@@ -37,13 +38,13 @@ function authHeaders(): HeadersInit {
 }
 
 /** Starts an animation. Returns fal's request id — there is nothing to poll yet the instant this resolves. */
-export async function submitImageToVideo(imageUrl: string, prompt: string, tier: VideoClipTier): Promise<{ requestId: string }> {
+export async function submitImageToVideo(imageUrl: string, prompt: string, tier: VideoClipTier, duration: KlingDuration): Promise<{ requestId: string }> {
   if (!env.falApiKey) throw new VideoClipError("L'animation de scène n'est pas configurée (clé FAL_API_KEY manquante).", "NOT_CONFIGURED");
 
   const res = await fetch(`${QUEUE_BASE}/${ENDPOINT[tier]}`, {
     method: "POST",
     headers: authHeaders(),
-    body: JSON.stringify({ image_url: imageUrl, prompt: prompt.slice(0, 2500), duration: "5", aspect_ratio: "9:16" }),
+    body: JSON.stringify({ image_url: imageUrl, prompt: prompt.slice(0, 2500), duration, aspect_ratio: "9:16" }),
   });
   if (!res.ok) throw new VideoClipError(`La demande d'animation a échoué (${res.status}).`, "UPSTREAM");
   const json = (await res.json()) as { request_id?: string };
