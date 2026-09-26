@@ -194,6 +194,42 @@ function safeHost(url: string | null | undefined): string | null {
   }
 }
 
+/**
+ * A still frame from just after the hook, so a project's card in the
+ * dashboard/exports shows the actual video instead of a brand-colour
+ * placeholder — the first thing a viewer would see is also what should sell
+ * the click when this gets published. Best-effort: the main render already
+ * succeeded by the time this runs, and a failed thumbnail should never turn
+ * that into a failed render or a refund.
+ */
+async function renderLambdaThumbnail(
+  lambda: { renderStillOnLambda: (args: Record<string, unknown>) => Promise<{ url: string }> },
+  job: RenderJob,
+  props: ShortVideoProps,
+): Promise<string | null> {
+  try {
+    const still = await lambda.renderStillOnLambda({
+      region: env.remotion.region,
+      functionName: env.remotion.functionName,
+      serveUrl: env.remotion.serveUrl,
+      composition: job.compositionId,
+      forceWidth: job.width,
+      forceHeight: job.height,
+      forceFps: job.fps,
+      forceDurationInFrames: job.durationInFrames,
+      inputProps: shortVideoPropsSchema.parse(props),
+      imageFormat: "jpeg",
+      jpegQuality: 85,
+      frame: Math.min(job.durationInFrames - 1, Math.round(job.fps * 1.2)),
+      privacy: "public",
+      outName: `${job.id}-thumb.jpg`,
+    });
+    return still.url;
+  } catch {
+    return null;
+  }
+}
+
 const POLL_INTERVAL_MS = 3000;
 /** Safely under any realistic serverless function timeout (Vercel Hobby caps around 60s). */
 const POLL_BUDGET_MS = 45_000;
@@ -226,6 +262,7 @@ export const lambdaRemotionEngine: RenderEngine = {
     const lambda = (await import("@remotion/lambda/client")) as unknown as {
       renderMediaOnLambda: (args: Record<string, unknown>) => Promise<{ renderId: string; bucketName: string }>;
       getRenderProgress: (args: Record<string, unknown>) => Promise<LambdaProgress>;
+      renderStillOnLambda: (args: Record<string, unknown>) => Promise<{ url: string }>;
     };
 
     const state = job.logs as unknown as LambdaRenderState | null;
@@ -291,7 +328,7 @@ export const lambdaRemotionEngine: RenderEngine = {
       if (progress.done && progress.outputFile) {
         return {
           outputUrl: progress.outputFile,
-          thumbnailUrl: null,
+          thumbnailUrl: await renderLambdaThumbnail(lambda, job, props),
           sizeBytes: progress.outputSizeInBytes ?? 0,
           durationMs: Math.round((job.durationInFrames / job.fps) * 1000),
           timings: readTimings(progress),
