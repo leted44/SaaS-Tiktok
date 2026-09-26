@@ -21,6 +21,8 @@ import { BackgroundControls, backgroundLabel } from "@/components/studio/backgro
 import { StylePicker } from "@/components/shared/style-picker";
 import { DEFAULT_VISUAL_STYLE, type VisualStyle } from "@/lib/carousel/art-direction";
 import { generateProjectVisualsAiAction } from "@/server/actions/video-visuals";
+import { animateSceneClipAction, cancelVideoClipJobAction } from "@/server/actions/video-clips";
+import type { VideoClipTier } from "@/lib/ai/video-clip-generator";
 
 interface Asset { id: string; type: string; url: string; name: string; mimeType: string }
 interface StockResult { id: string; type: "image" | "video"; url: string; thumbnailUrl: string; author: string; durationSec: number | null }
@@ -51,6 +53,8 @@ interface Props {
   hasScript: boolean;
   /** Saves editor state immediately, bypassing the autosave debounce — the server reads the row back right after. */
   ensureSaved: () => Promise<boolean>;
+  videoClipsConfigured: boolean;
+  videoClipCosts: { standard: number; pro: number };
 }
 
 export function VisualsPanel({
@@ -75,6 +79,8 @@ export function VisualsPanel({
   credits,
   hasScript,
   ensureSaved,
+  videoClipsConfigured,
+  videoClipCosts,
 }: Props) {
   const router = useRouter();
   const [generatingAi, setGeneratingAi] = useState(false);
@@ -88,10 +94,67 @@ export function VisualsPanel({
   const [searching, setSearching] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const library = pool.filter((p) => !p.rejected);
+  /** One active fal.ai animation job per layer, keyed by layer id. */
+  const [clipJobs, setClipJobs] = useState<Record<string, { jobId: string; status: string } | undefined>>({});
+  // The poll effect below fires minutes after it was set up, by which point a
+  // completion patch built from the `layers` prop captured at that time would
+  // discard any edit made in between — this ref always holds the latest one.
+  const layersRef = useRef(layers);
+  useEffect(() => { layersRef.current = layers; }, [layers]);
 
   useEffect(() => {
     fetch("/api/assets/upload").then((r) => r.json()).then((j) => setAssets((j.assets ?? []).filter((a: Asset) => a.type === "IMAGE" || a.type === "VIDEO"))).catch(() => undefined);
   }, []);
+
+  // Polls every active animation job every few seconds — the same pattern the
+  // export panel uses for a render, and for the same reason: a real
+  // generation takes minutes, so nothing here blocks waiting for it, and each
+  // poll is what actually advances the job one step (see /api/video-clips/[id]).
+  useEffect(() => {
+    const active = Object.entries(clipJobs).filter(([, j]) => j && (j.status === "QUEUED" || j.status === "PROCESSING"));
+    if (!active.length) return;
+    let stopped = false;
+    const poll = async () => {
+      for (const [layerId, j] of active) {
+        if (!j || stopped) return;
+        const res = await fetch(`/api/video-clips/${j.jobId}`, { cache: "no-store" });
+        if (!res.ok || stopped) continue;
+        const data = (await res.json()) as { status: string; resultUrl: string | null; error: string | null };
+        if (data.status === "COMPLETED" && data.resultUrl) {
+          onLayersChange(layersRef.current.map((l) => (l.id === layerId ? { ...l, type: "video", src: data.resultUrl!, kenBurns: "none" } : l)));
+          setClipJobs((prev) => { const next = { ...prev }; delete next[layerId]; return next; });
+          toast.success("Scène animée ! Les crédits ont été débités.");
+          router.refresh();
+        } else if (data.status === "FAILED") {
+          setClipJobs((prev) => { const next = { ...prev }; delete next[layerId]; return next; });
+          toast.error(data.error ? `Animation impossible : ${data.error}` : "L'animation a échoué. Les crédits ont été remboursés.");
+          router.refresh();
+        } else if (data.status !== j.status) {
+          setClipJobs((prev) => ({ ...prev, [layerId]: { jobId: j.jobId, status: data.status } }));
+        }
+      }
+    };
+    poll();
+    const t = setInterval(poll, 3000);
+    return () => { stopped = true; clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clipJobs]);
+
+  async function animateScene(layerId: string, tier: VideoClipTier) {
+    if (!(await ensureSaved())) return;
+    const res = await animateSceneClipAction(projectId, layerId, tier);
+    if (!res.ok) return toast.error(res.error);
+    setClipJobs((prev) => ({ ...prev, [layerId]: { jobId: res.data.jobId, status: "QUEUED" } }));
+    toast.info("Animation lancée — ça peut prendre plusieurs minutes.");
+  }
+
+  async function cancelAnimate(layerId: string) {
+    const job = clipJobs[layerId];
+    if (!job) return;
+    setClipJobs((prev) => { const next = { ...prev }; delete next[layerId]; return next; });
+    const res = await cancelVideoClipJobAction(job.jobId);
+    if (res.ok) { toast.info("Animation annulée, crédits remboursés."); router.refresh(); }
+  }
 
   /**
    * Convert a recording the render pipeline cannot read, using the phone's own
@@ -570,6 +633,12 @@ export function VisualsPanel({
                 onMove={(target) => moveLayer(l.id, target)}
                 onUpdate={(patch) => update(l.id, patch)}
                 onRemove={() => remove(l.id)}
+                videoClipsConfigured={videoClipsConfigured}
+                videoClipCosts={videoClipCosts}
+                credits={credits}
+                clipJob={clipJobs[l.id] ?? null}
+                onAnimate={(tier) => animateScene(l.id, tier)}
+                onCancelAnimate={() => cancelAnimate(l.id)}
               />
             ))}
           </ul>
@@ -598,6 +667,12 @@ function LayerRow({
   onMove,
   onUpdate,
   onRemove,
+  videoClipsConfigured,
+  videoClipCosts,
+  credits,
+  clipJob,
+  onAnimate,
+  onCancelAnimate,
 }: {
   layer: VisualLayer;
   sceneCount: number;
@@ -605,14 +680,26 @@ function LayerRow({
   onMove: (target: number) => void;
   onUpdate: (patch: Partial<VisualLayer>) => void;
   onRemove: () => void;
+  videoClipsConfigured: boolean;
+  videoClipCosts: { standard: number; pro: number };
+  credits: number;
+  clipJob: { jobId: string; status: string } | null;
+  onAnimate: (tier: VideoClipTier) => void;
+  onCancelAnimate: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const animating = clipJob !== null;
 
   return (
     <li className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-2">
       <div className="flex items-center gap-2">
-        <div className="h-10 w-7 shrink-0 overflow-hidden rounded bg-white/5">
+        <div className="relative h-10 w-7 shrink-0 overflow-hidden rounded bg-white/5">
           {layer.type === "video" ? <video src={layer.src} muted className="h-full w-full object-cover" /> : layer.src ? <img src={layer.src} alt="" className="h-full w-full object-cover" /> : null}
+          {animating && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+            </div>
+          )}
         </div>
         <Select value={String(layer.sceneIndex ?? 0)} onValueChange={(v) => onMove(Number(v))}>
           <SelectTrigger className="h-7 w-24 shrink-0 text-[11px]" aria-label="Scène du visuel"><SelectValue /></SelectTrigger>
@@ -638,6 +725,25 @@ function LayerRow({
             <SelectTrigger className="h-7 w-24 text-[11px]"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="cover">Remplir</SelectItem><SelectItem value="contain">Ajuster</SelectItem></SelectContent>
           </Select>
+        </div>
+      )}
+      {open && videoClipsConfigured && layer.type === "image" && (
+        <div className="mt-2 border-t border-white/[0.06] pt-2">
+          {animating ? (
+            <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" /> Animation en cours — jusqu'à plusieurs minutes…</span>
+              <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px] text-red-300" onClick={onCancelAnimate}>Annuler</Button>
+            </div>
+          ) : (
+            <div className="flex gap-1.5">
+              <Button size="sm" variant="secondary" className="h-7 flex-1 gap-1 text-[11px]" disabled={credits < videoClipCosts.standard} onClick={() => onAnimate("standard")}>
+                <Wand2 className="h-3 w-3" /> Animer <Coins className="h-3 w-3" /> {videoClipCosts.standard}
+              </Button>
+              <Button size="sm" variant="secondary" className="h-7 flex-1 gap-1 text-[11px]" disabled={credits < videoClipCosts.pro} onClick={() => onAnimate("pro")}>
+                <Wand2 className="h-3 w-3" /> Qualité sup. <Coins className="h-3 w-3" /> {videoClipCosts.pro}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </li>

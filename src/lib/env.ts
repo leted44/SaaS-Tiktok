@@ -20,6 +20,10 @@ export const env = {
 
   pexelsApiKey: read("PEXELS_API_KEY"),
   geminiApiKey: read("GEMINI_API_KEY"),
+  // fal.ai — animates a scene's AI still into a short Kling clip. One key covers
+  // every model fal hosts, so this alone is enough regardless of which Kling
+  // tier (or, later, another provider fal carries) a clip is generated with.
+  falApiKey: read("FAL_API_KEY"),
   // A second, independent catalog. Pexels alone is thin on specific,
   // non-generic subjects (a named gymnastics move, a niche craft) — Pixabay's
   // library is curated differently and fills gaps Pexels leaves empty, not
@@ -79,6 +83,7 @@ export const integrations = {
   tts: () => Boolean(env.elevenLabsApiKey),
   stock: () => Boolean(env.pexelsApiKey),
   aiImages: () => Boolean(env.geminiApiKey),
+  videoClips: () => Boolean(env.falApiKey),
   stripe: () => Boolean(env.stripe.secretKey),
   s3: () => env.storageDriver === "s3" && Boolean(env.s3.accessKeyId),
   tiktok: () => Boolean(env.social.tiktok.clientKey),

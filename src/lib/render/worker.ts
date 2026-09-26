@@ -5,6 +5,7 @@ import { shortVideoPropsSchema } from "@/lib/render/props";
 import { refundCredits } from "@/lib/credits";
 import { processDuePublishJobs } from "@/lib/publish";
 import { advanceAutopilot } from "@/lib/autopilot/engine";
+import { processOneVideoClipJob } from "@/lib/video-clips/worker";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -72,8 +73,9 @@ export async function runWorkerTick(workerId: string) {
       return 0;
     });
     const render = await processOneRenderJob(workerId);
+    const videoClip = await processOneVideoClipJob(workerId);
     const published = await processDuePublishJobs(5);
-    return { autopilot, render, published };
+    return { autopilot, render, videoClip, published };
   } catch (err) {
     error = err instanceof Error ? err.message : String(err);
     throw err;

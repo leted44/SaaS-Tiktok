@@ -182,6 +182,11 @@ export const CREDIT_COSTS = {
   CAROUSEL: 2,
   // Gemini's image model, ~0.035€/image — priced well above cost since it's optional per slide.
   AI_IMAGE: 2,
+  // Kling image-to-video via fal.ai, ~0.65€/0.85€ raw per 8s clip (standard/pro) —
+  // a real generation, not a still, so priced in its own tier rather than
+  // folded into AI_IMAGE. Adjust once real per-clip invoices are in.
+  VIDEO_CLIP_STANDARD: 20,
+  VIDEO_CLIP_PRO: 30,
 } as const;
 
 export interface CreditPack {

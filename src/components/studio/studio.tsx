@@ -260,6 +260,8 @@ export function Studio(props: StudioProps) {
                     credits={user.credits}
                     hasScript={Boolean(activeScript)}
                     ensureSaved={saveNow}
+                    videoClipsConfigured={integrations.videoClips}
+                    videoClipCosts={{ standard: planLimits.costs.videoClipStandard, pro: planLimits.costs.videoClipPro }}
                   />
                 </TabsContent>
                 <TabsContent value="audio" className="mt-0">

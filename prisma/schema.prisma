@@ -139,6 +139,7 @@ model User {
   voiceovers         Voiceover[]
   assets             Asset[]
   renderJobs         RenderJob[]
+  videoClipJobs      VideoClipJob[]
   socialAccounts     SocialAccount[]
   publishJobs        PublishJob[]
   creditTransactions CreditTransaction[]
@@ -294,8 +295,8 @@ model Project {
   // Art direction of the AI visuals (lib/carousel/art-direction — shared with
   // the carousel) and the recurring setting that makes a video's scenes read
   // as one shot rather than stock clips from unrelated sources.
-  visualStyle String?
-  visualMotif String?
+  visualStyle     String?
+  visualMotif     String?
 
   thumbnailUrl   String?
   activeScriptId String?
@@ -315,15 +316,16 @@ model Project {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  space       Space?         @relation(fields: [spaceId], references: [id], onDelete: SetNull)
-  scripts     Script[]
-  voiceovers  Voiceover[]
-  renderJobs  RenderJob[]
-  publishJobs PublishJob[]
-  carousel    Carousel?
-  autopilot   AutopilotItem?
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space         Space?         @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  scripts       Script[]
+  voiceovers    Voiceover[]
+  renderJobs    RenderJob[]
+  videoClipJobs VideoClipJob[]
+  publishJobs   PublishJob[]
+  carousel      Carousel?
+  autopilot     AutopilotItem?
 
   @@index([workspaceId])
   @@index([userId, updatedAt])
@@ -338,10 +340,10 @@ model Project {
 // so switching brands doesn't mean resetting the voice and tone by hand
 // every time.
 model Space {
-  id    String @id @default(cuid())
+  id     String @id @default(cuid())
   userId String
-  name  String
-  color String @default("#7C3AED")
+  name   String
+  color  String @default("#7C3AED")
 
   language String?
   tone     String?
@@ -447,21 +449,21 @@ model Asset {
 // project: regenerating replaces it, and it outlives edits to the script
 // version it came from, since its text is edited on its own.
 model Carousel {
-  id        String   @id @default(cuid())
-  projectId String   @unique
-  userId    String
-  scriptId  String?
-  template  String   @default("minimal")
-  format    String   @default("portrait")
+  id          String   @id @default(cuid())
+  projectId   String   @unique
+  userId      String
+  scriptId    String?
+  template    String   @default("minimal")
+  format      String   @default("portrait")
   // Signature shown on every slide, e.g. "@moncompte".
-  handle    String?
-  slides    Json
+  handle      String?
+  slides      Json
   // Art direction of the AI visuals (lib/carousel/art-direction) and the
   // recurring setting that makes them read as one series.
   visualStyle String?
   visualMotif String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -512,6 +514,49 @@ model RenderJob {
 
   @@index([status, priority, createdAt])
   @@index([userId, createdAt])
+  @@index([projectId])
+}
+
+/**
+ * Animating one scene's AI still into a short Kling clip (fal.ai), via the
+ * same claim/poll pattern as RenderJob — a real generation takes 30s-5min,
+ * far past a serverless function's own budget, so progress is advanced one
+ * step at a time by the studio's own polling (see /api/video-clips/[id]),
+ * with the worker tick as the fallback for a closed tab.
+ */
+model VideoClipJob {
+  id          String       @id @default(cuid())
+  projectId   String
+  userId      String
+  layerId     String // VisualLayer.id this clip replaces once done
+  // Snapshot of what the job needs at submit time — the layer or its scene
+  // could change (or vanish) between creation and the tick that actually
+  // calls fal.ai, the same reasoning RenderJob.inputProps already follows.
+  imageUrl    String       @db.Text
+  prompt      String       @db.Text
+  tier        String       @default("standard") // "standard" | "pro" — which Kling endpoint
+  status      RenderStatus @default(QUEUED)
+  attempts    Int          @default(0)
+  maxAttempts Int          @default(3)
+
+  // fal.ai's own queue handle for this generation, set once submitted.
+  falRequestId String?
+
+  resultUrl      String?
+  creditsCharged Int     @default(0)
+  error          String? @db.Text
+
+  lockedAt    DateTime?
+  lockedBy    String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
   @@index([projectId])
 }
 

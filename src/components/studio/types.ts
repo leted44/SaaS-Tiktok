@@ -92,11 +92,18 @@ export interface StudioProps {
   renders: StudioRender[];
   previewProps: ShortVideoProps | null;
   user: { credits: number; plan: string };
-  planLimits: { watermark: boolean; maxResolution: "720p" | "1080p" | "4K"; premiumVoices: boolean; voiceCloning: boolean; autopilot: boolean; costs: { "720p": number; "1080p": number; "4K": number; voicePer30s: number; voiceClone: number; socialCopy: number; script: number; aiImage: number } };
+  planLimits: {
+    watermark: boolean;
+    maxResolution: "720p" | "1080p" | "4K";
+    premiumVoices: boolean;
+    voiceCloning: boolean;
+    autopilot: boolean;
+    costs: { "720p": number; "1080p": number; "4K": number; voicePer30s: number; voiceClone: number; socialCopy: number; script: number; aiImage: number; videoClipStandard: number; videoClipPro: number };
+  };
   voices: { id: string; name: string; style: string; gender: string; language: string; premium: boolean }[];
   customVoice: { name: string; sampleUrl: string } | null;
   tracks: { id: string; name: string; mood: string; url: string; premium: boolean }[];
-  integrations: { ai: boolean; tts: boolean; stock: boolean; aiImages: boolean };
+  integrations: { ai: boolean; tts: boolean; stock: boolean; aiImages: boolean; videoClips: boolean };
 }
 
 export interface EditorState {

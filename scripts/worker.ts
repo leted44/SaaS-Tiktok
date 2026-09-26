@@ -22,10 +22,11 @@ async function main() {
   console.log(`[${workerId}] started — engine=${process.env.RENDER_ENGINE ?? "local"}`);
   while (running) {
     try {
-      const { render, published } = await runWorkerTick(workerId);
+      const { render, videoClip, published } = await runWorkerTick(workerId);
       if (render) console.log(`[${workerId}] render ${render.jobId} → ${render.status}`);
+      if (videoClip) console.log(`[${workerId}] video clip ${videoClip.jobId} → ${videoClip.status}`);
       if (published) console.log(`[${workerId}] published ${published} post(s)`);
-      if (!render && !published) await new Promise((r) => setTimeout(r, IDLE_MS));
+      if (!render && !videoClip && !published) await new Promise((r) => setTimeout(r, IDLE_MS));
     } catch (err) {
       console.error(`[${workerId}] tick failed`, err);
       await new Promise((r) => setTimeout(r, IDLE_MS * 2));
