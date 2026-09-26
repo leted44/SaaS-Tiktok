@@ -70,15 +70,25 @@ export const VisualLayers: React.FC<{ layers: VisualLayer[]; beatGrid?: BeatGrid
       {sorted.map((layer, i) => {
         const nominalFrom = Math.round((layer.startMs / 1000) * fps);
         const nominalTo = Math.max(nominalFrom + 1, Math.round((layer.endMs / 1000) * fps));
-        // The first/last layer has no neighbour to blend with on that side —
-        // keep its own entrance/exit fade instead of stretching past the video.
-        const leftOverlap = i === 0 ? 0 : Math.min(CROSSFADE_FRAMES, nominalFrom);
-        const rightTarget = i === sorted.length - 1 ? 0 : CROSSFADE_FRAMES;
+        // A video layer plays from frame 0 of its own source with no trim
+        // offset, so stretching its Sequence past the nominal scene boundary
+        // asks OffthreadVideo to decode footage the source clip may not have
+        // — a user's own upload is trimmed to exactly the scene length far
+        // more often than a stock or AI-generated clip, and Remotion's fetch
+        // error for that missing footage is indistinguishable from a broken
+        // file. So only image/color/gradient layers stretch into the overlap;
+        // a video layer keeps its exact nominal window and gets its own
+        // fade-in/out instead, same as the first/last layer of any type —
+        // it just costs the hard edge of its neighbours' crossfade instead of
+        // sharing in the stretch.
+        const canStretch = layer.type !== "video";
+        const leftOverlap = i === 0 || !canStretch ? 0 : Math.min(CROSSFADE_FRAMES, nominalFrom);
+        const rightTarget = i === sorted.length - 1 || !canStretch ? 0 : CROSSFADE_FRAMES;
         const from = nominalFrom - leftOverlap;
         const to = Math.min(totalFrames, nominalTo + rightTarget);
         const duration = Math.max(1, to - from);
-        const fadeInFrames = i === 0 ? 10 : Math.max(1, leftOverlap);
-        const fadeOutFrames = i === sorted.length - 1 ? 10 : Math.max(1, to - nominalTo);
+        const fadeInFrames = i === 0 || !canStretch ? 10 : Math.max(1, leftOverlap);
+        const fadeOutFrames = i === sorted.length - 1 || !canStretch ? 10 : Math.max(1, to - nominalTo);
         return (
           <Sequence key={layer.id} from={from} durationInFrames={duration} layout="none">
             <KenBurns layer={layer} durationInFrames={duration} startFrame={from} beatGrid={beatGrid} fadeInFrames={fadeInFrames} fadeOutFrames={fadeOutFrames}>
