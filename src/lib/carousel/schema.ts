@@ -46,19 +46,24 @@ export const SLIDE_LIMITS: Record<CarouselSlide["kind"], { kicker: number; title
 };
 
 /**
- * Tighter limits for a content slide that carries a photo: the photo takes a
- * third of the height, so the text has to give up the same room.
+ * Tighter limits for a content slide whose photo sits in a band: the photo
+ * takes a third of the height, so the text has to give up the same room.
+ * A slide whose photo is full-bleed instead (the cover always, and every
+ * content slide in the Immersive template) has no such box stealing space —
+ * the photo IS the background — so it keeps the base limits.
  */
 export const IMAGE_SLIDE_LIMITS = { title: 80, body: 200 };
 
-export function limitsFor(slide: Pick<CarouselSlide, "kind" | "image">) {
+export function limitsFor(slide: Pick<CarouselSlide, "kind" | "image">, template: CarouselTemplate) {
   const base = SLIDE_LIMITS[slide.kind];
-  return slide.kind === "content" && slide.image ? { ...base, ...IMAGE_SLIDE_LIMITS } : base;
+  const bandPhoto = slide.kind === "content" && Boolean(slide.image) && imageLayout(slide.kind, template) === "band";
+  return bandPhoto ? { ...base, ...IMAGE_SLIDE_LIMITS } : base;
 }
 
-/** A content slide whose text would be cut by the room an image takes. */
-export function tooLongForImage(slide: Pick<CarouselSlide, "kind" | "title" | "body">): boolean {
-  return slide.kind === "content" && (slide.title.length > IMAGE_SLIDE_LIMITS.title || slide.body.length > IMAGE_SLIDE_LIMITS.body);
+/** A content slide whose text would be cut by the room a band photo takes — never true for a full-bleed one. */
+export function tooLongForImage(slide: Pick<CarouselSlide, "kind" | "title" | "body">, template: CarouselTemplate): boolean {
+  if (slide.kind !== "content" || imageLayout(slide.kind, template) !== "band") return false;
+  return slide.title.length > IMAGE_SLIDE_LIMITS.title || slide.body.length > IMAGE_SLIDE_LIMITS.body;
 }
 
 /** Where a slide's image came from, for the editor's labels. */

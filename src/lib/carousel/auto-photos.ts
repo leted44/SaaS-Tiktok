@@ -1,5 +1,5 @@
 import { fit } from "@/lib/ai/carousel-generator";
-import { IMAGE_SLIDE_LIMITS, type CarouselSlide } from "@/lib/carousel/schema";
+import { IMAGE_SLIDE_LIMITS, imageLayout, type CarouselSlide, type CarouselTemplate } from "@/lib/carousel/schema";
 import { copyStockImage } from "@/lib/ai/images";
 import { stockCandidates } from "@/lib/stock/search";
 import { integrations } from "@/lib/env";
@@ -29,9 +29,15 @@ export async function withAutoPhotos(
   userId: string,
   slides: CarouselSlide[],
   mode: "generate" | "fill",
+  template: CarouselTemplate,
 ): Promise<{ slides: CarouselSlide[]; changed: number; tooLong: number; unmatched: number }> {
   const none = { slides, changed: 0, tooLong: 0, unmatched: 0 };
   if (!integrations.stock()) return none;
+
+  // A band photo (every template but Immersive, for a content slide) eats a
+  // third of the height, so text is only cut to the tighter limit there — a
+  // full-bleed one leaves the base room untouched.
+  const band = (slide: CarouselSlide) => imageLayout(slide.kind, template) === "band";
 
   let tooLong = 0;
   const targets = slides
@@ -40,7 +46,7 @@ export async function withAutoPhotos(
       if ((slide.kind !== "cover" && slide.kind !== "content") || !query.trim()) return false;
       if (mode === "generate") return Boolean(slide.imageQuery);
       if (slide.image) return false;
-      const fits = slide.kind === "cover" || (slide.title.length <= IMAGE_SLIDE_LIMITS.title && slide.body.length <= IMAGE_SLIDE_LIMITS.body);
+      const fits = !band(slide) || (slide.title.length <= IMAGE_SLIDE_LIMITS.title && slide.body.length <= IMAGE_SLIDE_LIMITS.body);
       if (!fits) tooLong++;
       return fits;
     });
@@ -69,7 +75,7 @@ export async function withAutoPhotos(
           const image = { url: await copyStockImage(userId, candidate.url), source: candidate.url };
           const slide = next[index];
           next[index] =
-            mode === "generate" && slide.kind === "content"
+            mode === "generate" && slide.kind === "content" && band(slide)
               ? { ...slide, image, title: fit(slide.title, IMAGE_SLIDE_LIMITS.title), body: fit(slide.body, IMAGE_SLIDE_LIMITS.body) }
               : { ...slide, image };
           changed++;

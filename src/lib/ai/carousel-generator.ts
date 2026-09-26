@@ -3,49 +3,59 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod/v4";
 import { nanoid } from "nanoid";
 import { env } from "@/lib/env";
-import { IMAGE_SLIDE_LIMITS, SLIDE_LIMITS, stripEmoji, type CarouselSlide } from "@/lib/carousel/schema";
+import { IMAGE_SLIDE_LIMITS, SLIDE_LIMITS, imageLayout, stripEmoji, type CarouselSlide, type CarouselTemplate } from "@/lib/carousel/schema";
 import { ART_DIRECTIONS, type VisualStyle } from "@/lib/carousel/art-direction";
 
 const EMPHASIS = "The 1 to 3 consecutive words of the title that carry its punch — the surprising number, the key noun, the twist — copied EXACTLY as they appear in the title. They are set in the accent colour.";
 const IMAGE_BRIEF = "Brief for an image model, in the script's language, 1 to 2 sentences: the one concrete subject that makes this idea visible (a food, an object, a person doing something, a place), staged within the visualMotif, with its action, setting and framing. No lighting, colour or camera words — the art direction adds them.";
 
-export const carouselFields = z.object({
-  visualMotif: z
-    .string()
-    .describe(
-      "In the script's language, one sentence: the recurring setting or prop that makes every image of this carousel read as one series, the way a strong Instagram account repeats one staging and only changes the subject — e.g. 'chaque aliment présenté dans une cuillère en bois rustique, au-dessus d'un verger flou'. Concrete and photographable. No lighting or colour words.",
-    ),
-  coverKicker: z.string().describe("A 1 to 3 word category label for the topic, e.g. 'Psychologie', 'Nutrition', 'Business'. 32 characters maximum."),
-  coverTitle: z
-    .string()
-    .describe("The cover headline: the single strongest promise or counter-intuitive claim of the idea, written to make someone swipe. 70 characters maximum — short headlines stop the scroll. No question unless it is irresistible."),
-  coverEmphasis: z.string().describe(EMPHASIS),
-  coverSubtitle: z.string().describe("One short line under the headline that makes the swipe feel worth it, e.g. 'Voici comment.' or the key tension. 110 characters maximum."),
-  coverImagePrompt: z.string().describe(`${IMAGE_BRIEF} This is the cover: it must make the promise of the headline visible at a glance.`),
-  coverImageQuery: z
-    .string()
-    .describe("2 to 4 ENGLISH words describing one concrete, photographable scene for a stock-photo search behind the cover — a person, a place or an object, never an abstract idea. Example: 'woman journaling morning light'."),
-  slides: z
-    .array(
-      z.object({
-        title: z.string().describe(`One complete, punchy statement carrying the idea of the slide — never a vague label like 'Le problème'. ${IMAGE_SLIDE_LIMITS.title} characters maximum.`),
-        emphasis: z.string().describe(EMPHASIS),
-        body: z.string().describe(`One or two short sentences that explain, prove or illustrate the title with something concrete. ${IMAGE_SLIDE_LIMITS.body} characters maximum — a photo shares the slide.`),
-        imagePrompt: z.string().describe(IMAGE_BRIEF),
-        imageQuery: z.string().describe("2 to 4 ENGLISH words for a stock photo that illustrates this slide concretely."),
-      }),
-    )
-    .describe("Between 5 and 7 content slides. Each slide carries exactly one idea, and together they build: tension, then mechanism, then what to do."),
-  ctaKicker: z.string().describe("A 1 to 3 word label for the closing slide, e.g. 'À toi de jouer', 'En résumé'. 32 characters maximum."),
-  ctaTitle: z.string().describe("The closing headline: one concrete takeaway or first action the reader can do today. 70 characters maximum."),
-  ctaEmphasis: z.string().describe(EMPHASIS),
-  ctaBody: z.string().describe("One short sentence that makes the takeaway stick. 140 characters maximum."),
-  ctaAction: z
-    .string()
-    .describe(
-      "The explicit engagement ask, adapted from the script's call to action: invite a comment (ideally with one keyword to type), a share with someone who needs it, or a follow for what comes next. Direct and specific, never 'link in bio'. 90 characters maximum.",
-    ),
-});
+/**
+ * Content-slide title/body limits depend on whether their photo will be
+ * full-bleed (Immersive: the photo IS the background, no room lost) or a
+ * band (every other template: the photo is a box that takes a third of the
+ * height). Built per call rather than once at import time so the model is
+ * only ever told the limit that actually applies to what it is writing.
+ */
+function carouselFields(contentLimits: { title: number; body: number }) {
+  const bandPhoto = contentLimits.body <= IMAGE_SLIDE_LIMITS.body;
+  return z.object({
+    visualMotif: z
+      .string()
+      .describe(
+        "In the script's language, one sentence: the recurring setting or prop that makes every image of this carousel read as one series, the way a strong Instagram account repeats one staging and only changes the subject — e.g. 'chaque aliment présenté dans une cuillère en bois rustique, au-dessus d'un verger flou'. Concrete and photographable. No lighting or colour words.",
+      ),
+    coverKicker: z.string().describe("A 1 to 3 word category label for the topic, e.g. 'Psychologie', 'Nutrition', 'Business'. 32 characters maximum."),
+    coverTitle: z
+      .string()
+      .describe("The cover headline: the single strongest promise or counter-intuitive claim of the idea, written to make someone swipe. 70 characters maximum — short headlines stop the scroll. No question unless it is irresistible."),
+    coverEmphasis: z.string().describe(EMPHASIS),
+    coverSubtitle: z.string().describe("One short line under the headline that makes the swipe feel worth it, e.g. 'Voici comment.' or the key tension. 110 characters maximum."),
+    coverImagePrompt: z.string().describe(`${IMAGE_BRIEF} This is the cover: it must make the promise of the headline visible at a glance.`),
+    coverImageQuery: z
+      .string()
+      .describe("2 to 4 ENGLISH words describing one concrete, photographable scene for a stock-photo search behind the cover — a person, a place or an object, never an abstract idea. Example: 'woman journaling morning light'."),
+    slides: z
+      .array(
+        z.object({
+          title: z.string().describe(`One complete, punchy statement carrying the idea of the slide — never a vague label like 'Le problème'. ${contentLimits.title} characters maximum.`),
+          emphasis: z.string().describe(EMPHASIS),
+          body: z.string().describe(`One or two short sentences that explain, prove or illustrate the title with something concrete. ${contentLimits.body} characters maximum${bandPhoto ? " — a photo shares the slide." : "."}`),
+          imagePrompt: z.string().describe(IMAGE_BRIEF),
+          imageQuery: z.string().describe("2 to 4 ENGLISH words for a stock photo that illustrates this slide concretely."),
+        }),
+      )
+      .describe("Between 5 and 7 content slides. Each slide carries exactly one idea, and together they build: tension, then mechanism, then what to do."),
+    ctaKicker: z.string().describe("A 1 to 3 word label for the closing slide, e.g. 'À toi de jouer', 'En résumé'. 32 characters maximum."),
+    ctaTitle: z.string().describe("The closing headline: one concrete takeaway or first action the reader can do today. 70 characters maximum."),
+    ctaEmphasis: z.string().describe(EMPHASIS),
+    ctaBody: z.string().describe("One short sentence that makes the takeaway stick. 140 characters maximum."),
+    ctaAction: z
+      .string()
+      .describe(
+        "The explicit engagement ask, adapted from the script's call to action: invite a comment (ideally with one keyword to type), a share with someone who needs it, or a follow for what comes next. Direct and specific, never 'link in bio'. 90 characters maximum.",
+      ),
+  });
+}
 
 const SYSTEM_PROMPT = `You write Instagram and TikTok photo carousels for creators. You turn a short-video script into a carousel that is read, slide by slide, in a feed.
 
@@ -78,6 +88,8 @@ export interface CarouselInput {
   targetAudience?: string | null;
   /** The look the images will be generated in — the briefs are written to suit it (an illustration can show characters a photo shouldn't). */
   visualStyle: VisualStyle;
+  /** Decides how much room a content slide's text gets: full-bleed (Immersive) leaves it untouched, a band leaves a third of the height to a photo. */
+  template: CarouselTemplate;
 }
 
 export interface GeneratedCarousel {
@@ -124,6 +136,7 @@ export function fit(text: string, max: number): string {
 export async function generateCarousel(input: CarouselInput): Promise<GeneratedCarousel> {
   const anthropic = getClient();
   const art = ART_DIRECTIONS[input.visualStyle];
+  const contentLimits = imageLayout("content", input.template) === "band" ? IMAGE_SLIDE_LIMITS : SLIDE_LIMITS.content;
 
   const userPrompt = [
     `Language: ${input.language}`,
@@ -148,7 +161,7 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
       max_tokens: 8000,
       system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: userPrompt }],
-      output_config: { format: zodOutputFormat(carouselFields), effort: "medium" },
+      output_config: { format: zodOutputFormat(carouselFields(contentLimits)), effort: "medium" },
     });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) throw new CarouselGenerationError("L'IA est occupée en ce moment. Réessayez dans quelques secondes.", "UPSTREAM");
@@ -178,8 +191,8 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
       imagePrompt: brief(out.coverImagePrompt),
     },
     ...out.slides.slice(0, 8).map((s) => {
-      // Written for a slide that carries a photo, so held to the photo limits.
-      const title = fit(s.title, IMAGE_SLIDE_LIMITS.title);
+      // Written for a slide that carries a photo, so held to whatever room that photo actually leaves.
+      const title = fit(s.title, contentLimits.title);
       return {
         ...none,
         id: nanoid(8),
@@ -187,7 +200,7 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
         kicker: "",
         title,
         emphasis: emphasisIn(title, s.emphasis),
-        body: fit(s.body, IMAGE_SLIDE_LIMITS.body),
+        body: fit(s.body, contentLimits.body),
         imageQuery: fit(s.imageQuery, 80),
         imagePrompt: brief(s.imagePrompt),
       };

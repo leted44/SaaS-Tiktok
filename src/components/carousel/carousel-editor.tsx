@@ -16,7 +16,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
 import { generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
-import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
+import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
 import { DEFAULT_VISUAL_STYLE, type VisualStyle } from "@/lib/carousel/art-direction";
 import { StylePicker } from "@/components/shared/style-picker";
 import { resolveTemplate } from "@/lib/carousel/templates";
@@ -401,8 +401,8 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const photoSlots = state.slides.filter((s) => s.kind !== "cta").length;
   const photoCount = state.slides.filter((s) => s.kind !== "cta" && s.image).length;
   const style = state.visualStyle ?? DEFAULT_VISUAL_STYLE;
-  const pendingVisuals = state.slides.filter((s) => needsAiVisual(s, style) && !tooLongForImage(s)).length;
-  const regenerable = state.slides.filter((s) => s.kind !== "cta" && !tooLongForImage(s)).length;
+  const pendingVisuals = state.slides.filter((s) => needsAiVisual(s, style) && !tooLongForImage(s, state.template)).length;
+  const regenerable = state.slides.filter((s) => s.kind !== "cta" && !tooLongForImage(s, state.template)).length;
   const aiCount = state.slides.filter((s) => imageOrigin(s.image) === "ai").length;
   /** Before an AI generation touches a slide the server reads it from the database, so unsaved edits go first. */
   const ensureSaved = async () => !dirty || (await persist(state)) !== null;
@@ -576,6 +576,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                   key={s.id}
                   projectId={projectId}
                   slide={s}
+                  template={state.template}
                   label={s.kind === "cover" ? "Couverture" : s.kind === "cta" ? "Dernière slide" : `Idée ${pad(contentIndex)}`}
                   canDelete={s.kind === "content" && contentCount > 1}
                   canMoveUp={s.kind === "content" && state.slides[i - 1]?.kind === "content"}
@@ -637,10 +638,11 @@ function Counter({ value, max }: { value: string; max: number }) {
   return <span className={cn("text-[10px] tabular-nums", value.length >= max * 0.9 ? "text-amber-300" : "text-muted-foreground")}>{value.length}/{max}</span>;
 }
 
-/** One slide. Limits come from what the layout can hold in its tightest format, so a slide within them never overflows. */
-function SlideEditor({ projectId, slide, label, canDelete, canMoveUp, canMoveDown, aiImageCost, aiImagesConfigured, credits, ensureSaved, onGenerated, onChange, onRemove, onMove }: {
+/** One slide. Limits come from what the layout can hold — tight for a band photo, the full room for a full-bleed one — so a slide within them never overflows. */
+function SlideEditor({ projectId, slide, template, label, canDelete, canMoveUp, canMoveDown, aiImageCost, aiImagesConfigured, credits, ensureSaved, onGenerated, onChange, onRemove, onMove }: {
   projectId: string;
   slide: CarouselSlide;
+  template: CarouselTemplate;
   label: string;
   canDelete: boolean;
   canMoveUp: boolean;
@@ -654,9 +656,9 @@ function SlideEditor({ projectId, slide, label, canDelete, canMoveUp, canMoveDow
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
 }) {
-  const limit = limitsFor(slide);
-  // An image takes part of a content slide, so it only fits once the text is short enough.
-  const tooLongForPhoto = !slide.image && tooLongForImage(slide);
+  const limit = limitsFor(slide, template);
+  // A band photo takes part of a content slide, so it only fits once the text is short enough — a full-bleed one never blocks on this.
+  const tooLongForPhoto = !slide.image && tooLongForImage(slide, template);
   const emphasisMissing = Boolean(slide.emphasis.trim()) && !slide.title.toLowerCase().includes(slide.emphasis.trim().toLowerCase());
 
   return (

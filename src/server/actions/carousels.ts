@@ -8,7 +8,7 @@ import { generateCarousel } from "@/lib/ai/carousel-generator";
 import { generateImage } from "@/lib/ai/image-generator";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
-import { carouselSlidesSchema, carouselStateFromRow, carouselStateSchema, stripEmoji, limitsFor, needsAiVisual, tooLongForImage, type CarouselState } from "@/lib/carousel/schema";
+import { carouselSlidesSchema, carouselStateFromRow, carouselStateSchema, stripEmoji, limitsFor, needsAiVisual, tooLongForImage, CAROUSEL_TEMPLATES, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
 import { copyStockImage, isOwnStorageUrl, storeGeneratedImage } from "@/lib/ai/images";
 import { withAutoPhotos } from "@/lib/carousel/auto-photos";
 import { aiSource, DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from "@/lib/carousel/art-direction";
@@ -22,6 +22,7 @@ export interface CarouselSnapshot extends CarouselState {
 }
 
 const asStyle = (value: unknown): VisualStyle | null => ((VISUAL_STYLES as readonly unknown[]).includes(value) ? (value as VisualStyle) : null);
+const asTemplate = (value: unknown): CarouselTemplate | null => ((CAROUSEL_TEMPLATES as readonly unknown[]).includes(value) ? (value as CarouselTemplate) : null);
 
 /**
  * Write the carousel for a project from its current script.
@@ -49,6 +50,11 @@ export async function generateCarouselAction(
     if (ai && !integrations.aiImages()) throw new Error("La génération d'images IA n'est pas configurée.");
 
     const visualStyle = asStyle(options.visualStyle) ?? asStyle(project.carousel?.visualStyle) ?? DEFAULT_VISUAL_STYLE;
+    // The template this generation will actually use — an existing carousel keeps
+    // its own, a brand new AI one starts on Immersive (see the upsert below), and
+    // anything else falls back to the schema's own default. Text is written and
+    // trimmed to the room THIS template's photo layout actually leaves.
+    const template = asTemplate(project.carousel?.template) ?? (ai ? "immersive" : "minimal");
     const cost = isAdmin(user.role) ? 0 : CREDIT_COSTS.CAROUSEL;
     const creditsLeft = cost > 0 ? await chargeCredits(user.id, cost, "SCRIPT_GENERATION", "Génération du carrousel") : user.credits;
 
@@ -64,13 +70,14 @@ export async function generateCarouselAction(
         toneOfVoice: project.workspace.toneOfVoice,
         targetAudience: project.workspace.targetAudience,
         visualStyle,
+        template,
       });
     } catch (err) {
       if (cost > 0) await refundCredits(user.id, cost, "Remboursement — la génération du carrousel a échoué");
       throw err;
     }
 
-    const slides = ai ? generated.slides : (await withAutoPhotos(user.id, generated.slides, "generate")).slides;
+    const slides = ai ? generated.slides : (await withAutoPhotos(user.id, generated.slides, "generate", template)).slides;
     const art = { visualStyle: ai ? visualStyle : (project.carousel?.visualStyle ?? null), visualMotif: generated.visualMotif };
 
     const saved = await prisma.carousel.upsert({
@@ -93,7 +100,7 @@ export async function saveCarouselAction(projectId: string, input: unknown): Pro
       state.slides.map((s) => {
         // Only a copy in our own storage may be rendered — see lib/carousel/images.
         const image = s.kind !== "cta" && s.image && isOwnStorageUrl(s.image.url) ? s.image : null;
-        const limit = limitsFor({ kind: s.kind, image });
+        const limit = limitsFor({ kind: s.kind, image }, state.template);
         return {
           ...s,
           image,
@@ -149,7 +156,7 @@ export async function generateSlideImageAction(
     const state = toSnapshot(row);
     const slide = state.slides.find((s) => s.id === slideId);
     if (!slide || slide.kind === "cta") throw new Error("Cette slide n'accepte pas d'image.");
-    if (tooLongForImage(slide)) throw new Error("Raccourcis d'abord le texte de cette slide : l'image prend une partie de la place.");
+    if (tooLongForImage(slide, state.template)) throw new Error("Raccourcis d'abord le texte de cette slide : l'image prend une partie de la place.");
 
     const visualStyle = state.visualStyle ?? DEFAULT_VISUAL_STYLE;
     const series = { template: state.template, format: state.format, visualMotif: state.visualMotif, visualStyle };
@@ -189,8 +196,8 @@ export async function generateCarouselVisualsAction(
     const visualStyle = state.visualStyle ?? DEFAULT_VISUAL_STYLE;
 
     const candidates = state.slides.filter((s) => s.kind !== "cta" && (mode === "all" || needsAiVisual(s, visualStyle)));
-    const tooLong = candidates.filter(tooLongForImage).length;
-    const targets = candidates.filter((s) => !tooLongForImage(s));
+    const tooLong = candidates.filter((s) => tooLongForImage(s, state.template)).length;
+    const targets = candidates.filter((s) => !tooLongForImage(s, state.template));
     if (!targets.length) {
       if (tooLong) throw new Error("Les slides sans visuel ont trop de texte pour une image : raccourcis-les d'abord.");
       return { carousel: state, generated: 0, failed: 0, tooLong, creditsLeft: user.credits };
@@ -227,9 +234,9 @@ export async function fillCarouselPhotosAction(
     const user = await requireDbUser();
     if (!integrations.stock()) throw new Error("La recherche de photos n'est pas configurée (clé PEXELS_API_KEY manquante).");
     const row = await prisma.carousel.findFirstOrThrow({ where: { projectId, userId: user.id } });
-    const { slides } = toSnapshot(row);
+    const { slides, template } = toSnapshot(row);
 
-    const result = await withAutoPhotos(user.id, slides, "fill");
+    const result = await withAutoPhotos(user.id, slides, "fill", template);
     const saved = await prisma.carousel.update({ where: { id: row.id }, data: { slides: result.slides } });
     return { carousel: toSnapshot(saved), changed: result.changed, tooLong: result.tooLong, unmatched: result.unmatched };
   });
