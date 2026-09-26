@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // ───────────────────────── Captions ─────────────────────────
 
-export const captionPresetIds = ["hormozi", "karaoke", "minimal", "neon", "boxed", "editorial"] as const;
+export const captionPresetIds = ["hormozi", "karaoke", "minimal", "neon", "boxed", "editorial", "punchy"] as const;
 export type CaptionPresetId = (typeof captionPresetIds)[number];
 
 export const captionStyleSchema = z.object({

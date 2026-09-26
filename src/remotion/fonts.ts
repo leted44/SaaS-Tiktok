@@ -13,7 +13,7 @@ const LOADERS: Record<string, () => { waitUntilDone: () => Promise<undefined> }>
   "Playfair Display": () => loadPlayfairDisplay("normal", { weights: ["600", "700", "800"], subsets: ["latin"] }),
   Montserrat: () => loadMontserrat("normal", { weights: ["600", "700", "800", "900"], subsets: ["latin"] }),
   "Bebas Neue": () => loadBebasNeue("normal", { weights: ["400"], subsets: ["latin"] }),
-  Poppins: () => loadPoppins("normal", { weights: ["600", "700", "800"], subsets: ["latin"] }),
+  Poppins: () => loadPoppins("normal", { weights: ["600", "700", "800", "900"], subsets: ["latin"] }),
   Oswald: () => loadOswald("normal", { weights: ["500", "700"], subsets: ["latin"] }),
 };
 

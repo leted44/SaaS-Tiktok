@@ -37,6 +37,9 @@ export const CAPTION_PRESETS: CaptionPreset[] = [
   { id: "neon", name: "Néon", description: "Texte lumineux avec surbrillance cyan — parfait pour la tech et le gaming.", style: { ...base, preset: "neon", fontFamily: "Space Grotesk", textColor: "#F0FDFF", highlightColor: "#22D3EE", strokeColor: "#0E7490", strokeWidth: 3, highlightMode: "scale", animation: "pop" } },
   { id: "boxed", name: "Encadré", description: "Surbrillance mot par mot dans un cadre, look natif TikTok.", style: { ...base, preset: "boxed", highlightMode: "box", highlightColor: "#7C3AED", strokeWidth: 0, fontSize: 68, backgroundColor: "#000000", backgroundOpacity: 0.55, animation: "slide" } },
   { id: "editorial", name: "Éditorial", description: "Police serif, positionné en bas, rythme élégant.", style: { ...base, preset: "editorial", fontFamily: "Playfair Display", uppercase: false, fontWeight: 700, fontSize: 60, strokeWidth: 0, highlightMode: "color", highlightColor: "#FBBF24", position: "bottom", wordsPerLine: 5, maxLines: 2, animation: "fade" } },
+  // One word on screen at a time, exactly as long as it takes to say it — no
+  // group of words lingering while the voice has already moved on.
+  { id: "punchy", name: "Mot par mot", description: "Un seul mot affiché à la fois, qui suit le rythme de la voix sans jamais s'attarder.", style: { ...base, preset: "punchy", fontFamily: "Poppins", fontWeight: 900, fontSize: 88, strokeWidth: 9, highlightMode: "color", highlightColor: "#FFFFFF", wordsPerLine: 1, maxLines: 1, animation: "pop" } },
 ];
 
 export const CAPTION_PRESET_BY_ID = Object.fromEntries(CAPTION_PRESETS.map((p) => [p.id, p])) as Record<CaptionPresetId, CaptionPreset>;
