@@ -14,7 +14,7 @@ export async function GET() {
   return NextResponse.json({
     status: database === "ok" ? "ok" : "degraded",
     database,
-    integrations: { ai: integrations.ai(), tts: integrations.tts(), stripe: integrations.stripe(), s3: integrations.s3(), tiktok: integrations.tiktok(), youtube: integrations.youtube(), instagram: integrations.instagram() },
+    integrations: { ai: integrations.ai(), tts: integrations.tts(), stripe: integrations.stripe(), s3: integrations.s3(), tiktok: integrations.tiktok(), youtube: integrations.youtube(), instagram: integrations.instagram(), aiImages: integrations.aiImages(), videoClips: integrations.videoClips() },
     // Which storage a deployment is actually writing to. None of this is
     // secret, and without it a failed upload is indistinguishable between
     // "wrong bucket name", "provider is not AWS" and "this build predates the
