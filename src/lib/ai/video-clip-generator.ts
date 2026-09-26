@@ -37,6 +37,19 @@ function authHeaders(): HeadersInit {
   return { Authorization: `Key ${env.falApiKey}`, "Content-Type": "application/json" };
 }
 
+/** fal.ai's own error body (usually `{ detail: "..." }`) — the status code alone doesn't say whether a 403 is a bad key or an unfunded account. */
+async function describeFailure(res: Response): Promise<string> {
+  const body = await res.text().catch(() => "");
+  try {
+    const parsed = JSON.parse(body) as { detail?: unknown; message?: unknown };
+    const detail = typeof parsed.detail === "string" ? parsed.detail : typeof parsed.message === "string" ? parsed.message : null;
+    if (detail) return `${res.status} : ${detail}`;
+  } catch {
+    // Not JSON — fall through to the raw status.
+  }
+  return body ? `${res.status} : ${body.slice(0, 200)}` : String(res.status);
+}
+
 /** Starts an animation. Returns fal's request id — there is nothing to poll yet the instant this resolves. */
 export async function submitImageToVideo(imageUrl: string, prompt: string, tier: VideoClipTier, duration: KlingDuration): Promise<{ requestId: string }> {
   if (!env.falApiKey) throw new VideoClipError("L'animation de scène n'est pas configurée (clé FAL_API_KEY manquante).", "NOT_CONFIGURED");
@@ -46,7 +59,7 @@ export async function submitImageToVideo(imageUrl: string, prompt: string, tier:
     headers: authHeaders(),
     body: JSON.stringify({ image_url: imageUrl, prompt: prompt.slice(0, 2500), duration, aspect_ratio: "9:16" }),
   });
-  if (!res.ok) throw new VideoClipError(`La demande d'animation a échoué (${res.status}).`, "UPSTREAM");
+  if (!res.ok) throw new VideoClipError(`La demande d'animation a échoué (${await describeFailure(res)}).`, "UPSTREAM");
   const json = (await res.json()) as { request_id?: string };
   if (!json.request_id) throw new VideoClipError("fal.ai n'a renvoyé aucun identifiant de tâche.", "UPSTREAM");
   return { requestId: json.request_id };
@@ -62,12 +75,12 @@ export async function checkVideoStatus(requestId: string, tier: VideoClipTier): 
   if (!env.falApiKey) throw new VideoClipError("L'animation de scène n'est pas configurée (clé FAL_API_KEY manquante).", "NOT_CONFIGURED");
 
   const statusRes = await fetch(`${QUEUE_BASE}/${ENDPOINT[tier]}/requests/${requestId}/status`, { headers: authHeaders() });
-  if (!statusRes.ok) throw new VideoClipError(`Le suivi de l'animation a échoué (${statusRes.status}).`, "UPSTREAM");
+  if (!statusRes.ok) throw new VideoClipError(`Le suivi de l'animation a échoué (${await describeFailure(statusRes)}).`, "UPSTREAM");
   const status = (await statusRes.json()) as { status?: string; error?: string };
 
   if (status.status === "COMPLETED") {
     const resultRes = await fetch(`${QUEUE_BASE}/${ENDPOINT[tier]}/requests/${requestId}`, { headers: authHeaders() });
-    if (!resultRes.ok) throw new VideoClipError(`La récupération du clip a échoué (${resultRes.status}).`, "UPSTREAM");
+    if (!resultRes.ok) throw new VideoClipError(`La récupération du clip a échoué (${await describeFailure(resultRes)}).`, "UPSTREAM");
     const result = (await resultRes.json()) as { video?: { url?: string }; error?: string };
     if (!result.video?.url) throw new VideoClipError(result.error ?? "fal.ai n'a renvoyé aucune vidéo.", "UPSTREAM");
     return { state: "completed", videoUrl: result.video.url };
