@@ -4,6 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { AppShell } from "@/components/layout/app-shell";
 import { integrations } from "@/lib/env";
 
+// A "use server" actions file cannot export its own route config, so this is
+// where it lives instead — Next.js applies a layout's maxDuration to Server
+// Actions invoked from any page beneath it. Script generation is now a
+// draft-then-critique pass (two sequential AI calls), which needs more room
+// than the platform's short default.
+export const maxDuration = 60;
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/sign-in");

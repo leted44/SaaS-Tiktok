@@ -58,7 +58,31 @@ Principles you always apply:
 - Scores are honest and calibrated: 90+ is rare and reserved for genuinely exceptional concepts.
 - Write in the requested language. Keep hashtags in that language plus 2-3 global ones.
 - brollQuery is the one exception: always English, and always a literal thing a camera can film (a person doing something, an object, a place). "man opening empty wallet" works; "financial anxiety" returns nothing usable.
-- socialCopy is read silently in a feed, not spoken. It gives a reason to watch, save or comment, and never repeats the hook word for word. TikTok rewards short and blunt; Instagram rewards a first line that earns the "more" tap. Its hashtags are returned in their own lists and never written inside the caption text.`;
+- socialCopy is read silently in a feed, not spoken. It gives a reason to watch, save or comment, and never repeats the hook word for word. TikTok rewards short and blunt; Instagram rewards a first line that earns the "more" tap. Its hashtags are returned in their own lists and never written inside the caption text.
+- This is automated content a real audience will take as fact, with no human fact-checking it before it posts. Never invent a statistic, study, percentage or specific mechanism to sound authoritative. When you are not certain a specific figure or claim is true, use the true qualitative version instead of a fake-precise number — a real mechanism is more interesting than a fabricated-sounding one anyway. A punchier line is never worth a false claim.`;
+
+/**
+ * A second pass, written as a separate, harsher voice reviewing someone
+ * else's draft — not the same voice re-reading its own work, which tends to
+ * defend what it already wrote instead of actually raising the bar. The
+ * first pass explores an idea; this one is what turns a competent draft
+ * into the version worth posting.
+ */
+export const SCRIPT_CRITIC_SYSTEM_PROMPT = `You are VidiSprint's most demanding editor-in-chief. A colleague just drafted the attached short-form video script. Your job is to make it as good as the best video actually posted in its niche this year — not to lightly polish it. Read it exactly as a scroller would: the first 3 seconds decide everything.
+
+Rewrite the ENTIRE script, keeping only what already earns its place. Do not just patch lines — a merely acceptable script rewritten with fresh eyes still isn't good enough.
+
+Reject and fix, specifically:
+- A hook that is vague, generic, or a phrasing a hundred other videos already used. It must land one sharp, specific claim or question framed in a way that earns the stop.
+- Any scene that could be cut without the video losing anything, or that restates the previous scene instead of escalating toward the payoff.
+- Any sentence too long or abstract to say out loud naturally, or any passive phrasing a real creator wouldn't use.
+- Any invented, exaggerated, or suspiciously-precise claim — a statistic, a mechanism, "studies show". This is automated content a real audience will trust as fact with nobody checking it before it posts: replace anything you cannot personally stand behind with the true, still-interesting version, or cut it. A fabricated number is a defect, never a stylistic choice.
+- A CTA that begs, or that doesn't follow naturally from the payoff just delivered.
+- Dead pacing: nothing changing on screen or in delivery for more than ~7 seconds straight.
+
+Score honestly against this bar, not against an average video: a script that does nothing wrong but breaks no new ground is a 60-70, not an 85 — 85+ is earned by a genuinely sharp, specific angle, not given for competent execution. If your rewrite would still score in the 70s or below on virality or hook, that means keep rewriting, not report the low score and stop — your job is to hand back a script that deserves a high score, not to grade the one you were given.
+
+Output the complete corrected script in the exact same structure — every field, fully rewritten wherever it fell short, left as is only where it was already excellent.`;
 
 function buildUserPrompt(input: GenerateScriptInput, brand?: { toneOfVoice?: string | null; targetAudience?: string | null }): string {
   const targetWords = Math.round(input.targetDurationSec * 2.6);
@@ -78,6 +102,10 @@ function buildUserPrompt(input: GenerateScriptInput, brand?: { toneOfVoice?: str
     .join("\n");
 }
 
+function buildCriticUserPrompt(input: GenerateScriptInput, draft: GeneratedScript, brand?: { toneOfVoice?: string | null; targetAudience?: string | null }): string {
+  return [buildUserPrompt(input, brand), "", "--- DRAFT TO REVIEW AND REWRITE ---", JSON.stringify(draft, null, 2)].join("\n");
+}
+
 let client: Anthropic | null = null;
 function getClient(): Anthropic {
   if (!env.anthropicApiKey) throw new ScriptGenerationError("La génération de script IA n'est pas configurée (clé ANTHROPIC_API_KEY manquante).", "NOT_CONFIGURED");
@@ -91,21 +119,15 @@ export class ScriptGenerationError extends Error {
   }
 }
 
-export async function generateScript(
-  input: GenerateScriptInput,
-  brand?: { toneOfVoice?: string | null; targetAudience?: string | null },
-): Promise<ScriptGenerationResult> {
-  const anthropic = getClient();
-  const model = env.anthropicModel;
-
+async function callForScript(anthropic: Anthropic, model: string, system: string, userPrompt: string, effort: "medium" | "high") {
   let response;
   try {
     response = await anthropic.messages.parse({
       model,
       max_tokens: 16000,
-      system: [{ type: "text", text: SCRIPT_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-      messages: [{ role: "user", content: buildUserPrompt(input, brand) }],
-      output_config: { format: zodOutputFormat(scriptOutputSchema), effort: "medium" },
+      system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+      messages: [{ role: "user", content: userPrompt }],
+      output_config: { format: zodOutputFormat(scriptOutputSchema), effort },
     });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) throw new ScriptGenerationError("L'IA est occupée en ce moment. Réessayez dans quelques secondes.", "UPSTREAM");
@@ -116,10 +138,30 @@ export async function generateScript(
   if (response.stop_reason === "refusal") {
     throw new ScriptGenerationError("L'IA a refusé d'écrire ce script. Ajustez le sujet et réessayez.", "REFUSED");
   }
-  const script = response.parsed_output;
-  if (!script) throw new ScriptGenerationError("L'IA a renvoyé un script illisible. Veuillez réessayer.", "PARSE_FAILED");
+  const parsed = response.parsed_output;
+  if (!parsed) throw new ScriptGenerationError("L'IA a renvoyé un script illisible. Veuillez réessayer.", "PARSE_FAILED");
+  return { parsed, response };
+}
 
-  const normalized = normalizeScript(script);
+/**
+ * Two passes, not one: a single call asked to both write and honestly grade
+ * its own work reliably lands on "competent" — there is nothing in that flow
+ * that makes it actually rewrite a weak hook rather than just describe it as
+ * a 74. The critic pass is a fresh voice, primed to reject rather than
+ * defend, whose only job is to hand back something that deserves a high
+ * score instead of grading the one draft it was given.
+ */
+export async function generateScript(
+  input: GenerateScriptInput,
+  brand?: { toneOfVoice?: string | null; targetAudience?: string | null },
+): Promise<ScriptGenerationResult> {
+  const anthropic = getClient();
+  const model = env.anthropicModel;
+
+  const draft = await callForScript(anthropic, model, SCRIPT_SYSTEM_PROMPT, buildUserPrompt(input, brand), "medium");
+  const revised = await callForScript(anthropic, model, SCRIPT_CRITIC_SYSTEM_PROMPT, buildCriticUserPrompt(input, draft.parsed, brand), "high");
+
+  const normalized = normalizeScript(revised.parsed);
   const fullText = assembleFullText(normalized);
   const wordCount = countWords(fullText);
 
@@ -128,9 +170,9 @@ export async function generateScript(
     fullText,
     wordCount,
     estimatedDurationSec: Math.round(wordCount / 2.6),
-    model: response.model,
-    inputTokens: response.usage.input_tokens,
-    outputTokens: response.usage.output_tokens,
+    model: revised.response.model,
+    inputTokens: draft.response.usage.input_tokens + revised.response.usage.input_tokens,
+    outputTokens: draft.response.usage.output_tokens + revised.response.usage.output_tokens,
   };
 }
 
