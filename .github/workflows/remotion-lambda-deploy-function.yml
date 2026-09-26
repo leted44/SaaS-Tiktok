@@ -1,0 +1,33 @@
+name: Deploy a properly-sized Remotion Lambda function
+
+# Manually triggered. Deploys a new Remotion Lambda function with a bigger
+# ephemeral disk than Remotion's 2048 MB default, which was the actual cause
+# of "Failed to fetch .../proxy?src=..." render failures on personal video
+# uploads (Chrome/ffmpeg ran out of /tmp space decoding the file). This does
+# not touch the function currently in use — REMOTION_LAMBDA_FUNCTION_NAME on
+# Vercel must be updated by hand to the name this prints.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Deploy Remotion Lambda function
+        env:
+          RAW_ACCESS_KEY_ID: ${{ secrets.REMOTION_AWS_ACCESS_KEY_ID }}
+          RAW_SECRET_ACCESS_KEY: ${{ secrets.REMOTION_AWS_SECRET_ACCESS_KEY }}
+        run: |
+          export REMOTION_AWS_ACCESS_KEY_ID="$(printf '%s' "$RAW_ACCESS_KEY_ID" | tr -d '[:space:]')"
+          export REMOTION_AWS_SECRET_ACCESS_KEY="$(printf '%s' "$RAW_SECRET_ACCESS_KEY" | tr -d '[:space:]')"
+          export REMOTION_AWS_REGION=us-east-1
+          npx remotion lambda functions deploy --disk=10240 --memory=3008 --timeout=400
