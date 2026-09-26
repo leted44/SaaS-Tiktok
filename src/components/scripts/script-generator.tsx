@@ -86,15 +86,22 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
     setLoading(true);
     setStep(0);
     const timer = setInterval(() => setStep((s) => Math.min(STEPS.length - 1, s + 1)), 2200);
-    const res = await generateScriptAction({ projectId, spaceId: projectId ? undefined : spaceId === NO_SPACE ? null : spaceId, topic, sourceUrl: sourceUrl || undefined, niche, tone, hookStyle, language, targetDurationSec: duration, callToActionGoal: cta, audience: audience || undefined });
-    clearInterval(timer);
-    setLoading(false);
-    if (!res.ok) {
-      toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Obtenir des crédits", onClick: () => router.push("/billing") } : undefined });
-      return;
+    try {
+      const res = await generateScriptAction({ projectId, spaceId: projectId ? undefined : spaceId === NO_SPACE ? null : spaceId, topic, sourceUrl: sourceUrl || undefined, niche, tone, hookStyle, language, targetDurationSec: duration, callToActionGoal: cta, audience: audience || undefined });
+      if (!res.ok) {
+        toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Obtenir des crédits", onClick: () => router.push("/billing") } : undefined });
+        return;
+      }
+      toast.success(`Script v${res.data.version} prêt — viralité ${res.data.viralityScore}/100`, { description: `${res.data.creditsLeft} crédits restants` });
+      router.push(projectId ? `/studio/${res.data.projectId}` : formatDestination(format, res.data.projectId));
+    } catch {
+      // A dead network call or a killed server function never reaches `res.ok` —
+      // without this, the button spins on "Calcul du score de viralité" forever.
+      toast.error("La génération a échoué (délai dépassé ou connexion perdue). Réessayez.");
+    } finally {
+      clearInterval(timer);
+      setLoading(false);
     }
-    toast.success(`Script v${res.data.version} prêt — viralité ${res.data.viralityScore}/100`, { description: `${res.data.creditsLeft} crédits restants` });
-    router.push(projectId ? `/studio/${res.data.projectId}` : formatDestination(format, res.data.projectId));
   }
 
   return (

@@ -6,10 +6,13 @@ import { integrations } from "@/lib/env";
 
 // A "use server" actions file cannot export its own route config, so this is
 // where it lives instead — Next.js applies a layout's maxDuration to Server
-// Actions invoked from any page beneath it. Script generation is now a
-// draft-then-critique pass (two sequential AI calls), which needs more room
-// than the platform's short default.
-export const maxDuration = 60;
+// Actions invoked from any page beneath it. Script generation is a
+// draft-then-critique pass (two sequential AI calls, the second at "high"
+// reasoning effort) — a real model easily spends 30-90s per call, so 60s
+// total was still too tight and was silently killing the request past that
+// point (the client saw a dead connection, not a clean error — see the
+// try/catch around generateScriptAction's callers).
+export const maxDuration = 180;
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();

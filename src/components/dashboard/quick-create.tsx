@@ -48,20 +48,25 @@ export function QuickCreate({ aiConfigured, credits, cost, language }: Props) {
     }
     if (!urlValid) return toast.error("Ce lien n'est pas une adresse web valide.");
     setLoading(true);
-    const res = await generateScriptAction({
-      topic: topic.trim(),
-      sourceUrl: withUrl && url.trim() ? url.trim() : undefined,
-      tone,
-      targetDurationSec: duration,
-      language,
-    });
-    if (!res.ok) {
+    try {
+      const res = await generateScriptAction({
+        topic: topic.trim(),
+        sourceUrl: withUrl && url.trim() ? url.trim() : undefined,
+        tone,
+        targetDurationSec: duration,
+        language,
+      });
+      if (!res.ok) {
+        toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Obtenir des crédits", onClick: () => router.push("/billing") } : undefined });
+        return;
+      }
+      toast.success(`Script prêt — viralité ${res.data.viralityScore}/100`, { description: format === "carousel" ? "Direction l'éditeur de carrousel." : "Direction le studio pour la voix, les visuels et l'export." });
+      router.push(formatDestination(format, res.data.projectId));
+    } catch {
+      toast.error("La génération a échoué (délai dépassé ou connexion perdue). Réessayez.");
+    } finally {
       setLoading(false);
-      toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Obtenir des crédits", onClick: () => router.push("/billing") } : undefined });
-      return;
     }
-    toast.success(`Script prêt — viralité ${res.data.viralityScore}/100`, { description: format === "carousel" ? "Direction l'éditeur de carrousel." : "Direction le studio pour la voix, les visuels et l'export." });
-    router.push(formatDestination(format, res.data.projectId));
   }
 
   return (
