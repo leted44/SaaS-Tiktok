@@ -16,7 +16,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
 import { generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
-import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileSlug, tooLongForImage, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
+import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
 import { DEFAULT_VISUAL_STYLE, type VisualStyle } from "@/lib/carousel/art-direction";
 import { StylePicker } from "@/components/shared/style-picker";
 import { resolveTemplate } from "@/lib/carousel/templates";
@@ -53,8 +53,8 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const [version, setVersion] = useState(initial?.version ?? 0);
   const [credits, setCredits] = useState(initialCredits);
   const [generating, setGenerating] = useState(false);
-  /** Where a creation stands: the text is written first, then the visuals, as two requests. */
-  const [phase, setPhase] = useState<null | "text" | "visuals">(null);
+  /** Whether the initial text generation is in flight — the only automatic step; visuals are a deliberate follow-up once the script has been read. */
+  const [phase, setPhase] = useState<null | "text">(null);
   const [createVisuals, setCreateVisuals] = useState<"ai" | "stock">(aiImagesConfigured ? "ai" : "stock");
   const [createStyle, setCreateStyle] = useState<VisualStyle>(DEFAULT_VISUAL_STYLE);
   const [visualsBusy, setVisualsBusy] = useState(false);
@@ -148,12 +148,18 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
     }
   }
 
+  /**
+   * Text only — visuals are a separate, deliberate step once the script has
+   * been read. Generating both in one uninterrupted chain meant the editor
+   * only ever appeared once the (costed) images were already done, so the
+   * script itself was never actually reviewable before committing to it.
+   */
   async function generate() {
     const ai = aiImagesConfigured && (state ? state.visualStyle !== null : createVisuals === "ai");
     const visualStyle = state?.visualStyle ?? createStyle;
     if (state) {
       const message = ai
-        ? `Réécrire tous les textes et recréer les visuels IA ? ${cost} crédits pour le texte, puis ${aiImageCost} par image. Le modèle, le format, la signature et le style sont conservés.`
+        ? `Réécrire tous les textes ? ${cost} crédit${cost > 1 ? "s" : ""}. Les images actuelles seront à remplacer ensuite (${aiImageCost} par image) une fois le nouveau texte relu. Le modèle, le format, la signature et le style sont conservés.`
         : "Réécrire tous les textes du carrousel ? De nouvelles photos sont cherchées pour chaque slide ; le modèle, le format et la signature sont conservés.";
       if (!window.confirm(message)) return;
     }
@@ -164,12 +170,11 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       if (!res.ok) return toast.error(res.error);
       apply(res.data.carousel);
       setCredits(res.data.creditsLeft);
-      if (ai) {
-        setPhase("visuals");
-        await requestVisuals("missing");
-      } else {
-        toast.success(`Carrousel prêt · ${res.data.carousel.slides.length} slides${cost > 0 ? ` · ${cost} crédits` : ""}`);
-      }
+      toast.success(
+        ai
+          ? `Script prêt · ${res.data.carousel.slides.length} slides${cost > 0 ? ` · ${cost} crédits` : ""}. Relis-le, puis génère les images dans « Visuels ».`
+          : `Carrousel prêt · ${res.data.carousel.slides.length} slides${cost > 0 ? ` · ${cost} crédits` : ""}`,
+      );
       router.refresh();
     } finally {
       setGenerating(false);
@@ -217,12 +222,11 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       if (saved === null) return null;
       v = saved;
     }
-    const slug = slideFileSlug(projectTitle);
     return Promise.all(
       state.slides.map(async (_, i) => {
         const res = await fetch(slideUrl(i, v));
         if (!res.ok) throw new Error(`La slide ${i + 1} n'a pas pu être générée.`);
-        return new File([await res.blob()], `${slug}-slide-${pad(i + 1)}.png`, { type: "image/png" });
+        return new File([await res.blob()], slideFileName(projectTitle, state.format, i), { type: "image/png" });
       }),
     );
   }
@@ -270,12 +274,14 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   async function downloadZip() {
     setBusy("zip");
     try {
+      if (!state) return;
+      const format = state.format;
       const files = await collectFiles();
       if (!files) return;
       const entries = Object.fromEntries(await Promise.all(files.map(async (f) => [f.name, new Uint8Array(await f.arrayBuffer())] as const)));
       // PNGs are already compressed; storing them avoids burning the phone's CPU for nothing.
       const zipped = zipSync(entries, { level: 0 });
-      triggerDownload(new Blob([zipped], { type: "application/zip" }), `${slideFileSlug(projectTitle)}.zip`);
+      triggerDownload(new Blob([zipped], { type: "application/zip" }), zipFileName(projectTitle, format));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Téléchargement impossible.");
     } finally {
@@ -322,7 +328,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
     return (
       <div className="mx-auto max-w-3xl min-w-0">
         {header}
-        <CreationProgress phase={phase} withVisuals={aiImagesConfigured && (state ? state.visualStyle !== null : createVisuals === "ai")} />
+        <CreationProgress />
       </div>
     );
   }
@@ -930,32 +936,15 @@ function ChoiceCard({ selected, onClick, title, badge, children }: { selected: b
   );
 }
 
-/** Creating is two requests — the writing, then the images — shown as the two steps they are. */
-function CreationProgress({ phase, withVisuals }: { phase: "text" | "visuals"; withVisuals: boolean }) {
-  const steps = [
-    { id: "text", label: "Écriture des slides", hint: "Titres, textes, mots en couleur et scènes à illustrer" },
-    ...(withVisuals ? [{ id: "visuals", label: "Création des visuels", hint: "La couverture d'abord, puis toutes les images dans son style — environ 30 secondes" }] : []),
-  ];
-  const at = steps.findIndex((s) => s.id === phase);
+/** Writing the slides — the only automatic step. Visuals are generated afterward, on request, once the script has been read. */
+function CreationProgress() {
   return (
-    <div className="surface space-y-4 p-5">
+    <div className="surface flex items-center gap-3 p-5">
+      <Loader2 className="h-5 w-5 shrink-0 animate-spin text-brand-300" />
       <div>
-        <p className="font-display text-lg font-bold">Ton carrousel se prépare</p>
-        <p className="text-sm text-muted-foreground">Reste sur cette page, ça ne prend qu'un moment.</p>
+        <p className="font-display text-base font-bold">Écriture des slides</p>
+        <p className="text-sm text-muted-foreground">Titres, textes, mots en couleur et scènes à illustrer — reste sur cette page.</p>
       </div>
-      <ol className="space-y-3">
-        {steps.map((s, i) => (
-          <li key={s.id} className="flex gap-3">
-            <span className={cn("mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border", i < at ? "border-emerald-400/50 bg-emerald-400/15 text-emerald-300" : i === at ? "border-primary/60 bg-primary/15 text-brand-200" : "border-white/10 text-muted-foreground")}>
-              {i < at ? <Check className="h-3.5 w-3.5" /> : i === at ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <span className="text-[11px]">{i + 1}</span>}
-            </span>
-            <div>
-              <p className={cn("text-sm font-medium", i > at && "text-muted-foreground")}>{s.label}</p>
-              <p className="text-xs text-muted-foreground">{s.hint}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
     </div>
   );
 }
