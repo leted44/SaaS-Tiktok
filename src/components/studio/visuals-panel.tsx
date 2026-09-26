@@ -727,6 +727,11 @@ function LayerRow({
           </Select>
         </div>
       )}
+      {open && videoClipsConfigured && layer.type === "video" && (
+        <div className="mt-2 border-t border-white/[0.06] pt-2 text-[11px] text-muted-foreground">
+          Ce calque est déjà une vidéo (mouvement déjà présent) — rien à animer ici.
+        </div>
+      )}
       {open && videoClipsConfigured && layer.type === "image" && (
         <div className="mt-2 border-t border-white/[0.06] pt-2">
           {animating ? (
