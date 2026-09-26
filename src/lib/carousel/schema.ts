@@ -157,6 +157,28 @@ export function slideFileSlug(title: string): string {
   return slugify(title).slice(0, 40).replace(/-+$/, "") || "carrousel";
 }
 
+/** Format name for a filename — plain ASCII, unlike FORMAT_SIZE's accented display label. */
+const FORMAT_FILE_SLUG: Record<CarouselFormat, string> = { portrait: "instagram", story: "tiktok", square: "carre" };
+
+/**
+ * A slide's full download filename, format included.
+ *
+ * The same slide re-exported in a different format is a different image —
+ * different crop, sometimes a different photo entirely for a "band" layout —
+ * but without the format in the name, two exports of the same carousel both
+ * produce `titre-slide-01.png`. A phone or browser sees that as the same
+ * file coming back and offers to overwrite it, which reads as "replace the
+ * existing image?" even though nothing here should be replaced.
+ */
+export function slideFileName(title: string, format: CarouselFormat, index: number): string {
+  return `${slideFileSlug(title)}-${FORMAT_FILE_SLUG[format]}-slide-${String(index + 1).padStart(2, "0")}.png`;
+}
+
+/** The exported ZIP's filename, format included for the same reason as slideFileName. */
+export function zipFileName(title: string, format: CarouselFormat): string {
+  return `${slideFileSlug(title)}-${FORMAT_FILE_SLUG[format]}.zip`;
+}
+
 /**
  * Typographic polish applied at render time, never to the stored text.
  *

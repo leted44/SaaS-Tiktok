@@ -6,7 +6,7 @@ import { CarouselSlideView } from "@/components/carousel/slide";
 import { resolveTemplate } from "@/lib/carousel/templates";
 import { loadCarouselFonts } from "@/lib/carousel/fonts";
 import { renderableImageUrl } from "@/lib/ai/images";
-import { carouselStateFromRow, slideFileSlug, FORMAT_SIZE } from "@/lib/carousel/schema";
+import { carouselStateFromRow, slideFileName, FORMAT_SIZE } from "@/lib/carousel/schema";
 
 // Reads the bundled font files from disk.
 export const runtime = "nodejs";
@@ -66,7 +66,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
       fonts,
       headers: {
         "Cache-Control": "private, max-age=31536000, immutable",
-        ...(download ? { "Content-Disposition": `attachment; filename="${slideFileSlug(carousel.project.title)}-slide-${String(i + 1).padStart(2, "0")}.png"` } : {}),
+        ...(download ? { "Content-Disposition": `attachment; filename="${slideFileName(carousel.project.title, state.format, i)}"` } : {}),
       },
     },
   );
