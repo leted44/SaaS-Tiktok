@@ -1,5 +1,5 @@
 import type { Prisma, ProjectStatus } from "@prisma/client";
-import { parseJson, visualLayersSchema } from "@/lib/validations";
+import { parseJson, visualLayersSchema, visualPoolSchema, type VisualLayer, type VisualPoolItem } from "@/lib/validations";
 import { formatDuration } from "@/lib/utils";
 import { carouselStateFromRow, tooLongForImage, type CarouselState } from "@/lib/carousel/schema";
 
@@ -60,6 +60,7 @@ export const PROJECT_PROGRESS_SELECT = {
   thumbnailUrl: true,
   activeScriptId: true,
   visualLayers: true,
+  visualPool: true,
   episodeNumber: true,
   episodeTotal: true,
   postedAt: true,
@@ -96,10 +97,11 @@ export function buildProjectProgress(p: ProjectProgressRow): ProjectCardData {
     : null;
   const published = Boolean(posted);
 
-  // Slides but no voice-over and no render: the project is being made as a
-  // carousel, and asking it for a voice-over would send it down the wrong path.
+  // Slides and nothing started on the video side (no voice-over, render or
+  // scene visuals): the project is being made as a carousel, and asking it
+  // for a voice-over would send it down the wrong path.
   const carousel = p.carousel ? carouselStateFromRow(p.carousel) : null;
-  if (carousel?.success && !voice && p.renderJobs.length === 0) {
+  if (carousel?.success && !voice && p.renderJobs.length === 0 && layers.length === 0) {
     return carouselProgress(p, carousel.data, script, posted);
   }
 
@@ -149,7 +151,7 @@ export function buildProjectProgress(p: ProjectProgressRow): ProjectCardData {
     status: p.status,
     aspectRatio: p.aspectRatio,
     updatedAt: p.updatedAt,
-    thumbnailUrl: p.thumbnailUrl ?? finished?.thumbnailUrl ?? null,
+    thumbnailUrl: p.thumbnailUrl ?? finished?.thumbnailUrl ?? firstVisualThumbnail(layers, parseJson(visualPoolSchema, p.visualPool, [])),
     videoUrl: finished?.outputUrl ?? null,
     duration,
     scores: scored ? { virality: script.viralityScore, hook: script.hookScore, retention: script.retentionScore, clarity: script.clarityScore, rationale: script.scoreRationale } : null,
@@ -163,6 +165,22 @@ export function buildProjectProgress(p: ProjectProgressRow): ProjectCardData {
     posted,
     space: p.space,
   };
+}
+
+/**
+ * A still for a video that has no render thumbnail yet (or was rendered
+ * before renders produced one): its opening visual. An image layer is shown
+ * as is; a stock video layer by the preview its library entry carries.
+ */
+function firstVisualThumbnail(layers: VisualLayer[], pool: VisualPoolItem[]): string | null {
+  for (const l of [...layers].sort((a, b) => a.startMs - b.startMs)) {
+    if (l.type === "image" && l.src) return l.src;
+    if (l.type === "video") {
+      const preview = pool.find((item) => item.src === l.src)?.thumbnailUrl;
+      if (preview) return preview;
+    }
+  }
+  return null;
 }
 
 type Script = ProjectProgressRow["scripts"][number];
