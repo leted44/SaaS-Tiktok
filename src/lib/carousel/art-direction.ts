@@ -35,7 +35,7 @@ export const ART_DIRECTIONS: Record<VisualStyle, ArtDirection> = {
     label: "Studio",
     hint: "Lumineux, net, magazine",
     prompt:
-      "Premium magazine studio photograph. Bright soft diffused key light, subtle natural shadows, clean seamless light neutral backdrop, crisp detail, true-to-life colours, minimal props, generous negative space.",
+      "Premium magazine studio photograph. Bright soft diffused key light, subtle natural shadows, clean seamless light neutral backdrop, crisp detail, true-to-life colours, minimal props, uncluttered composition.",
     swatch: ["#EDEAE4", "#FFFFFF", "#9A9186"],
   },
   noir: {
@@ -70,8 +70,11 @@ export const ART_DIRECTIONS: Record<VisualStyle, ArtDirection> = {
 export type VisualLayout = "bleed" | "band" | "frame";
 
 const COMPOSITION: Record<VisualLayout, string> = {
+  // Image models follow the start of a prompt far more reliably than the
+  // end, and a tabletop motif ("a plate on a worktop") pulls the subject to
+  // the bottom of the frame on its own — exactly where the headline goes.
   bleed:
-    "Vertical composition: place the main subject in the upper 60% of the frame, and keep the bottom third simple, darker and uncluttered — a headline will be laid over it.",
+    "FRAMING, the most important rule: a close-up where the main subject is large — at least half the width of the frame — and sits in the upper half of the image. The bottom third is only plain, darker surface or background with nothing important in it, because a headline is printed over it. Never place the subject in the lower half, never show it small in a wide empty space.",
   band: "Wide horizontal composition: centre the subject with generous margins, nothing important near the edges.",
   // A video scene: captions can land anywhere over it, not a fixed text band,
   // so nothing is reserved — the photo is the whole frame, not a subject
@@ -90,7 +93,13 @@ const RULES =
 export function composeImagePrompt(input: { scene: string; motif: string; style: VisualStyle; layout: VisualLayout }): string {
   const scene = input.scene.trim().replace(/[.\s]+$/, "");
   const motif = input.motif.trim().replace(/[.\s]+$/, "");
-  return [`Scene: ${scene}.`, motif ? `Recurring series setting: ${motif}.` : null, `Art direction: ${ART_DIRECTIONS[input.style].prompt}`, COMPOSITION[input.layout], RULES]
+  return [
+    COMPOSITION[input.layout],
+    `Scene: ${scene}.`,
+    motif ? `Recurring series setting (props and surfaces only — any size or position it mentions is overridden by the framing rule): ${motif}.` : null,
+    `Art direction: ${ART_DIRECTIONS[input.style].prompt}`,
+    RULES,
+  ]
     .filter(Boolean)
     .join("\n");
 }

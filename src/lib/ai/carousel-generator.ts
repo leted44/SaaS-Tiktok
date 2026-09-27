@@ -22,7 +22,7 @@ function carouselFields(contentLimits: { title: number; body: number }) {
     visualMotif: z
       .string()
       .describe(
-        "In the script's language, one sentence: the recurring setting or prop that makes every image of this carousel read as one series, the way a strong Instagram account repeats one staging and only changes the subject — e.g. 'chaque aliment présenté dans une cuillère en bois rustique, au-dessus d'un verger flou'. Concrete and photographable. No lighting or colour words.",
+        "In the script's language, one sentence: the recurring setting or prop that makes every image of this carousel read as one series, the way a strong Instagram account repeats one staging and only changes the subject — e.g. 'chaque aliment présenté dans une cuillère en bois rustique, au-dessus d'un verger flou'. Concrete and photographable. No lighting or colour words, and nothing about the subject's size or place in the frame ('petit', 'au centre', 'dans un coin'): the framing is set separately so the subject stays large and clear of the text.",
       ),
     coverKicker: z.string().describe("A 1 to 3 word category label for the topic, e.g. 'Psychologie', 'Nutrition', 'Business'. 32 characters maximum."),
     coverTitle: z
