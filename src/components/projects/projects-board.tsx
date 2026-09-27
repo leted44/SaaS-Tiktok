@@ -168,7 +168,7 @@ function ProjectRow({ project: p, showStage, spaces }: { project: ProjectCardDat
 
   return (
     <li className={cn("group flex gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-2.5 transition hover:border-white/15 sm:gap-4 sm:p-3", busy && "opacity-50")}>
-      <Link href={p.stage === "todo" ? p.next.href : studio} className="shrink-0" aria-label={`Ouvrir « ${p.title} »`}>
+      <Link href={p.stage === "todo" ? p.next.href : p.openHref} className="shrink-0" aria-label={`Ouvrir « ${p.title} »`}>
         <Poster id={p.id} title={p.title} thumbnailUrl={p.thumbnailUrl} className="aspect-[9/16] w-[62px] rounded-xl border border-white/[0.08] sm:w-[72px]">
           {p.stage === "posted" && <span className="absolute inset-x-0 bottom-0 flex justify-center bg-emerald-500/85 py-0.5"><CheckCircle2 className="h-3 w-3 text-white" /></span>}
         </Poster>
@@ -176,7 +176,7 @@ function ProjectRow({ project: p, showStage, spaces }: { project: ProjectCardDat
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-start gap-2">
-          <Link href={studio} className="min-w-0 flex-1">
+          <Link href={p.openHref} className="min-w-0 flex-1">
             <p className="line-clamp-2 text-sm font-semibold leading-snug transition group-hover:text-brand-100">{p.title}</p>
           </Link>
           <DropdownMenu>
@@ -223,6 +223,7 @@ function ProjectRow({ project: p, showStage, spaces }: { project: ProjectCardDat
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: p.space.color }} /> {p.space.name}
             </span>
           )}
+          {p.format === "carousel" && <span className="inline-flex items-center gap-1 font-medium text-foreground/80"><GalleryHorizontalEnd className="h-3 w-3" /> Carrousel</span>}
           {showStage && <span className="font-medium text-foreground/80">{p.stage === "todo" ? "À terminer" : p.stage === "ready" ? "Prête" : "Publiée"}</span>}
           {p.duration && <span>{p.duration}</span>}
           {p.scores && <span className="inline-flex items-center gap-0.5"><Flame className="h-3 w-3" />{p.scores.virality}</span>}
@@ -242,7 +243,7 @@ function ProjectRow({ project: p, showStage, spaces }: { project: ProjectCardDat
           {p.stage === "ready" && (
             <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" variant="gradient" className="h-8" onClick={() => setMarking(true)}><CheckCircle2 /> Marquer publiée</Button>
-              <Link href="/exports" className="text-xs text-muted-foreground transition hover:text-foreground">Publier ou télécharger</Link>
+              <Link href={p.format === "carousel" ? p.openHref : "/exports"} className="text-xs text-muted-foreground transition hover:text-foreground">Publier ou télécharger</Link>
             </div>
           )}
           {p.stage === "posted" && p.posted && (

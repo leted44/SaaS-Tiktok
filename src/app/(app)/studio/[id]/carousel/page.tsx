@@ -55,6 +55,7 @@ export default async function CarouselPage({ params }: { params: Promise<{ id: s
       aiConfigured={integrations.ai()}
       stockConfigured={integrations.stock()}
       aiImagesConfigured={integrations.aiImages()}
+      posted={project.postedAt ? { platforms: project.postedPlatforms } : null}
     />
   );
 }

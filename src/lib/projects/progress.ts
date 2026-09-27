@@ -1,6 +1,7 @@
 import type { Prisma, ProjectStatus } from "@prisma/client";
 import { parseJson, visualLayersSchema } from "@/lib/validations";
 import { formatDuration } from "@/lib/utils";
+import { carouselStateFromRow, tooLongForImage, type CarouselState } from "@/lib/carousel/schema";
 
 /**
  * Where a project stands, worked out from what exists for it — a script, a
@@ -8,7 +9,7 @@ import { formatDuration } from "@/lib/utils";
  * Shared by the dashboard and the projects page so both say the same thing.
  */
 
-export type StepKey = "script" | "voice" | "visuals" | "captions" | "export";
+export type StepKey = "script" | "voice" | "visuals" | "captions" | "export" | "slides" | "images" | "publish";
 export type StepState = "done" | "active" | "todo";
 export interface WorkflowStep {
   key: StepKey;
@@ -21,6 +22,10 @@ export interface ProjectCardData {
   id: string;
   title: string;
   topic: string | null;
+  /** A carousel-only project (slides, no voice-over or render yet) is tracked on its own steps. */
+  format: "video" | "carousel";
+  /** Where opening the project lands: the studio, or the carousel editor. */
+  openHref: string;
   status: ProjectStatus;
   aspectRatio: "VERTICAL" | "SQUARE" | "HORIZONTAL";
   updatedAt: Date;
@@ -65,6 +70,7 @@ export const PROJECT_PROGRESS_SELECT = {
   voiceovers: { where: { status: "READY" }, orderBy: { createdAt: "desc" }, take: 3, select: { scriptId: true, durationMs: true } },
   renderJobs: { orderBy: { createdAt: "desc" }, take: 4, select: { status: true, progress: true, outputUrl: true, thumbnailUrl: true } },
   publishJobs: { where: { status: "PUBLISHED" }, orderBy: { publishedAt: "desc" }, take: 5, select: { platform: true, publishedAt: true } },
+  carousel: { select: { template: true, format: true, handle: true, slides: true, visualStyle: true, visualMotif: true } },
 } satisfies Prisma.ProjectSelect;
 
 export type ProjectProgressRow = Prisma.ProjectGetPayload<{ select: typeof PROJECT_PROGRESS_SELECT }>;
@@ -90,6 +96,13 @@ export function buildProjectProgress(p: ProjectProgressRow): ProjectCardData {
     : null;
   const published = Boolean(posted);
 
+  // Slides but no voice-over and no render: the project is being made as a
+  // carousel, and asking it for a voice-over would send it down the wrong path.
+  const carousel = p.carousel ? carouselStateFromRow(p.carousel) : null;
+  if (carousel?.success && !voice && p.renderJobs.length === 0) {
+    return carouselProgress(p, carousel.data, script, posted);
+  }
+
   const hasVisuals = layers.length > 0;
   const raw: Omit<WorkflowStep, "state">[] = [
     { key: "script", label: "Script", detail: script ? `${script.wordCount} mots` : "À écrire" },
@@ -98,7 +111,7 @@ export function buildProjectProgress(p: ProjectProgressRow): ProjectCardData {
     { key: "captions", label: "Sous-titres", detail: voice ? "Synchronisés" : "Après la voix" },
     { key: "export", label: "Export", detail: published ? "Publiée" : finished ? "Rendu terminé" : inProgress ? `${inProgress.progress} %` : "À lancer" },
   ];
-  const done: Record<StepKey, boolean> = {
+  const done: Partial<Record<StepKey, boolean>> = {
     script: Boolean(script),
     voice: Boolean(voice),
     visuals: hasVisuals || Boolean(finished),
@@ -131,6 +144,8 @@ export function buildProjectProgress(p: ProjectProgressRow): ProjectCardData {
     id: p.id,
     title: p.title,
     topic: p.topic,
+    format: "video",
+    openHref: studio,
     status: p.status,
     aspectRatio: p.aspectRatio,
     updatedAt: p.updatedAt,
@@ -145,6 +160,60 @@ export function buildProjectProgress(p: ProjectProgressRow): ProjectCardData {
     episode: p.episodeNumber && p.episodeTotal ? { number: p.episodeNumber, total: p.episodeTotal } : null,
     hasScript: Boolean(script),
     stage: posted ? "posted" : finished ? "ready" : "todo",
+    posted,
+    space: p.space,
+  };
+}
+
+type Script = ProjectProgressRow["scripts"][number];
+
+function carouselProgress(p: ProjectProgressRow, c: CarouselState, script: Script | null, posted: ProjectCardData["posted"]): ProjectCardData {
+  const editor = `/studio/${p.id}/carousel`;
+  const pictured = c.slides.filter((s) => s.kind !== "cta");
+  const withImage = pictured.filter((s) => s.image).length;
+  // Only AI mode promises an image on every slide; stock or text-only designs
+  // are finished as soon as the slides exist. A band slide too long for a
+  // photo can never get one, so it never holds the carousel back.
+  const missing = c.visualStyle ? pictured.filter((s) => !s.image && !tooLongForImage(s, c.template)).length : 0;
+  const imagesDone = missing === 0;
+
+  const raw: Omit<WorkflowStep, "state">[] = [
+    { key: "script", label: "Script", detail: script ? `${script.wordCount} mots` : "À écrire" },
+    { key: "slides", label: "Slides", detail: `${c.slides.length} slides` },
+    { key: "images", label: "Images", detail: withImage ? `${withImage}/${pictured.length}` : "Design seul" },
+    { key: "publish", label: "Publication", detail: posted ? "Publié" : "À publier" },
+  ];
+  const done: Partial<Record<StepKey, boolean>> = { script: Boolean(script), slides: true, images: imagesDone, publish: Boolean(posted) };
+  const firstOpen = raw.findIndex((s) => !done[s.key]);
+  const steps: WorkflowStep[] = raw.map((s, i) => ({ ...s, state: done[s.key] ? "done" : i === firstOpen ? "active" : "todo" }));
+
+  const next = !imagesDone
+    ? { label: `Générer ${missing} image${missing > 1 ? "s" : ""}`, href: editor }
+    : posted
+      ? { label: "Ouvrir le carrousel", href: editor }
+      : { label: "Publier ou partager", href: editor };
+  const scored = script && script.viralityScore > 0;
+
+  return {
+    id: p.id,
+    title: p.title,
+    topic: p.topic,
+    format: "carousel",
+    openHref: editor,
+    status: p.status,
+    aspectRatio: p.aspectRatio,
+    updatedAt: p.updatedAt,
+    thumbnailUrl: c.slides.find((s) => s.kind === "cover")?.image?.url ?? p.thumbnailUrl ?? null,
+    videoUrl: null,
+    duration: `${c.slides.length} slides`,
+    scores: scored ? { virality: script.viralityScore, hook: script.hookScore, retention: script.retentionScore, clarity: script.clarityScore, rationale: script.scoreRationale } : null,
+    steps,
+    doneCount: steps.filter((s) => s.state === "done").length,
+    next,
+    rendering: null,
+    episode: p.episodeNumber && p.episodeTotal ? { number: p.episodeNumber, total: p.episodeTotal } : null,
+    hasScript: Boolean(script),
+    stage: posted ? "posted" : imagesDone ? "ready" : "todo",
     posted,
     space: p.space,
   };

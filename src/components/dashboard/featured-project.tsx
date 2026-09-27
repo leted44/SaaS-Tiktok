@@ -92,7 +92,7 @@ export function FeaturedProject({ project }: { project: ProjectCardData }) {
               Prochaine étape : <span className="font-medium text-foreground">{p.next.label}</span>
             </p>
           )}
-          {finished && <Link href={`/studio/${p.id}`} className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 px-4 text-sm text-muted-foreground transition hover:border-white/25 hover:text-foreground">Ouvrir le studio</Link>}
+          {finished && <Link href={p.openHref} className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 px-4 text-sm text-muted-foreground transition hover:border-white/25 hover:text-foreground">{p.format === "carousel" ? "Ouvrir le carrousel" : "Ouvrir le studio"}</Link>}
         </div>
       </div>
     </section>

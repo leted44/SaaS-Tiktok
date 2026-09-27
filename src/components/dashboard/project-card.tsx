@@ -20,7 +20,7 @@ const STATUS: Record<string, string> = {
 export function ProjectCard({ project: p, style }: { project: ProjectCardData; style?: React.CSSProperties }) {
   return (
     <Link
-      href={p.next.href.startsWith("/scripts") ? p.next.href : `/studio/${p.id}`}
+      href={p.next.href.startsWith("/scripts") ? p.next.href : p.openHref}
       style={style}
       className="group relative block w-[46vw] max-w-[190px] shrink-0 snap-start rounded-2xl ring-focus transition duration-300 motion-safe:hover:-translate-y-1 sm:w-auto sm:max-w-none motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-700 motion-safe:fill-mode-both"
     >

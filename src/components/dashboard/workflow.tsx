@@ -1,13 +1,13 @@
-import { Check, Captions, Film, FileText, Layers, Mic2 } from "lucide-react";
+import { Check, Captions, Film, FileText, GalleryHorizontalEnd, ImageIcon, Layers, Mic2, Send } from "lucide-react";
 import type { StepKey, WorkflowStep } from "@/app/(app)/dashboard/data";
 import { cn } from "@/lib/utils";
 
-const ICONS: Record<StepKey, typeof FileText> = { script: FileText, voice: Mic2, visuals: Layers, captions: Captions, export: Film };
+const ICONS: Record<StepKey, typeof FileText> = { script: FileText, voice: Mic2, visuals: Layers, captions: Captions, export: Film, slides: GalleryHorizontalEnd, images: ImageIcon, publish: Send };
 
-/** Script → Voix → Visuels → Sous-titres → Export, as far as this project has got. */
+/** Script → Voix → Visuels → Sous-titres → Export for a video, Script → Slides → Images → Publication for a carousel. */
 export function Workflow({ steps, compact = false }: { steps: WorkflowStep[]; compact?: boolean }) {
   return (
-    <ol className="grid grid-cols-5" aria-label="Avancement du projet">
+    <ol className="grid" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }} aria-label="Avancement du projet">
       {steps.map((s, i) => {
         const Icon = ICONS[s.key];
         const doneBefore = i > 0 && steps[i - 1].state === "done";

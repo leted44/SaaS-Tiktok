@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowDown, ArrowUp, Check, Coins, Download, Archive, GalleryHorizontalEnd, ImageIcon, ImagePlus, Loader2, MessageSquareText, Palette, Plus, RefreshCw, Search, Share2, Sparkles, Trash2, Type, Upload, Wand2 } from "lucide-react";
+import { ArrowLeft, ArrowDown, ArrowUp, Check, CheckCircle2, Coins, Download, Archive, GalleryHorizontalEnd, ImageIcon, ImagePlus, Loader2, MessageSquareText, Palette, Plus, RefreshCw, Search, Share2, Sparkles, Trash2, Type, Undo2, Upload, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { zipSync } from "fflate";
 import { nanoid } from "nanoid";
@@ -22,6 +22,9 @@ import { StylePicker } from "@/components/shared/style-picker";
 import { resolveTemplate } from "@/lib/carousel/templates";
 import { FormatSwitcher } from "@/components/studio/format-switcher";
 import type { SocialCopy } from "@/lib/social/captions";
+import { MarkPostedDialog } from "@/components/projects/mark-posted-dialog";
+import { unmarkProjectPosted } from "@/server/actions/projects";
+import { POST_PLATFORM_LABELS, type PostPlatform } from "@/lib/projects/progress";
 import { cn } from "@/lib/utils";
 
 const MAX_CONTENT_SLIDES = 8;
@@ -40,6 +43,7 @@ interface Props {
   aiConfigured: boolean;
   stockConfigured: boolean;
   aiImagesConfigured: boolean;
+  posted: { platforms: string[] } | null;
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -47,7 +51,17 @@ const withoutVersion = (s: CarouselSnapshot): CarouselState => ({ template: s.te
 /** Images a new AI carousel usually needs: the cover and six content slides. */
 const TYPICAL_IMAGES = 7;
 
-export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured }: Props) {
+export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured, posted }: Props) {
+  const [marking, setMarking] = useState(false);
+  const [unmarking, setUnmarking] = useState(false);
+  async function unmarkPosted() {
+    setUnmarking(true);
+    const res = await unmarkProjectPosted(projectId);
+    setUnmarking(false);
+    if (!res.ok) return toast.error(res.error);
+    toast.success("Marque « publié » retirée.");
+    router.refresh();
+  }
   const router = useRouter();
   const [state, setState] = useState<CarouselState | null>(initial ? withoutVersion(initial) : null);
   const [version, setVersion] = useState(initial?.version ?? 0);
@@ -468,7 +482,17 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
         <Button variant="ghost" size="sm" className={cn("text-xs", canShareFiles ? "sm:col-span-2" : "")} onClick={downloadZip} loading={busy === "zip"} disabled={busy !== null}>
           <Archive /> Tout télécharger en ZIP
         </Button>
+        {posted ? (
+          <Button variant="secondary" size="sm" className="border border-emerald-500/25 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15 sm:col-span-2" loading={unmarking} onClick={unmarkPosted}>
+            {!unmarking && <CheckCircle2 />} Publié{posted.platforms.length ? ` sur ${posted.platforms.map((p) => POST_PLATFORM_LABELS[p as PostPlatform] ?? p).join(", ")}` : ""} <Undo2 className="h-3.5 w-3.5 opacity-60" />
+          </Button>
+        ) : (
+          <Button variant="secondary" size="sm" className="sm:col-span-2" onClick={() => setMarking(true)}>
+            <CheckCircle2 /> Marquer publié
+          </Button>
+        )}
       </div>
+      {marking && <MarkPostedDialog projectId={projectId} title={projectTitle} open={marking} onOpenChange={setMarking} />}
 
       <div className="mt-5 space-y-3">
         <Section title="Design" icon={Palette} summary={`${resolveTemplate(state.template, brand).name} · ${FORMAT_SIZE[state.format].label}`} defaultOpen>

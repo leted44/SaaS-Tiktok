@@ -34,7 +34,7 @@ export function MarkPostedDialog({ projectId, title, open, onOpenChange }: { pro
     const res = await markProjectPosted(projectId, platforms, at.toISOString());
     setSaving(false);
     if (!res.ok) return toast.error(res.error);
-    toast.success("Vidéo marquée comme publiée.");
+    toast.success("Marqué comme publié.");
     onOpenChange(false);
     router.refresh();
   }
