@@ -5,7 +5,7 @@ import { CarouselEditor } from "@/components/carousel/carousel-editor";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
 import { integrations } from "@/lib/env";
 import { carouselStateFromRow } from "@/lib/carousel/schema";
-import { parseJson } from "@/lib/validations";
+import { parseJson, scenesSchema } from "@/lib/validations";
 import { fallbackSocialCopy, socialCopySchema } from "@/lib/social/captions";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +39,10 @@ export default async function CarouselPage({ params }: { params: Promise<{ id: s
         activeScript
           ? {
               id: activeScript.id,
+              title: activeScript.title,
+              hook: activeScript.hook,
+              scenes: parseJson(scenesSchema, activeScript.scenes, []).map((s) => s.text),
+              callToAction: activeScript.callToAction,
               hashtags: activeScript.hashtags,
               socialCopy: parseJson(socialCopySchema, activeScript.socialCopy, fallbackSocialCopy({ hook: activeScript.hook, callToAction: activeScript.callToAction, hashtags: activeScript.hashtags })),
             }

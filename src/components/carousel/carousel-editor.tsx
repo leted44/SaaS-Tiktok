@@ -32,7 +32,7 @@ interface Props {
   initial: CarouselSnapshot | null;
   brand: { primary: string; accent: string };
   hasScript: boolean;
-  script: { id: string; hashtags: string[]; socialCopy: SocialCopy } | null;
+  script: { id: string; title: string; hook: string; scenes: string[]; callToAction: string; hashtags: string[]; socialCopy: SocialCopy } | null;
   cost: number;
   socialCopyCost: number;
   aiImageCost: number;
@@ -358,6 +358,19 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
             <h2 className="mt-2 font-display text-lg font-bold">Transforme ton script en carrousel</h2>
             <p className="mt-1 text-sm text-muted-foreground">Une couverture qui arrête le scroll, une idée par slide, une fin qui pousse à enregistrer et à partager.</p>
           </div>
+
+          {script && (
+            <div className="space-y-2 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+              <Label>Script — relis-le avant de générer</Label>
+              <div className="max-h-64 space-y-2 overflow-y-auto text-sm">
+                <p><span className="font-semibold text-brand-300">Accroche · </span>{script.hook}</p>
+                {script.scenes.map((text, i) => (
+                  <p key={i} className="text-muted-foreground"><span className="font-medium text-foreground">{i + 1}. </span>{text}</p>
+                ))}
+                <p><span className="font-semibold text-brand-300">Appel à l'action · </span>{script.callToAction}</p>
+              </div>
+            </div>
+          )}
 
           {aiImagesConfigured && (
             <div className="space-y-2">
