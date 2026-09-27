@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { CarouselFormat, CarouselSlide } from "@/lib/carousel/schema";
 import { FORMAT_SIZE, typeset } from "@/lib/carousel/schema";
-import type { TemplateTokens } from "@/lib/carousel/templates";
+import { shade, type TemplateTokens } from "@/lib/carousel/templates";
 
 /**
  * One carousel slide, drawn at its real pixel size.
@@ -170,6 +170,11 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
   const photoScale = bandPhoto || (bleedPhoto && slide.kind === "content") ? 0.84 : 1;
   const titleSize = Math.round(headlineSize(slide.title, slide.kind, format) * photoScale * faceScale);
 
+  // The emphasised words as a metallic sheen instead of a flat fill — what
+  // makes a headline's key word actually pop off the page, the way the
+  // strongest accounts in the niche set theirs.
+  const hotGradient = `linear-gradient(135deg, ${shade(t.accent, 0.5)} 0%, ${t.accent} 45%, ${shade(t.accent, -0.2)} 100%)`;
+
   const headline = (text: string, marginTop: number): ReactNode => {
     const words = headlineWords(text, slide.emphasis);
     // Measured on Anton: an accented capital (É, À) tops out at 1.10 em above the baseline.
@@ -193,11 +198,17 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
       >
         {words.map((segments, i) => (
           <div key={i} style={{ display: "flex" }}>
-            {segments.map((s, j) => (
-              <span key={j} style={{ lineHeight, color: s.hot ? t.accent : t.text }}>
-                {s.text}
-              </span>
-            ))}
+            {segments.map((s, j) =>
+              s.hot ? (
+                <span key={j} style={{ display: "flex", lineHeight, backgroundImage: hotGradient, backgroundClip: "text", color: "transparent" }}>
+                  {s.text}
+                </span>
+              ) : (
+                <span key={j} style={{ lineHeight, color: t.text }}>
+                  {s.text}
+                </span>
+              ),
+            )}
           </div>
         ))}
       </div>
