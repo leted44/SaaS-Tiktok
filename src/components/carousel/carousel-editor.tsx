@@ -54,7 +54,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const [credits, setCredits] = useState(initialCredits);
   const [generating, setGenerating] = useState(false);
   /** Whether the initial text generation is in flight — the only automatic step; visuals are a deliberate follow-up once the script has been read. */
-  const [phase, setPhase] = useState<null | "text">(null);
+  const [phase, setPhase] = useState<null | "text" | "images">(null);
   const [createVisuals, setCreateVisuals] = useState<"ai" | "stock">(aiImagesConfigured ? "ai" : "stock");
   const [createStyle, setCreateStyle] = useState<VisualStyle>(DEFAULT_VISUAL_STYLE);
   const [visualsBusy, setVisualsBusy] = useState(false);
@@ -149,14 +149,15 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   }
 
   /**
-   * Text only — visuals are a separate, deliberate step once the script has
-   * been read. Generating both in one uninterrupted chain meant the editor
-   * only ever appeared once the (costed) images were already done, so the
-   * script itself was never actually reviewable before committing to it.
+   * A first creation with AI visuals chains straight into the images: the
+   * script is already shown on the creation screen, and that screen promises
+   * one image per slide. A rewrite of an existing carousel stops after the
+   * text, so the new wording can be read before paying for new images.
    */
   async function generate() {
     const ai = aiImagesConfigured && (state ? state.visualStyle !== null : createVisuals === "ai");
     const visualStyle = state?.visualStyle ?? createStyle;
+    const firstCreation = !state;
     if (state) {
       const message = ai
         ? `Réécrire tous les textes ? ${cost} crédit${cost > 1 ? "s" : ""}. Les images actuelles seront à remplacer ensuite (${aiImageCost} par image) une fois le nouveau texte relu. Le modèle, le format, la signature et le style sont conservés.`
@@ -170,6 +171,12 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       if (!res.ok) return toast.error(res.error);
       apply(res.data.carousel);
       setCredits(res.data.creditsLeft);
+      if (ai && firstCreation) {
+        setPhase("images");
+        await requestVisuals("missing");
+        router.refresh();
+        return;
+      }
       toast.success(
         ai
           ? `Script prêt · ${res.data.carousel.slides.length} slides${cost > 0 ? ` · ${cost} crédits` : ""}. Relis-le, puis génère les images dans « Visuels ».`
@@ -328,7 +335,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
     return (
       <div className="mx-auto max-w-3xl min-w-0">
         {header}
-        <CreationProgress />
+        <CreationProgress phase={phase} />
       </div>
     );
   }
@@ -951,14 +958,17 @@ function ChoiceCard({ selected, onClick, title, badge, children }: { selected: b
   );
 }
 
-/** Writing the slides — the only automatic step. Visuals are generated afterward, on request, once the script has been read. */
-function CreationProgress() {
+function CreationProgress({ phase }: { phase: "text" | "images" }) {
   return (
     <div className="surface flex items-center gap-3 p-5">
       <Loader2 className="h-5 w-5 shrink-0 animate-spin text-brand-300" />
       <div>
-        <p className="font-display text-base font-bold">Écriture des slides</p>
-        <p className="text-sm text-muted-foreground">Titres, textes, mots en couleur et scènes à illustrer — reste sur cette page.</p>
+        <p className="font-display text-base font-bold">{phase === "text" ? "Écriture des slides" : "Création des images"}</p>
+        <p className="text-sm text-muted-foreground">
+          {phase === "text"
+            ? "Titres, textes, mots en couleur et scènes à illustrer — reste sur cette page."
+            : "La couverture d'abord, puis les autres slides dans le même style — jusqu'à une minute, reste sur cette page."}
+        </p>
       </div>
     </div>
   );
