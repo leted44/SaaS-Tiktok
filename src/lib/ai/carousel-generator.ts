@@ -7,7 +7,8 @@ import { IMAGE_SLIDE_LIMITS, SLIDE_LIMITS, imageLayout, stripEmoji, type Carouse
 import { ART_DIRECTIONS, type VisualStyle } from "@/lib/carousel/art-direction";
 
 const EMPHASIS = "The 1 to 3 consecutive words of the title that carry its punch — the surprising number, the key noun, the twist — copied EXACTLY as they appear in the title. They are set in the accent colour.";
-const IMAGE_BRIEF = "Brief for an image model, in the script's language, 1 to 2 sentences: the one concrete subject that makes this idea visible (a food, an object, a person doing something, a place), staged within the visualMotif, with its action, setting and framing. No lighting, colour or camera words — the art direction adds them.";
+const IMAGE_BRIEF =
+  "Brief for an image model, in the script's language, 2 to 3 sentences: one striking, richly detailed scene that makes this slide's idea felt at a glance, the way the best nutrition and science accounts illustrate it. Prefer a vivid visual metaphor or a dramatised hero shot over a plain object on a table: organs, cells or foods as small expressive characters at work (tiny workers welding a torn muscle fibre, a worried stomach clutching itself), a food caught in action in extreme close-up (steam rising, cheese stretching, juice splashing, a crust cracking open), or a relatable person visibly reacting to the situation. Name the concrete textures, props and action. No lighting, colour or camera words — the art direction adds them.";
 
 /**
  * Content-slide title/body limits depend on whether their photo will be
@@ -22,7 +23,7 @@ function carouselFields(contentLimits: { title: number; body: number }) {
     visualMotif: z
       .string()
       .describe(
-        "In the script's language, one sentence: the recurring setting or prop that makes every image of this carousel read as one series, the way a strong Instagram account repeats one staging and only changes the subject — e.g. 'chaque aliment présenté dans une cuillère en bois rustique, au-dessus d'un verger flou'. Concrete and photographable. No lighting or colour words, and nothing about the subject's size or place in the frame ('petit', 'au centre', 'dans un coin'): the framing is set separately so the subject stays large and clear of the text.",
+        "In the script's language, one sentence: the visual world every image of this carousel shares, so the eight read as one series — its universe and recurring elements, never one identical prop repeated on every slide, which makes a series monotonous. E.g. 'l'intérieur du corps humain et une cuisine chaleureuse, où organes et aliments sont de petits personnages expressifs'. No lighting or colour words, and nothing about the subject's size or place in the frame ('petit', 'au centre', 'dans un coin'): the framing is set separately so the subject stays large and clear of the text.",
       ),
     coverKicker: z.string().describe("A 1 to 3 word category label for the topic, e.g. 'Psychologie', 'Nutrition', 'Business'. 32 characters maximum."),
     coverTitle: z
@@ -30,7 +31,7 @@ function carouselFields(contentLimits: { title: number; body: number }) {
       .describe("The cover headline: the single strongest promise or counter-intuitive claim of the idea, written to make someone swipe. 70 characters maximum — short headlines stop the scroll. No question unless it is irresistible."),
     coverEmphasis: z.string().describe(EMPHASIS),
     coverSubtitle: z.string().describe("One short line under the headline that makes the swipe feel worth it, e.g. 'Voici comment.' or the key tension. 110 characters maximum."),
-    coverImagePrompt: z.string().describe(`${IMAGE_BRIEF} This is the cover: it must make the promise of the headline visible at a glance.`),
+    coverImagePrompt: z.string().describe(`${IMAGE_BRIEF} This is the cover: the most spectacular image of the series, making the promise of the headline visible at a glance.`),
     coverImageQuery: z
       .string()
       .describe("2 to 4 ENGLISH words describing one concrete, photographable scene for a stock-photo search behind the cover — a person, a place or an object, never an abstract idea. Example: 'woman journaling morning light'."),
@@ -71,10 +72,12 @@ Rules you always apply:
 - Keep the script's language, its tone, and its way of addressing the reader (tu or vous).
 - Respect every length limit. A slide that runs long is cut off in the image.
 
-Every cover and content slide carries a full image, so you are also the art director of the series:
-- The visualMotif is what makes eight images look like one professional account instead of eight unrelated pictures: one recurring staging (a prop, a surface, a place) in which each slide's subject appears. Pick one that fits the topic and can host every subject.
-- Each image brief shows ONE concrete subject that makes that slide's idea visible — never an abstract concept, a chart, a diagram, a screen, a document, or anything carrying written words, numbers or a clock face.
-- When a slide is about a food, an object or a gesture, stage that thing within the motif. When a person helps, show them in a natural, flattering, fully clothed situation, never a close-up of hands.
+Every cover and content slide carries a full image, so you are also the art director of the series. The images are what make people stop scrolling and follow the account: aim for the level of the best accounts in the niche, never a stock-photo look.
+- The visualMotif is the world the series lives in, so eight images look like one professional account instead of eight unrelated pictures. It is a universe, not a single prop repeated on every slide.
+- Each image brief is a small scene with a story that makes that slide's idea felt: a visual metaphor, a food caught in action, a character or person reacting. One clear focal point, rich concrete detail, never a lone object on an empty table.
+- Fit the scene to the art direction you are given: with Illustration 3D, organs, cells and foods can be expressive characters; with a photographic direction, tell the idea through food caught in action, macro detail and real people instead.
+- Never an abstract concept, a chart, a diagram, a screen, a document, or anything carrying written words, numbers or a clock face.
+- When a person helps, show them in a natural, flattering, fully clothed situation, never a close-up of hands. Characters (organs, cells, foods with faces) are appealing and friendly, never scary.
 - Every image must match the tone of the account: a health topic never shows anything unappetising, gory or embarrassing.`;
 
 export interface CarouselInput {

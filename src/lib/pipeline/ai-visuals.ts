@@ -89,12 +89,12 @@ export async function generateSceneVisuals(
 
   let reference = existingReference;
   if (first) {
-    const firstResult = await one(userId, first, style, motif, aspectRatio, null, 25_000);
+    const firstResult = await one(userId, first, style, motif, aspectRatio, null, 55_000);
     outcomes.push(firstResult.outcome);
     reference = firstResult.bytes ?? null;
   }
 
-  const restResults = await Promise.all(rest.map((t) => one(userId, t, style, motif, aspectRatio, reference, 28_000)));
+  const restResults = await Promise.all(rest.map((t) => one(userId, t, style, motif, aspectRatio, reference, 65_000)));
   outcomes.push(...restResults.map((r) => r.outcome));
   return outcomes;
 }

@@ -180,8 +180,9 @@ export const CREDIT_COSTS = {
   VOICE_CLONE: 50,
   // No voice and no video render: a few still images, so a fraction of a video's price.
   CAROUSEL: 2,
-  // Gemini's image model, ~0.035€/image — priced well above cost since it's optional per slide.
-  AI_IMAGE: 2,
+  // Gemini's Pro image model, ~0.12€/image. A credit is worth as little as
+  // ~0.046€ on the Pro plan, so 4 credits keeps every plan above cost.
+  AI_IMAGE: 4,
   // Kling image-to-video via fal.ai. Kling only ever renders 5s or 10s — never
   // a scene's actual length — so a short scene (~0.38€/0.51€ raw for 5s,
   // standard/pro) and a long one (~0.77€/1.03€ raw for 10s) cost meaningfully

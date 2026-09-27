@@ -28,35 +28,35 @@ export const ART_DIRECTIONS: Record<VisualStyle, ArtDirection> = {
     label: "Cinématique",
     hint: "Lumière dorée, ambiance chaude",
     prompt:
-      "Cinematic editorial photograph. Warm golden-hour backlight with soft glowing highlights, rich warm colour grade (amber, honey, deep brown), creamy bokeh background, shallow depth of field, 85mm lens look, subtle film grain. Moody, premium and inviting.",
+      "Cinematic editorial photograph, hyper-detailed and tactile. Warm golden-hour backlight with glowing rim highlights and soft volumetric haze, rich warm colour grade (amber, honey, deep brown), creamy bokeh background, shallow depth of field, 85mm lens look, macro-sharp textures on the subject, subtle film grain. Moody, premium and appetising.",
     swatch: ["#2A1A0E", "#C8873A", "#F3D9A4"],
   },
   studio: {
     label: "Studio",
     hint: "Lumineux, net, magazine",
     prompt:
-      "Premium magazine studio photograph. Bright soft diffused key light, subtle natural shadows, clean seamless light neutral backdrop, crisp detail, true-to-life colours, minimal props, uncluttered composition.",
+      "Premium magazine studio photograph, hyper-detailed. Bright soft diffused key light, subtle natural shadows, clean seamless light neutral backdrop, crisp macro detail on every texture, true-to-life colours, minimal props, uncluttered composition.",
     swatch: ["#EDEAE4", "#FFFFFF", "#9A9186"],
   },
   noir: {
     label: "Contraste",
     hint: "Fond noir, lumière dramatique",
     prompt:
-      "Low-key dramatic photograph. A single directional light carving the subject out of a deep black background, strong contrast, glossy highlights, rich saturated subject colours, fine detail, luxurious mood.",
+      "Low-key dramatic photograph, hyper-detailed. A single directional light carving the subject out of a deep black background, strong contrast, glossy highlights, rich saturated subject colours, fine macro detail, drifting steam or particles catching the light, luxurious mood.",
     swatch: ["#050505", "#3A2A1F", "#E8B04A"],
   },
   illustration: {
     label: "Illustration 3D",
     hint: "Film d'animation, chaleureux",
     prompt:
-      "High-end stylised 3D animated feature-film still. Soft cinematic lighting with a warm rim light, smooth rounded shapes, expressive and friendly characters, rich warm palette, subsurface scattering, detailed textures, shallow depth of field.",
+      "Still from a high-end 3D animated feature film, ultra-detailed. Expressive, appealing characters with big eyes and clear emotions, set in hyper-realistic surroundings with tactile textures (glistening food, skin, fabric, fibres). Warm cinematic lighting with a glowing rim light and soft volumetric atmosphere, rich warm palette (amber, peach, deep brown), subsurface scattering, shallow depth of field, magical sparkle in the details.",
     swatch: ["#3B2418", "#F08A5D", "#FFD6A5"],
   },
   pastel: {
     label: "Doux",
     hint: "Pastel, lumière du jour",
     prompt:
-      "Airy lifestyle photograph. Soft natural window daylight, pastel palette (blush, sage, cream), light and fresh mood, gentle shadows, clean uncluttered composition, delicate details.",
+      "Airy lifestyle photograph, finely detailed. Soft natural window daylight, pastel palette (blush, sage, cream), light and fresh mood, gentle shadows, clean uncluttered composition, delicate crisp textures.",
     swatch: ["#F4E7E1", "#C9D8C5", "#FFFFFF"],
   },
 };
@@ -88,7 +88,7 @@ const COMPOSITION: Record<VisualLayout, string> = {
  * come out garbled, and hands grow extra fingers.
  */
 const RULES =
-  "Absolutely no text, letters, numbers, logos, watermarks, captions, signage, screens or clock faces anywhere in the image. No close-up of hands or fingers. Anatomically correct people. One clear focal subject, sharp focus on it.";
+  "Absolutely no text, letters, numbers, logos, watermarks, captions, signage, screens or clock faces anywhere in the image. No close-up of hands or fingers. Anatomically correct people. One clear focal point in sharp focus, with rich detail everywhere.";
 
 export function composeImagePrompt(input: { scene: string; motif: string; style: VisualStyle; layout: VisualLayout }): string {
   const scene = input.scene.trim().replace(/[.\s]+$/, "");

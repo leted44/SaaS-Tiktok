@@ -9,7 +9,10 @@ import { env } from "@/lib/env";
  * matches its light and colour instead of inventing a new look each time.
  */
 
-const MODEL = "gemini-2.5-flash-image";
+// Nano Banana Pro. gemini-2.5-flash-image is being shut down, and the
+// 3.1 Flash image model is reported to ignore the requested aspect ratio —
+// which every framing rule here depends on (subject up top, text below).
+const MODEL = "gemini-3-pro-image-preview";
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
 export type ImageAspect = "1:1" | "4:5" | "9:16" | "16:9" | "5:4" | "21:9";
@@ -37,11 +40,11 @@ interface Options {
 }
 
 type GeminiResponse = {
-  candidates?: { content?: { parts?: { text?: string; inlineData?: { data?: string; mimeType?: string } }[] }; finishReason?: string }[];
+  candidates?: { content?: { parts?: { text?: string; thought?: boolean; inlineData?: { data?: string; mimeType?: string } }[] }; finishReason?: string }[];
   promptFeedback?: { blockReason?: string };
 };
 
-async function attempt({ prompt, aspectRatio, reference, timeoutMs = 40_000 }: Options): Promise<GeneratedImage> {
+async function attempt({ prompt, aspectRatio, reference, timeoutMs = 60_000 }: Options): Promise<GeneratedImage> {
   const parts = reference
     ? [{ inlineData: { mimeType: reference.mimeType, data: reference.data.toString("base64") } }, { text: `${REFERENCE_NOTE}\n\n${prompt}` }]
     : [{ text: prompt }];
@@ -67,7 +70,8 @@ async function attempt({ prompt, aspectRatio, reference, timeoutMs = 40_000 }: O
 
   const json = (await res.json()) as GeminiResponse;
   const candidate = json.candidates?.[0];
-  const image = candidate?.content?.parts?.find((p) => p.inlineData?.data)?.inlineData;
+  // The Pro model can return draft "thought" images before the final one.
+  const image = candidate?.content?.parts?.filter((p) => p.inlineData?.data && !p.thought).at(-1)?.inlineData;
   if (!image?.data) {
     if (json.promptFeedback?.blockReason || candidate?.finishReason === "SAFETY" || candidate?.finishReason === "PROHIBITED_CONTENT" || candidate?.finishReason === "IMAGE_SAFETY") {
       throw new AiImageError("L'IA a refusé de générer cette image. Reformule la description de la scène.", "REFUSED");

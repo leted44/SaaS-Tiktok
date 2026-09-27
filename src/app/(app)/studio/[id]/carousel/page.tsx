@@ -9,9 +9,9 @@ import { parseJson, scenesSchema } from "@/lib/validations";
 import { fallbackSocialCopy, socialCopySchema } from "@/lib/social/captions";
 
 export const dynamic = "force-dynamic";
-// Generating now searches and copies a photo for every slide, in parallel —
-// still one round trip, but a slow stock host can push it past the default.
-export const maxDuration = 60;
+// Server actions from this page include the AI image batch: the cover (up to
+// ~55s on the Pro image model) and then every other slide in parallel.
+export const maxDuration = 180;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;

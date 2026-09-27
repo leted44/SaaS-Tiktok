@@ -65,14 +65,14 @@ export async function generateSeries(userId: string, slides: CarouselSlide[], ta
 
   let reference: GeneratedImage | null = null;
   if (cover) {
-    const first = await one(userId, cover, series, null, 25_000);
+    const first = await one(userId, cover, series, null, 55_000);
     outcomes.push(first.outcome);
     reference = first.bytes ?? null;
   } else {
     reference = await coverReference(slides, series.visualStyle);
   }
 
-  const results = await Promise.all(rest.map((s) => one(userId, s, series, reference, 28_000)));
+  const results = await Promise.all(rest.map((s) => one(userId, s, series, reference, 65_000)));
   outcomes.push(...results.map((r) => r.outcome));
   return outcomes;
 }
