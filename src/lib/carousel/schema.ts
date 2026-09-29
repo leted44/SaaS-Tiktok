@@ -181,8 +181,8 @@ const FORMAT_FILE_SLUG: Record<CarouselFormat, string> = { portrait: "instagram"
  * file coming back and offers to overwrite it, which reads as "replace the
  * existing image?" even though nothing here should be replaced.
  */
-export function slideFileName(title: string, format: CarouselFormat, index: number): string {
-  return `${slideFileSlug(title)}-${FORMAT_FILE_SLUG[format]}-slide-${String(index + 1).padStart(2, "0")}.png`;
+export function slideFileName(title: string, format: CarouselFormat, index: number, extension: "png" | "jpg" = "png"): string {
+  return `${slideFileSlug(title)}-${FORMAT_FILE_SLUG[format]}-slide-${String(index + 1).padStart(2, "0")}.${extension}`;
 }
 
 /** The exported ZIP's filename, format included for the same reason as slideFileName. */

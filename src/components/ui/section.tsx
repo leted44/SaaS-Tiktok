@@ -12,6 +12,9 @@ interface Props {
   summary?: ReactNode;
   count?: number;
   defaultOpen?: boolean;
+  /** Controlled mode, for a section another control opens (e.g. tapping a slide opens its text). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }
 
@@ -23,8 +26,14 @@ interface Props {
  * secondary ones away leaves a screen of headers, each saying what it holds, so
  * the tab opens on its primary action rather than on everything at once.
  */
-export function Section({ title, icon: Icon, summary, count, defaultOpen = false, children }: Props) {
-  const [open, setOpen] = useState(defaultOpen);
+export function Section({ title, icon: Icon, summary, count, defaultOpen = false, open: controlled, onOpenChange, children }: Props) {
+  const [uncontrolled, setUncontrolled] = useState(defaultOpen);
+  const open = controlled ?? uncontrolled;
+  const setOpen = (next: (o: boolean) => boolean) => {
+    const value = next(open);
+    if (controlled === undefined) setUncontrolled(value);
+    onOpenChange?.(value);
+  };
   return (
     <div className="overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02]">
       <button

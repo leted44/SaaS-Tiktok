@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowDown, ArrowUp, Check, CheckCircle2, Coins, Download, Archive, GalleryHorizontalEnd, ImageIcon, ImagePlus, Loader2, MessageSquareText, Palette, Plus, RefreshCw, Search, Share2, Sparkles, Trash2, Type, Undo2, Upload, Wand2 } from "lucide-react";
+import { ArrowLeft, ArrowDown, ArrowUp, Check, CheckCircle2, Coins, Download, Archive, GalleryHorizontalEnd, ImageIcon, ImagePlus, Loader2, MessageSquareText, Palette, Pencil, Plus, RefreshCw, Search, Share2, Sparkles, Trash2, Type, Undo2, Upload, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { zipSync } from "fflate";
+import { withCaptureDate } from "@/lib/carousel/capture-date";
 import { nanoid } from "nanoid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Section } from "@/components/ui/section";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
+import { ScriptCard, type CarouselScript } from "@/components/carousel/script-card";
 import { generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
 import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
@@ -35,7 +37,7 @@ interface Props {
   initial: CarouselSnapshot | null;
   brand: { primary: string; accent: string };
   hasScript: boolean;
-  script: { id: string; title: string; hook: string; scenes: string[]; callToAction: string; hashtags: string[]; socialCopy: SocialCopy } | null;
+  script: (CarouselScript & { socialCopy: SocialCopy }) | null;
   cost: number;
   socialCopyCost: number;
   aiImageCost: number;
@@ -86,6 +88,12 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const [filling, setFilling] = useState(false);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<null | "share" | "download" | "zip">(null);
+  const [textsOpen, setTextsOpen] = useState(false);
+  /** Tapping a slide in the preview opens its text, where it can be changed. */
+  function editSlide(id: string) {
+    setTextsOpen(true);
+    requestAnimationFrame(() => document.getElementById(`slide-text-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
   const [canShareFiles, setCanShareFiles] = useState(false);
   const lastSaved = useRef(initial ? JSON.stringify(withoutVersion(initial)) : "");
   const dirty = state !== null && JSON.stringify(state) !== lastSaved.current;
@@ -93,7 +101,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   // Sharing files is a phone capability; checked after mount so server and client render the same markup.
   useEffect(() => {
     try {
-      const probe = new File([new Blob()], "probe.png", { type: "image/png" });
+      const probe = new File([new Blob()], "probe.jpg", { type: "image/jpeg" });
       setCanShareFiles(typeof navigator.canShare === "function" && navigator.canShare({ files: [probe] }));
     } catch {
       setCanShareFiles(false);
@@ -246,8 +254,16 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
     }
   }
 
-  /** The PNGs of the saved carousel — saving first, so the export always matches what is on screen. */
-  async function collectFiles(): Promise<File[] | null> {
+  /**
+   * The slides of the saved carousel — saving first, so the export always
+   * matches what is on screen.
+   *
+   * For the phone (share sheet and downloads) they come as photos: JPEGs
+   * dated one second apart, slide 1 the newest, so a newest-first gallery —
+   * Instagram's and TikTok's pickers — lists them in reading order instead
+   * of breaking a same-second tie at random. The ZIP keeps lossless PNGs.
+   */
+  async function collectFiles(as: "photos" | "png" = "photos"): Promise<File[] | null> {
     if (!state) return null;
     let v = version;
     if (dirty) {
@@ -255,11 +271,15 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       if (saved === null) return null;
       v = saved;
     }
+    const takenAt = Date.now();
     return Promise.all(
       state.slides.map(async (_, i) => {
         const res = await fetch(slideUrl(i, v));
         if (!res.ok) throw new Error(`La slide ${i + 1} n'a pas pu être générée.`);
-        return new File([await res.blob()], slideFileName(projectTitle, state.format, i), { type: "image/png" });
+        const png = await res.blob();
+        if (as === "png") return new File([png], slideFileName(projectTitle, state.format, i), { type: "image/png" });
+        const jpeg = withCaptureDate(await slideAsJpeg(png), new Date(takenAt - i * 1000));
+        return new File([jpeg as BlobPart], slideFileName(projectTitle, state.format, i, "jpg"), { type: "image/jpeg" });
       }),
     );
   }
@@ -309,7 +329,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
     try {
       if (!state) return;
       const format = state.format;
-      const files = await collectFiles();
+      const files = await collectFiles("png");
       if (!files) return;
       const entries = Object.fromEntries(await Promise.all(files.map(async (f) => [f.name, new Uint8Array(await f.arrayBuffer())] as const)));
       // PNGs are already compressed; storing them avoids burning the phone's CPU for nothing.
@@ -393,18 +413,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
             <p className="mt-1 text-sm text-muted-foreground">Une couverture qui arrête le scroll, une idée par slide, une fin qui pousse à enregistrer et à partager.</p>
           </div>
 
-          {script && (
-            <div className="space-y-2 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
-              <Label>Script — relis-le avant de générer</Label>
-              <div className="max-h-64 space-y-2 overflow-y-auto text-sm">
-                <p><span className="font-semibold text-brand-300">Accroche · </span>{script.hook}</p>
-                {script.scenes.map((text, i) => (
-                  <p key={i} className="text-muted-foreground"><span className="font-medium text-foreground">{i + 1}. </span>{text}</p>
-                ))}
-                <p><span className="font-semibold text-brand-300">Appel à l'action · </span>{script.callToAction}</p>
-              </div>
-            </div>
-          )}
+          {script && <ScriptCard key={script.id} script={script} label="Script — relis-le et corrige-le avant de générer" />}
 
           <div className="space-y-2">
             <Label>Format du post</Label>
@@ -474,18 +483,24 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       <div className="relative min-w-0">
         <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {state.slides.map((s, i) => (
-            <div
+            <button
+              type="button"
               key={`${version}-${s.id}`}
+              onClick={() => editSlide(s.id)}
+              aria-label={`Modifier le texte de la slide ${i + 1}`}
               className="relative shrink-0 snap-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]"
               style={{ width: "min(76vw, 300px)", aspectRatio: `${width} / ${height}` }}
             >
               <div className="absolute inset-0 animate-pulse bg-white/[0.03]" />
               <img src={slideUrl(i, version)} alt={`Slide ${i + 1}`} className="absolute inset-0 h-full w-full" loading={i < 3 ? "eager" : "lazy"} />
-            </div>
+              <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur">
+                <Pencil className="h-3 w-3" /> Modifier
+              </span>
+            </button>
           ))}
         </div>
         <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-          <span>{state.slides.length === 1 ? "Post unique · 1 image" : `${state.slides.length} slides · glisse pour les parcourir`}</span>
+          <span>{state.slides.length === 1 ? "Post unique · touche l'image pour modifier son texte" : `${state.slides.length} slides · touche une slide pour modifier son texte`}</span>
           {(dirty || saving) && (
             <span className="inline-flex items-center gap-1 text-amber-300">
               <Loader2 className="h-3 w-3 animate-spin" /> Mise à jour de l'aperçu…
@@ -608,7 +623,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
               <p className="text-[11px] text-muted-foreground">
                 {pendingVisuals > 0
                   ? "Les photos de banque et les images d'un autre style sont remplacées ; tes propres photos restent. La couverture est créée d'abord et sert de référence de lumière et de couleurs aux autres."
-                  : "Toutes les images sont dans ce style. Pour en changer une seule : ouvre la slide dans Textes."}
+                  : "Toutes les images sont dans ce style. Pour en changer une seule : touche la slide dans l'aperçu."}
               </p>
               {state.template !== "immersive" && (
                 <p className="rounded-lg border border-amber-300/20 bg-amber-300/5 p-2.5 text-[11px] text-amber-200">
@@ -630,18 +645,19 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
               <Button variant="gradient" className="mt-3 w-full" onClick={fillPhotos} loading={filling} disabled={!stockConfigured || generating || busy !== null}>
                 <Sparkles /> Remplir les slides vides
               </Button>
-              <p className="mt-2 text-[11px] text-muted-foreground">{stockConfigured ? "Gratuit. Pour changer une photo précise : ouvre la slide dans Textes, puis Changer." : "La recherche de photos n'est pas configurée."}</p>
+              <p className="mt-2 text-[11px] text-muted-foreground">{stockConfigured ? "Gratuit. Pour changer une photo précise : touche la slide dans l'aperçu, puis Changer." : "La recherche de photos n'est pas configurée."}</p>
             </>
           )}
         </Section>
 
-        <Section title="Textes" icon={Type} count={state.slides.length}>
+        <Section title="Textes des slides" icon={Type} count={state.slides.length} open={textsOpen} onOpenChange={setTextsOpen}>
           <div className="space-y-3">
             {state.slides.map((s, i) => {
               if (s.kind === "content") contentIndex++;
               return (
                 <SlideEditor
                   key={s.id}
+                  anchorId={`slide-text-${s.id}`}
                   projectId={projectId}
                   slide={s}
                   template={state.template}
@@ -677,7 +693,8 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
           </Section>
         )}
 
-        <Section title="Réécrire avec l'IA" icon={RefreshCw} summary={cost > 0 ? `${cost} crédits` : undefined}>
+        <Section title="Script et réécriture" icon={RefreshCw} summary="Modifier le script, réécrire">
+          {script && <div className="mb-3"><ScriptCard key={script.id} script={script} label="Script du projet" hint="Tu as modifié le script ? Réécris le carrousel ci-dessous pour que les slides le suivent. Pour retoucher une seule slide, ouvre « Textes des slides »." /></div>}
           <p className="text-xs text-muted-foreground">
             Repart du script actuel du projet et réécrit tous les textes.{" "}
             {aiImagesConfigured && state.visualStyle ? `Les visuels IA sont recréés dans le même style (${aiImageCost} crédits par image).` : "De nouvelles photos sont cherchées pour chaque slide."} Le modèle, le format et la signature sont conservés.
@@ -689,6 +706,25 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       </div>
     </div>
   );
+}
+
+/** A rendered PNG slide as JPEG bytes — the format a phone gallery treats as a photo, with a capture date. */
+async function slideAsJpeg(png: Blob): Promise<Uint8Array> {
+  const url = URL.createObjectURL(png);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    canvas.getContext("2d")!.drawImage(img, 0, 0);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.95));
+    if (!blob) throw new Error("Conversion de l'image impossible.");
+    return new Uint8Array(await blob.arrayBuffer());
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 function triggerDownload(blob: Blob, name: string) {
@@ -707,7 +743,8 @@ function Counter({ value, max }: { value: string; max: number }) {
 }
 
 /** One slide. Limits come from what the layout can hold — tight for a band photo, the full room for a full-bleed one — so a slide within them never overflows. */
-function SlideEditor({ projectId, slide, template, label, canDelete, canMoveUp, canMoveDown, aiImageCost, aiImagesConfigured, credits, ensureSaved, onGenerated, onChange, onRemove, onMove }: {
+function SlideEditor({ anchorId, projectId, slide, template, label, canDelete, canMoveUp, canMoveDown, aiImageCost, aiImagesConfigured, credits, ensureSaved, onGenerated, onChange, onRemove, onMove }: {
+  anchorId: string;
   projectId: string;
   slide: CarouselSlide;
   template: CarouselTemplate;
@@ -730,7 +767,7 @@ function SlideEditor({ projectId, slide, template, label, canDelete, canMoveUp, 
   const emphasisMissing = Boolean(slide.emphasis.trim()) && !slide.title.toLowerCase().includes(slide.emphasis.trim().toLowerCase());
 
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+    <div id={anchorId} className="scroll-mt-20 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
       <div className="mb-2 flex items-center justify-between gap-1">
         <span className="text-xs font-semibold text-muted-foreground">{label}</span>
         <div className="flex gap-0.5">

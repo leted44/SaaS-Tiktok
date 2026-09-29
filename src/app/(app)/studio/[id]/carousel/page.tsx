@@ -41,7 +41,7 @@ export default async function CarouselPage({ params }: { params: Promise<{ id: s
               id: activeScript.id,
               title: activeScript.title,
               hook: activeScript.hook,
-              scenes: parseJson(scenesSchema, activeScript.scenes, []).map((s) => s.text),
+              scenes: parseJson(scenesSchema, activeScript.scenes, []).map((s) => ({ id: s.id, text: s.text, visualDescription: s.visualDescription, brollQuery: s.brollQuery, onScreenText: s.onScreenText })),
               callToAction: activeScript.callToAction,
               hashtags: activeScript.hashtags,
               socialCopy: parseJson(socialCopySchema, activeScript.socialCopy, fallbackSocialCopy({ hook: activeScript.hook, callToAction: activeScript.callToAction, hashtags: activeScript.hashtags })),
