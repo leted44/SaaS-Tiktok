@@ -669,12 +669,20 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
         <Section title="Visuels" icon={ImageIcon} summary={`${photoCount} / ${photoSlots} slides${aiCount ? ` · ${aiCount} IA` : ""}`} defaultOpen>
           {aiImagesConfigured ? (
             <div className="space-y-4">
+              {/* Both settings below only steer the AI: without this, they read as settings of the photos in general. */}
+              <div className="rounded-lg border border-brand-400/25 bg-brand-500/[0.07] p-3">
+                <p className="flex items-center gap-2 text-sm font-semibold"><Wand2 className="h-4 w-4 text-brand-300" /> Génération d'images IA</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                  La direction artistique et le fil conducteur servent uniquement quand l'IA crée les images ({aiImageCost > 0 ? `${aiImageCost} crédits par image` : "gratuit sur ce compte"}). Les photos de banque et tes propres photos ne les utilisent pas.
+                </p>
+              </div>
+
               <div className="space-y-2">
-                <Label>Direction artistique</Label>
+                <Label>Direction artistique <span className="font-normal normal-case text-muted-foreground">· le style des images IA</span></Label>
                 <StylePicker value={style} onChange={(v) => set({ visualStyle: v })} />
               </div>
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between"><Label>Fil conducteur</Label><Counter value={state.visualMotif} max={300} /></div>
+                <div className="flex items-center justify-between"><Label>Fil conducteur <span className="font-normal normal-case text-muted-foreground">· le décor des images IA</span></Label><Counter value={state.visualMotif} max={300} /></div>
                 <Textarea
                   value={state.visualMotif}
                   maxLength={300}
@@ -682,7 +690,12 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                   placeholder="Ex. : chaque aliment présenté dans une cuillère en bois, au-dessus d'un verger flou"
                   onChange={(e) => set({ visualMotif: e.target.value })}
                 />
-                <p className="text-[11px] text-muted-foreground">Le décor commun à toutes les images. C'est lui qui en fait une série plutôt qu'une suite de photos sans rapport.</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {state.slides.length === 1
+                    ? "Le lieu, les objets et l'ambiance de ton image IA."
+                    : "Le décor commun à toutes les images IA du carrousel : c'est lui qui en fait une série plutôt qu'une suite d'images sans rapport."}{" "}
+                  Il s'applique à la prochaine génération : les images déjà créées ne changent pas tant que tu ne les régénères pas.
+                </p>
               </div>
 
               {pendingVisuals > 0 ? (
