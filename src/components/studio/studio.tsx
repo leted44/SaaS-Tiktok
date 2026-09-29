@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { PlayerRef } from "@remotion/player";
-import { FileText, Captions, Layers, Music2, Film, ArrowLeft, Check, CheckCircle2, Loader2, Pencil, Undo2, Wand2 } from "lucide-react";
+import { FileText, Captions, Layers, Music2, Film, GalleryHorizontalEnd, ArrowLeft, Check, CheckCircle2, Loader2, Pencil, Undo2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,7 @@ import { applyBeatSync, timelineOffsetMs } from "@/lib/render/beat-grid";
 import { cn } from "@/lib/utils";
 
 export function Studio(props: StudioProps) {
-  const { project, scripts, activeScriptId, voiceover, renders, previewProps, user, planLimits, voices, customVoice, tracks, integrations } = props;
+  const { carouselOnly, project, scripts, activeScriptId, voiceover, renders, previewProps, user, planLimits, voices, customVoice, tracks, integrations } = props;
   const router = useRouter();
   const playerRef = useRef<PlayerRef>(null);
   const [tab, setTab] = useState("script");
@@ -194,6 +194,19 @@ export function Studio(props: StudioProps) {
           <Button variant="gradient" size="sm" onClick={() => setTab("export")}><Film /> Rendu</Button>
         </div>
       </div>
+
+      {carouselOnly && (
+        <div className="mb-5 flex flex-col gap-3 rounded-xl border border-brand-400/25 bg-brand-500/[0.07] p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <GalleryHorizontalEnd className="mt-0.5 h-5 w-5 shrink-0 text-brand-300" />
+            <div>
+              <p className="text-sm font-semibold">Ce projet est un carrousel</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">Le script ci-dessous est la source de ton carrousel : aucune vidéo n'est en cours. Si tu veux aussi une vidéo sur ce sujet, pars de ce script et génère la voix off — rien n'est à réécrire.</p>
+            </div>
+          </div>
+          <Button asChild variant="secondary" size="sm" className="shrink-0"><Link href={`/studio/${project.id}/carousel`}><GalleryHorizontalEnd /> Retour au carrousel</Link></Button>
+        </div>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_440px]">
         <div className="space-y-4">

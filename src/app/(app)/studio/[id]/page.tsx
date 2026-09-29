@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getProjectForStudio, getCustomVoice } from "@/server/queries";
+import { prisma } from "@/lib/prisma";
 import { buildShortVideoProps } from "@/lib/render/build-props";
 import { Studio } from "@/components/studio/studio";
 import { effectivePlanDef, isAdmin, renderCost, CREDIT_COSTS } from "@/lib/plans";
@@ -28,7 +29,9 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
   const { project, user, activeScript, activeVoiceover } = data;
   const plan = effectivePlanDef(user);
   const admin = isAdmin(user.role);
-  const customVoice = await getCustomVoice(user.id);
+  const [customVoice, carousel] = await Promise.all([getCustomVoice(user.id), prisma.carousel.findUnique({ where: { projectId: project.id }, select: { id: true } })]);
+  // Same rule as the project cards: a carousel, and nothing video-specific made yet.
+  const carouselOnly = Boolean(carousel) && !activeVoiceover && project.renderJobs.length === 0 && parseJson(visualLayersSchema, project.visualLayers, []).length === 0;
 
   const previewProps = activeScript
     ? buildShortVideoProps({ project, script: activeScript, voiceover: activeVoiceover, workspace: project.workspace, resolution: "1080p", watermark: plan.watermark, absolute: false, snapCuts: false })
@@ -36,6 +39,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
 
   return (
     <Studio
+      carouselOnly={carouselOnly}
       project={{
         id: project.id,
         title: project.title,

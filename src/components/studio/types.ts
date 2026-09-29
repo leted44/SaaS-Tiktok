@@ -85,6 +85,8 @@ export interface StudioRender {
 }
 
 export interface StudioProps {
+  /** The project is so far a carousel: its script is the carousel's source, not a video left half-made. */
+  carouselOnly?: boolean;
   project: StudioProject;
   scripts: StudioScript[];
   activeScriptId: string | null;
