@@ -17,25 +17,10 @@ import { generateScriptAction } from "@/server/actions/scripts";
 import { FormatPicker } from "@/components/shared/format-picker";
 import { formatDestination, type ContentFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { TONES, TONE_LABELS, type Tone } from "@/lib/autopilot/template-shared";
+import { AUTO_NICHE, CTA_GOALS, HOOK_STYLES, LANGUAGES, NICHES, type CtaGoal, type HookStyle } from "@/lib/scripts/options";
 
-const NICHES = ["Finance", "Fitness", "Santé", "Tech", "Business", "Marketing", "Motivation", "Éducation", "Beauté", "Cuisine", "Voyage", "Gaming", "Immobilier", "Parentalité", "Psychologie"];
-const TONES = [
-  { id: "energetic", label: "Énergique" },
-  { id: "educational", label: "Éducatif" },
-  { id: "storytelling", label: "Storytelling" },
-  { id: "controversial", label: "Polémique" },
-  { id: "calm", label: "Calme" },
-  { id: "humorous", label: "Humoristique" },
-] as const;
-const HOOKS = [
-  { id: "auto", label: "Laisser l'IA décider" },
-  { id: "question", label: "Question" },
-  { id: "bold-claim", label: "Affirmation forte" },
-  { id: "curiosity-gap", label: "Vide de curiosité" },
-  { id: "story", label: "Ouverture narrative" },
-  { id: "statistic", label: "Statistique choc" },
-] as const;
-const LANGS = [["fr", "Français"], ["en", "Anglais"], ["es", "Espagnol"], ["de", "Allemand"], ["pt", "Portugais"], ["it", "Italien"], ["nl", "Néerlandais"], ["ja", "Japonais"]];
+const TONE_OPTIONS = TONES.map((id) => ({ id, label: TONE_LABELS[id] }));
 const STEPS = ["Analyse du sujet", "Rédaction des hooks", "Structuration des scènes", "Calcul du score de viralité"];
 const NO_SPACE = "__none__";
 interface SpaceOption {
@@ -57,12 +42,12 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
   const router = useRouter();
   const [topic, setTopic] = useState(initialTopic ?? "");
   const [sourceUrl, setSourceUrl] = useState("");
-  const [niche, setNiche] = useState("Business");
-  const [tone, setTone] = useState<(typeof TONES)[number]["id"]>("energetic");
-  const [hookStyle, setHookStyle] = useState<(typeof HOOKS)[number]["id"]>("auto");
+  const [niche, setNiche] = useState(AUTO_NICHE);
+  const [tone, setTone] = useState<Tone>("energetic");
+  const [hookStyle, setHookStyle] = useState<HookStyle>("auto");
   const [language, setLanguage] = useState("fr");
   const [duration, setDuration] = useState(45);
-  const [cta, setCta] = useState("follow");
+  const [cta, setCta] = useState<CtaGoal>("follow");
   const [audience, setAudience] = useState("");
   const [spaceId, setSpaceId] = useState(NO_SPACE);
   const [format, setFormat] = useState<ContentFormat>(initialFormat ?? "video");
@@ -78,7 +63,7 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
     setSpaceId(id);
     const space = spaces.find((s) => s.id === id);
     if (space?.language) setLanguage(space.language);
-    if (space?.tone) setTone(space.tone as (typeof TONES)[number]["id"]);
+    if (space?.tone && (TONES as readonly string[]).includes(space.tone)) setTone(space.tone as Tone);
   }
 
   async function onGenerate() {
@@ -152,21 +137,21 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
               <Label>Niche</Label>
               <Select value={niche} onValueChange={setNiche}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{NICHES.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+                <SelectContent><SelectItem value={AUTO_NICHE}>Déduite du sujet</SelectItem>{NICHES.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label>Style de hook</Label>
               <Select value={hookStyle} onValueChange={(v) => setHookStyle(v as typeof hookStyle)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{HOOKS.map((h) => <SelectItem key={h.id} value={h.id}>{h.label}</SelectItem>)}</SelectContent>
+                <SelectContent>{HOOK_STYLES.map((h) => <SelectItem key={h.id} value={h.id}>{h.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label>Langue</Label>
               <Select value={language} onValueChange={setLanguage}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{LANGS.map(([id, label]) => <SelectItem key={id} value={id}>{label}</SelectItem>)}</SelectContent>
+                <SelectContent>{LANGUAGES.map(([id, label]) => <SelectItem key={id} value={id}>{label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>
@@ -174,7 +159,7 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
           <div className="space-y-2">
             <Label>Ton</Label>
             <div className="flex flex-wrap gap-2">
-              {TONES.map((t) => (
+              {TONE_OPTIONS.map((t) => (
                 <button key={t.id} type="button" onClick={() => setTone(t.id)} className={cn("rounded-lg border px-3 py-1.5 text-sm transition", tone === t.id ? "border-primary/60 bg-primary/15 text-foreground shadow-glow-sm" : "border-white/10 text-muted-foreground hover:border-white/20 hover:text-foreground")}>{t.label}</button>
               ))}
             </div>
@@ -190,15 +175,9 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
             )}
             <div className="space-y-1.5">
               <Label>Appel à l'action</Label>
-              <Select value={cta} onValueChange={setCta}>
+              <Select value={cta} onValueChange={(v) => setCta(v as CtaGoal)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="follow">Inciter à suivre</SelectItem>
-                  <SelectItem value="comment">Inciter à commenter</SelectItem>
-                  <SelectItem value="share">Inciter à partager</SelectItem>
-                  <SelectItem value="link">Lien en bio</SelectItem>
-                  <SelectItem value="none">Aucun CTA</SelectItem>
-                </SelectContent>
+                <SelectContent>{CTA_GOALS.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>

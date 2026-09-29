@@ -170,7 +170,7 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
   const userPrompt = [
     `Language: ${input.language}`,
     `Art direction of the images: ${art.label} — ${art.prompt}`,
-    input.niche ? `Niche: ${input.niche}` : null,
+    input.niche && input.niche !== "general" ? `Niche: ${input.niche}` : null,
     input.toneOfVoice ? `Brand voice guidelines: ${input.toneOfVoice}` : null,
     input.targetAudience ? `Audience: ${input.targetAudience}` : null,
     "",

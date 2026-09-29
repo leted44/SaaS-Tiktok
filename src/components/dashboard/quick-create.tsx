@@ -1,15 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
-import Link from "next/link";
+import { useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Link2, Loader2, SlidersHorizontal, Sparkles, Wand2, X } from "lucide-react";
+import { ArrowRight, ChevronDown, Link2, Loader2, SlidersHorizontal, Sparkles, Wand2, X } from "lucide-react";
 import { toast } from "sonner";
 import { generateScriptAction } from "@/server/actions/scripts";
 import { TONES, TONE_LABELS, type Tone } from "@/lib/autopilot/template-shared";
 import { FormatPicker } from "@/components/shared/format-picker";
 import { formatDestination, type ContentFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { AUTO_NICHE, CTA_GOALS, HOOK_STYLES, LANGUAGES, NICHES, type CtaGoal, type HookStyle } from "@/lib/scripts/options";
 
 const DURATIONS = [30, 45, 60];
 
@@ -19,6 +19,7 @@ interface Props {
   /** Credits one script costs this account (0 when not billed). */
   cost: number;
   language: string;
+  spaces?: { id: string; name: string; language: string | null; tone: string | null }[];
 }
 
 /**
@@ -26,7 +27,7 @@ interface Props {
  * project out, then straight into the studio — the same generation as the
  * script generator page, with its most used settings inline.
  */
-export function QuickCreate({ aiConfigured, credits, cost, language }: Props) {
+export function QuickCreate({ aiConfigured, credits, cost, language: defaultLanguage, spaces = [] }: Props) {
   const router = useRouter();
   const textRef = useRef<HTMLTextAreaElement>(null);
   const [topic, setTopic] = useState("");
@@ -35,6 +36,21 @@ export function QuickCreate({ aiConfigured, credits, cost, language }: Props) {
   const [duration, setDuration] = useState(45);
   const [tone, setTone] = useState<Tone>("energetic");
   const [format, setFormat] = useState<ContentFormat>("video");
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [niche, setNiche] = useState(AUTO_NICHE);
+  const [hookStyle, setHookStyle] = useState<HookStyle>("auto");
+  const [cta, setCta] = useState<CtaGoal>("follow");
+  const [language, setLanguage] = useState(defaultLanguage);
+  const [audience, setAudience] = useState("");
+  const [spaceId, setSpaceId] = useState("");
+
+  /** A space proposes its own language and tone — a starting point, never forced. */
+  function pickSpace(id: string) {
+    setSpaceId(id);
+    const space = spaces.find((s) => s.id === id);
+    if (space?.language) setLanguage(space.language);
+    if (space?.tone && (TONES as readonly string[]).includes(space.tone)) setTone(space.tone as Tone);
+  }
   const [loading, setLoading] = useState(false);
 
   const enough = credits >= cost;
@@ -52,7 +68,12 @@ export function QuickCreate({ aiConfigured, credits, cost, language }: Props) {
       const res = await generateScriptAction({
         topic: topic.trim(),
         sourceUrl: withUrl && url.trim() ? url.trim() : undefined,
+        spaceId: spaceId || null,
+        niche,
         tone,
+        hookStyle,
+        callToActionGoal: cta,
+        audience: audience.trim() || undefined,
         targetDurationSec: duration,
         language,
       });
@@ -141,13 +162,52 @@ export function QuickCreate({ aiConfigured, credits, cost, language }: Props) {
               </select>
               <span aria-hidden className="pointer-events-none absolute right-2.5 text-[9px]">▾</span>
             </label>
-            <Link
-              href={`/scripts?${new URLSearchParams({ ...(topic.trim() ? { topic: topic.trim() } : {}), format }).toString()}`}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full px-2 text-xs text-muted-foreground transition hover:text-foreground"
+            <button
+              type="button"
+              onClick={() => setMoreOpen((o) => !o)}
+              aria-expanded={moreOpen}
+              className={cn("inline-flex h-8 items-center gap-1.5 rounded-full px-2 text-xs transition hover:text-foreground", moreOpen ? "text-foreground" : "text-muted-foreground")}
             >
-              <SlidersHorizontal className="h-3.5 w-3.5" /> Plus d'options
-            </Link>
+              <SlidersHorizontal className="h-3.5 w-3.5" /> Plus d'options <ChevronDown className={cn("h-3 w-3 transition-transform", moreOpen && "rotate-180")} />
+            </button>
           </div>
+
+          {moreOpen && (
+            <div className="mt-3 grid gap-3 rounded-2xl border border-white/[0.06] bg-black/20 p-3 sm:grid-cols-2 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1">
+              <Field label="Niche">
+                <select value={niche} onChange={(e) => setNiche(e.target.value)} className={SELECT}>
+                  <option value={AUTO_NICHE} className="bg-background">Déduite du sujet</option>
+                  {NICHES.map((n) => <option key={n} value={n} className="bg-background">{n}</option>)}
+                </select>
+              </Field>
+              <Field label="Style d'accroche">
+                <select value={hookStyle} onChange={(e) => setHookStyle(e.target.value as HookStyle)} className={SELECT}>
+                  {HOOK_STYLES.map((h) => <option key={h.id} value={h.id} className="bg-background">{h.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Appel à l'action">
+                <select value={cta} onChange={(e) => setCta(e.target.value as CtaGoal)} className={SELECT}>
+                  {CTA_GOALS.map((c) => <option key={c.id} value={c.id} className="bg-background">{c.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Langue">
+                <select value={language} onChange={(e) => setLanguage(e.target.value)} className={SELECT}>
+                  {LANGUAGES.map(([id, label]) => <option key={id} value={id} className="bg-background">{label}</option>)}
+                </select>
+              </Field>
+              {spaces.length > 0 && (
+                <Field label="Espace">
+                  <select value={spaceId} onChange={(e) => pickSpace(e.target.value)} className={SELECT}>
+                    <option value="" className="bg-background">Aucun espace</option>
+                    {spaces.map((sp) => <option key={sp.id} value={sp.id} className="bg-background">{sp.name}</option>)}
+                  </select>
+                </Field>
+              )}
+              <Field label="Audience (facultatif)" wide={spaces.length === 0}>
+                <input value={audience} onChange={(e) => setAudience(e.target.value)} maxLength={200} placeholder="ex. Femmes de 25-40 ans qui manquent de confiance" className={SELECT} />
+              </Field>
+            </div>
+          )}
 
           <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-[11px] leading-relaxed text-muted-foreground sm:max-w-sm">
@@ -178,5 +238,16 @@ export function QuickCreate({ aiConfigured, credits, cost, language }: Props) {
         </form>
       </div>
     </div>
+  );
+}
+
+const SELECT = "h-10 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-white/25";
+
+function Field({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) {
+  return (
+    <label className={cn("block space-y-1", wide && "sm:col-span-2")}>
+      <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
+      {children}
+    </label>
   );
 }

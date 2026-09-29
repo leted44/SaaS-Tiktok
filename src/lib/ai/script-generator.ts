@@ -89,7 +89,7 @@ function buildUserPrompt(input: GenerateScriptInput, brand?: { toneOfVoice?: str
   return [
     `Topic / brief: ${input.topic}`,
     input.sourceUrl ? `Source URL for reference (use its subject as the basis): ${input.sourceUrl}` : null,
-    `Niche: ${input.niche}`,
+    `Niche: ${input.niche === "general" ? "infer it from the topic" : input.niche}`,
     `Tone: ${input.tone}`,
     `Hook style: ${input.hookStyle === "auto" ? "choose the strongest for this topic" : input.hookStyle}`,
     `Target duration: ${input.targetDurationSec}s (≈ ${targetWords} spoken words in total, including hook and CTA)`,

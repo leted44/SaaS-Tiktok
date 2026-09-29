@@ -8,6 +8,14 @@ import { FeaturedProject, FirstProject } from "@/components/dashboard/featured-p
 import { ProjectCard } from "@/components/dashboard/project-card";
 import { Agenda, CreateCards, CreditsCard, HeroPosters, SectionTitle, StatGrid, reveal } from "@/components/dashboard/sections";
 import { cn } from "@/lib/utils";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/server/queries";
+
+/** The user's spaces, for the quick create's options — a space proposes its language and tone. */
+async function getSpaceOptions() {
+  const user = await getCurrentUser();
+  return prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, language: true, tone: true } });
+}
 
 export const metadata: Metadata = { title: "Tableau de bord" };
 export const dynamic = "force-dynamic";
@@ -20,7 +28,7 @@ function alertFor(d: DashboardData): { text: string; href: string } | null {
 }
 
 export default async function DashboardPage() {
-  const d = await getDashboard();
+  const [d, spaces] = await Promise.all([getDashboard(), getSpaceOptions()]);
   const alert = alertFor(d);
   const returning = d.totals.projects > 0;
   const name = d.user.firstName;
@@ -52,7 +60,7 @@ export default async function DashboardPage() {
             )}
 
             <div style={reveal(2).style} className={cn("mt-6 max-w-3xl", reveal(2).className)}>
-              <QuickCreate aiConfigured={d.ai} credits={d.user.credits} cost={d.credits.scriptCost} language={d.workspace.language} />
+              <QuickCreate aiConfigured={d.ai} credits={d.user.credits} cost={d.credits.scriptCost} language={d.workspace.language} spaces={spaces} />
             </div>
           </div>
 
