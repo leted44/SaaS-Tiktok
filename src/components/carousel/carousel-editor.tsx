@@ -13,9 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Section } from "@/components/ui/section";
-import { EmptyState } from "@/components/shared/empty-state";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
 import { ScriptCard, type CarouselScript } from "@/components/carousel/script-card";
+import { ScriptStart } from "@/components/carousel/script-start";
 import { generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
 import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
@@ -46,6 +46,8 @@ interface Props {
   stockConfigured: boolean;
   aiImagesConfigured: boolean;
   posted: { platforms: string[] } | null;
+  /** What the script of a project without one is written from. */
+  scriptStart: { topic: string; niche: string | null; language: string; cost: number };
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -63,7 +65,7 @@ function lengthOf(slides: CarouselState["slides"]): CarouselLength {
   return slides.filter((s) => s.kind === "content").length <= CONTENT_SLIDES.short ? "short" : "full";
 }
 
-export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured, posted }: Props) {
+export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured, posted, scriptStart }: Props) {
   const [marking, setMarking] = useState(false);
   const [unmarking, setUnmarking] = useState(false);
   async function unmarkPosted() {
@@ -391,12 +393,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       return (
         <div className="mx-auto max-w-3xl min-w-0">
           {header}
-          <EmptyState
-            icon={GalleryHorizontalEnd}
-            title="Transforme ton script en carrousel"
-            description="Il faut d'abord un script dans ce projet : le carrousel est écrit à partir de lui."
-            action={<Button asChild variant="secondary"><Link href={`/studio/${projectId}`}>Retour au studio</Link></Button>}
-          />
+          <ScriptStart projectId={projectId} topic={scriptStart.topic} niche={scriptStart.niche} language={scriptStart.language} cost={scriptStart.cost} credits={credits} aiConfigured={aiConfigured} />
         </div>
       );
     }

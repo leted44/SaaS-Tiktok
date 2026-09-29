@@ -46,7 +46,7 @@ export function NewProjectDialog({ spaces = [] }: { spaces?: SpaceOption[] }) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Nouveau projet</DialogTitle>
-          <DialogDescription>Définissez les bases. Vous pourrez générer le script dans le studio.</DialogDescription>
+          <DialogDescription>{format === "carousel" ? "Définissez les bases. Le script s'écrit à l'étape suivante, puis vous créez le carrousel." : "Définissez les bases. Vous pourrez générer le script dans le studio."}</DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-1.5">
