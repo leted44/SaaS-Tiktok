@@ -8,7 +8,7 @@ import { generateCarousel } from "@/lib/ai/carousel-generator";
 import { generateImage } from "@/lib/ai/image-generator";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
-import { carouselSlidesSchema, carouselStateFromRow, carouselStateSchema, stripEmoji, limitsFor, needsAiVisual, tooLongForImage, CAROUSEL_TEMPLATES, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
+import { carouselSlidesSchema, carouselStateFromRow, carouselStateSchema, stripEmoji, limitsFor, needsAiVisual, tooLongForImage, CAROUSEL_TEMPLATES, type CarouselLength, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
 import { copyStockImage, isOwnStorageUrl, storeGeneratedImage } from "@/lib/ai/images";
 import { withAutoPhotos } from "@/lib/carousel/auto-photos";
 import { aiSource, DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from "@/lib/carousel/art-direction";
@@ -22,6 +22,7 @@ export interface CarouselSnapshot extends CarouselState {
 }
 
 const asStyle = (value: unknown): VisualStyle | null => ((VISUAL_STYLES as readonly unknown[]).includes(value) ? (value as VisualStyle) : null);
+const asLength = (value: unknown): CarouselLength => (value === "single" || value === "short" ? value : "full");
 const asTemplate = (value: unknown): CarouselTemplate | null => ((CAROUSEL_TEMPLATES as readonly unknown[]).includes(value) ? (value as CarouselTemplate) : null);
 
 /**
@@ -36,7 +37,7 @@ const asTemplate = (value: unknown): CarouselTemplate | null => ((CAROUSEL_TEMPL
  */
 export async function generateCarouselAction(
   projectId: string,
-  options: { visuals: "ai" | "stock"; visualStyle?: VisualStyle } = { visuals: "stock" },
+  options: { visuals: "ai" | "stock"; visualStyle?: VisualStyle; length?: CarouselLength } = { visuals: "stock" },
 ): Promise<ActionResult<{ carousel: CarouselSnapshot; creditsLeft: number }>> {
   return guard(async () => {
     const user = await requireDbUser();
@@ -71,6 +72,7 @@ export async function generateCarouselAction(
         targetAudience: project.workspace.targetAudience,
         visualStyle,
         template,
+        length: asLength(options.length),
       });
     } catch (err) {
       if (cost > 0) await refundCredits(user.id, cost, "Remboursement — la génération du carrousel a échoué");

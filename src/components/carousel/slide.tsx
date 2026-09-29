@@ -285,6 +285,8 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
   }
 
   const last = index === total - 1;
+  /** A single-image post: no position to show, nothing to swipe to. */
+  const single = total === 1;
   const segment = Math.max(18, Math.min(64, Math.floor((width - padding * 2 - 260) / total) - 8));
 
   return (
@@ -305,14 +307,14 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
 
       <div style={row({ justifyContent: "space-between", alignItems: "center", fontSize: 26, fontWeight: 600, color: t.muted })}>
         <div style={{ display: "flex" }}>{handle ?? ""}</div>
-        <div style={{ display: "flex", letterSpacing: 1 }}>{`${pad(index + 1)} / ${pad(total)}`}</div>
+        <div style={{ display: "flex", letterSpacing: 1 }}>{single ? "" : `${pad(index + 1)} / ${pad(total)}`}</div>
       </div>
 
       {main}
 
       <div style={row({ justifyContent: "space-between", alignItems: "center" })}>
         <div style={row({ gap: 8 })}>
-          {Array.from({ length: total }, (_, i) => (
+          {Array.from({ length: single ? 0 : total }, (_, i) => (
             <div key={i} style={{ display: "flex", width: segment, height: 6, borderRadius: 3, background: i <= index ? t.accent : t.track }} />
           ))}
         </div>

@@ -16,7 +16,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
 import { generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
-import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
+import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
 import { DEFAULT_VISUAL_STYLE, type VisualStyle } from "@/lib/carousel/art-direction";
 import { StylePicker } from "@/components/shared/style-picker";
 import { resolveTemplate } from "@/lib/carousel/templates";
@@ -48,8 +48,18 @@ interface Props {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const withoutVersion = (s: CarouselSnapshot): CarouselState => ({ template: s.template, format: s.format, handle: s.handle, slides: s.slides, visualStyle: s.visualStyle, visualMotif: s.visualMotif });
-/** Images a new AI carousel usually needs: the cover and six content slides. */
-const TYPICAL_IMAGES = 7;
+/** AI images each length usually needs: one per slide but the closing one. */
+const TYPICAL_IMAGES: Record<CarouselLength, number> = { single: 1, short: 3, full: 7 };
+const LENGTHS: { value: CarouselLength; title: string; hint: string }[] = [
+  { value: "single", title: "1 image", hint: "Un post unique avec un message fort. Le moins cher." },
+  { value: "short", title: "4 slides", hint: "Couverture, 2 idées clés et une fin qui fait agir." },
+  { value: "full", title: "8 slides", hint: "Le carrousel complet, qui déroule toute l'idée." },
+];
+/** The length an existing carousel was made at, so rewriting its text keeps it. */
+function lengthOf(slides: CarouselState["slides"]): CarouselLength {
+  if (slides.length === 1) return "single";
+  return slides.filter((s) => s.kind === "content").length <= CONTENT_SLIDES.short ? "short" : "full";
+}
 
 export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured, posted }: Props) {
   const [marking, setMarking] = useState(false);
@@ -71,6 +81,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const [phase, setPhase] = useState<null | "text" | "images">(null);
   const [createVisuals, setCreateVisuals] = useState<"ai" | "stock">(aiImagesConfigured ? "ai" : "stock");
   const [createStyle, setCreateStyle] = useState<VisualStyle>(DEFAULT_VISUAL_STYLE);
+  const [createLength, setCreateLength] = useState<CarouselLength>("full");
   const [visualsBusy, setVisualsBusy] = useState(false);
   const [filling, setFilling] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -181,7 +192,8 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
     setGenerating(true);
     setPhase("text");
     try {
-      const res = await generateCarouselAction(projectId, { visuals: ai ? "ai" : "stock", visualStyle });
+      const length = state ? lengthOf(state.slides) : createLength;
+      const res = await generateCarouselAction(projectId, { visuals: ai ? "ai" : "stock", visualStyle, length });
       if (!res.ok) return toast.error(res.error);
       apply(res.data.carousel);
       setCredits(res.data.creditsLeft);
@@ -369,7 +381,8 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       );
     }
     const ai = aiImagesConfigured && createVisuals === "ai";
-    const estimate = cost + (ai ? aiImageCost * TYPICAL_IMAGES : 0);
+    const images = TYPICAL_IMAGES[createLength];
+    const estimate = cost + (ai ? aiImageCost * images : 0);
     return (
       <div className="mx-auto max-w-3xl min-w-0">
         {header}
@@ -392,6 +405,17 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
               </div>
             </div>
           )}
+
+          <div className="space-y-2">
+            <Label>Format du post</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {LENGTHS.map((l) => (
+                <ChoiceCard key={l.value} selected={createLength === l.value} onClick={() => setCreateLength(l.value)} title={l.title}>
+                  {l.hint}
+                </ChoiceCard>
+              ))}
+            </div>
+          </div>
 
           {aiImagesConfigured && (
             <div className="space-y-2">
@@ -416,11 +440,11 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
 
           <div>
             <Button variant="gradient" className="w-full" onClick={generate} disabled={!aiConfigured || credits < estimate}>
-              <Sparkles /> Créer le carrousel {estimate > 0 && <><Coins className="h-3.5 w-3.5" /> {ai ? `≈ ${estimate}` : estimate}</>}
+              <Sparkles /> {createLength === "single" ? "Créer le post" : "Créer le carrousel"} {estimate > 0 && <><Coins className="h-3.5 w-3.5" /> {ai ? `≈ ${estimate}` : estimate}</>}
             </Button>
             <p className="mt-2 text-[11px] text-muted-foreground">
               {ai
-                ? `${cost} crédits pour le texte, puis ${aiImageCost} par image (environ ${TYPICAL_IMAGES}). Une image qui échoue est remboursée.`
+                ? `${cost} crédits pour le texte, puis ${aiImageCost} par image (${createLength === "single" ? "1 image" : `environ ${images}`}). Une image qui échoue est remboursée.`
                 : "Des photos sont cherchées pour chaque slide, gratuitement."}
             </p>
             {credits < estimate && <p className="mt-1 text-xs text-red-300">Crédits insuffisants ({credits}/{estimate}). <Link href="/billing" className="underline">Recharger</Link></p>}
@@ -461,7 +485,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
           ))}
         </div>
         <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-          <span>{state.slides.length} slides · glisse pour les parcourir</span>
+          <span>{state.slides.length === 1 ? "Post unique · 1 image" : `${state.slides.length} slides · glisse pour les parcourir`}</span>
           {(dirty || saving) && (
             <span className="inline-flex items-center gap-1 text-amber-300">
               <Loader2 className="h-3 w-3 animate-spin" /> Mise à jour de l'aperçu…
