@@ -18,7 +18,7 @@ import { ScriptCard, type CarouselScript } from "@/components/carousel/script-ca
 import { ScriptStart } from "@/components/carousel/script-start";
 import { generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
-import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
+import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, SLIDE_LIMITS, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
 import { DEFAULT_VISUAL_STYLE, type VisualStyle } from "@/lib/carousel/art-direction";
 import { StylePicker } from "@/components/shared/style-picker";
 import { resolveTemplate } from "@/lib/carousel/templates";
@@ -52,6 +52,8 @@ interface Props {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const withoutVersion = (s: CarouselSnapshot): CarouselState => ({ template: s.template, format: s.format, handle: s.handle, slides: s.slides, visualStyle: s.visualStyle, visualMotif: s.visualMotif });
+/** The cover choice that leaves the headline to the carousel AI. */
+const AI_COVER = "__ai__";
 /** AI images each length usually needs: one per slide but the closing one. */
 const TYPICAL_IMAGES: Record<CarouselLength, number> = { single: 1, short: 3, full: 7 };
 const LENGTHS: { value: CarouselLength; title: string; hint: string }[] = [
@@ -85,7 +87,20 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const [phase, setPhase] = useState<null | "text" | "images">(null);
   const [createVisuals, setCreateVisuals] = useState<"ai" | "stock">(aiImagesConfigured ? "ai" : "stock");
   const [createStyle, setCreateStyle] = useState<VisualStyle>(DEFAULT_VISUAL_STYLE);
-  const [createLength, setCreateLength] = useState<CarouselLength>("full");
+  const [createLength, setCreateLength] = useState<CarouselLength>(script?.carouselLength ?? "full");
+  /** The cover headlines the script offers (its hook and alternatives) that fit on a cover. */
+  const coverOptions = script ? [...new Set([script.hook, ...script.alternativeHooks].map((h) => h.trim()))].filter((h) => h && h.length <= SLIDE_LIMITS.cover.title) : [];
+  // A script written for a carousel has cover headlines as hooks: its first one is the default. A video's spoken hook is not, so the AI adapts it.
+  const [coverChoice, setCoverChoice] = useState<string>(script?.carouselLength && coverOptions[0] ? coverOptions[0] : AI_COVER);
+  // A script written or edited while this screen is open (the "D'abord, le script" step, or "Modifier") brings its own length and covers.
+  const scriptKey = script?.id;
+  useEffect(() => {
+    if (!script) return;
+    if (script.carouselLength) setCreateLength(script.carouselLength);
+    const options = [...new Set([script.hook, ...script.alternativeHooks].map((h) => h.trim()))].filter((h) => h && h.length <= SLIDE_LIMITS.cover.title);
+    setCoverChoice(script.carouselLength && options[0] ? options[0] : AI_COVER);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scriptKey]);
   const [visualsBusy, setVisualsBusy] = useState(false);
   const [filling, setFilling] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -203,7 +218,9 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
     setPhase("text");
     try {
       const length = state ? lengthOf(state.slides) : createLength;
-      const res = await generateCarouselAction(projectId, { visuals: ai ? "ai" : "stock", visualStyle, length });
+      // A rewrite follows the (possibly edited) script; only the first creation offers the cover pick.
+      const coverHeadline = !state && coverChoice !== AI_COVER ? coverChoice : null;
+      const res = await generateCarouselAction(projectId, { visuals: ai ? "ai" : "stock", visualStyle, length, coverHeadline });
       if (!res.ok) return toast.error(res.error);
       apply(res.data.carousel);
       setCredits(res.data.creditsLeft);
@@ -422,6 +439,25 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
               ))}
             </div>
           </div>
+
+          {script?.carouselLength && script.carouselLength !== createLength && (
+            <p className="-mt-3 text-[11px] text-amber-300">Le script a été écrit pour {LENGTHS.find((l) => l.value === script.carouselLength)?.title}. L'IA l'adaptera, mais le résultat est meilleur avec le format prévu.</p>
+          )}
+
+          {script && (
+            <div className="space-y-2">
+              <Label>{createLength === "single" ? "Le message du post" : "Couverture"}</Label>
+              <p className="text-[11px] text-muted-foreground">C'est elle qui décide si on s'arrête. Choisis celle qui t'arrêterait, toi.</p>
+              <div className="grid gap-2">
+                {coverOptions.map((headline) => (
+                  <CoverChoice key={headline} selected={coverChoice === headline} onClick={() => setCoverChoice(headline)}>{headline}</CoverChoice>
+                ))}
+                <CoverChoice selected={coverChoice === AI_COVER} onClick={() => setCoverChoice(AI_COVER)} muted>
+                  Laisser l'IA l'écrire à partir du script
+                </CoverChoice>
+              </div>
+            </div>
+          )}
 
           {aiImagesConfigured && (
             <div className="space-y-2">
@@ -1024,6 +1060,16 @@ function ImageControl({ projectId, slide, aiImageCost, aiImagesConfigured, credi
         </div>
       )}
     </div>
+  );
+}
+
+/** One cover headline to pick, set in the slides' display face so it reads as the cover it will be. */
+function CoverChoice({ selected, onClick, muted, children }: { selected: boolean; onClick: () => void; muted?: boolean; children: ReactNode }) {
+  return (
+    <button type="button" role="radio" aria-checked={selected} onClick={onClick} className={cn("flex items-start gap-2.5 rounded-xl border p-3 text-left transition", selected ? "border-primary/60 bg-primary/10" : "border-white/10 hover:border-white/20")}>
+      <span className={cn("mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border", selected ? "border-primary bg-primary" : "border-white/30")}>{selected && <Check className="h-3 w-3 text-white" />}</span>
+      <span className={cn(muted ? "text-xs text-muted-foreground" : "font-display text-sm font-bold uppercase leading-snug tracking-tight")}>{children}</span>
+    </button>
   );
 }
 

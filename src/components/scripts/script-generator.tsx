@@ -15,6 +15,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { UpgradePrompt } from "@/components/shared/upgrade-prompt";
 import { generateScriptAction } from "@/server/actions/scripts";
 import { FormatPicker } from "@/components/shared/format-picker";
+import { CarouselLengthPicker } from "@/components/shared/carousel-length-picker";
+import type { CarouselLength } from "@/lib/carousel/schema";
 import { formatDestination, type ContentFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { TONES, TONE_LABELS, type Tone } from "@/lib/autopilot/template-shared";
@@ -51,6 +53,9 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
   const [audience, setAudience] = useState("");
   const [spaceId, setSpaceId] = useState(NO_SPACE);
   const [format, setFormat] = useState<ContentFormat>(initialFormat ?? "video");
+  const [carouselLength, setCarouselLength] = useState<CarouselLength>("short");
+  /** Only a new carousel-only project gets a script shaped for slides; "Les deux" and an existing project keep the video script. */
+  const carouselScript = !projectId && format === "carousel";
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(0);
 
@@ -72,7 +77,7 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
     setStep(0);
     const timer = setInterval(() => setStep((s) => Math.min(STEPS.length - 1, s + 1)), 2200);
     try {
-      const res = await generateScriptAction({ projectId, spaceId: projectId ? undefined : spaceId === NO_SPACE ? null : spaceId, topic, sourceUrl: sourceUrl || undefined, niche, tone, hookStyle, language, targetDurationSec: duration, callToActionGoal: cta, audience: audience || undefined });
+      const res = await generateScriptAction({ projectId, spaceId: projectId ? undefined : spaceId === NO_SPACE ? null : spaceId, topic, sourceUrl: sourceUrl || undefined, niche, tone, hookStyle, language, targetDurationSec: duration, callToActionGoal: cta, audience: audience || undefined, carouselLength: carouselScript ? carouselLength : undefined });
       if (!res.ok) {
         toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Obtenir des crédits", onClick: () => router.push("/billing") } : undefined });
         return;
@@ -166,6 +171,13 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
+            {carouselScript && (
+              <div className="space-y-2">
+                <Label>Format du post</Label>
+                <CarouselLengthPicker value={carouselLength} onChange={setCarouselLength} className="flex h-10 w-full" />
+                <p className="text-xs text-muted-foreground">Le script est écrit pour ce nombre de slides.</p>
+              </div>
+            )}
             {format !== "carousel" && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between"><Label>Durée cible</Label><span className="text-sm font-semibold tabular-nums">{duration}s</span></div>

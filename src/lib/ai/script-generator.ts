@@ -62,6 +62,39 @@ Principles you always apply:
 - This is automated content a real audience will take as fact, with no human fact-checking it before it posts. Never invent a statistic, study, percentage or specific mechanism to sound authoritative. When you are not certain a specific figure or claim is true, use the true qualitative version instead of a fake-precise number — a real mechanism is more interesting than a fabricated-sounding one anyway. A punchier line is never worth a false claim.`;
 
 /**
+ * A script for a photo carousel is read, not heard, and its shape is set by
+ * the number of slides chosen before writing — so the material matches the
+ * post instead of a 45-second video being squeezed or padded into slides.
+ * Appended to the writer's rules, it replaces what only applies to the ear.
+ */
+export const CAROUSEL_SCRIPT_RULES = `
+
+THIS SCRIPT IS FOR A PHOTO CAROUSEL, NOT A VIDEO. It is read slide by slide in a feed, never heard. These rules replace the ones above about speech, pace, duration and pattern interrupts:
+- The hook is the COVER HEADLINE: it must stop the scroll on its own, with no voice or motion to help. 80 characters maximum. A specific, surprising claim, number or truth; never a vague teaser.
+- The 3 alternativeHooks are 3 alternative cover headlines with genuinely different angles (a number, a counter-intuitive truth, a direct "you" statement...), 80 characters maximum each. The creator will pick one of the four as the cover, so each must be strong enough to be the one.
+- Each scene is ONE SLIDE: one complete, punchy statement that teaches something even if read alone, then one concrete proof — a mechanism, a real example, a precise action. 1 to 2 short sentences, written for the eye. No transitions ("Mais attends", "Et ce n'est pas tout", "Voici pourquoi"), no filler, no rhetorical build-up.
+- Scenes escalate: never two slides saying the same thing. Write EXACTLY the number of scenes the format asks for — no padding to fill slides, no idea squeezed out.
+- The callToAction is the closing slide's ask: one explicit action (comment a keyword, share with someone, follow for the next one), direct and specific.
+- durationSec is the reading time of the slide in seconds; visualDescription and brollQuery describe the image of that slide.`;
+
+/** What each carousel length asks of the script. */
+const CAROUSEL_FORMAT: Record<NonNullable<GenerateScriptInput["carouselLength"]>, string> = {
+  single:
+    "Format: ONE single-image post. The hook is the entire post — the one impactful line people stop on, save and share. Write EXACTLY 1 scene: the proof or the one concrete action that makes that line useful, 1 to 2 short sentences.",
+  short: "Format: a 4-slide carousel — cover, 2 content slides, closing slide. Write EXACTLY 2 scenes: the single strongest point, then its payoff or what to do.",
+  full: "Format: a full carousel — cover, 5 to 7 content slides, closing slide. Write between 5 and 7 scenes, as many as the idea genuinely has and no more: the false belief or tension, why it happens, then what to do.",
+};
+
+/** The critic's own carousel lens: the same demanding bar, judged as a scroller swiping rather than a viewer watching. */
+export const CAROUSEL_CRITIC_RULES = `
+
+THIS SCRIPT IS FOR A PHOTO CAROUSEL, read slide by slide in a feed. Judge it as a scroller swiping, with the same demanding bar — these criteria replace the ones above about speech and pacing:
+- The hook is the cover headline (80 characters maximum): would it stop YOUR thumb with no image, no voice? If not, rewrite it. The 3 alternativeHooks are alternative covers the creator will choose from: each must be strong enough to be the one, with a genuinely different angle — rewrite any weak or redundant one.
+- Every scene is a slide that must teach something read alone, with one concrete proof. Cut or rewrite any slide that is vague, repeats another, or only sets up the next one.
+- Keep EXACTLY the number of scenes the format asks for.
+- Scores: retention is the predicted swipe-through to the last slide.`;
+
+/**
  * A second pass, written as a separate, harsher voice reviewing someone
  * else's draft — not the same voice re-reading its own work, which tends to
  * defend what it already wrote instead of actually raising the bar. The
@@ -92,7 +125,7 @@ function buildUserPrompt(input: GenerateScriptInput, brand?: { toneOfVoice?: str
     `Niche: ${input.niche === "general" ? "infer it from the topic" : input.niche}`,
     `Tone: ${input.tone}`,
     `Hook style: ${input.hookStyle === "auto" ? "choose the strongest for this topic" : input.hookStyle}`,
-    `Target duration: ${input.targetDurationSec}s (≈ ${targetWords} spoken words in total, including hook and CTA)`,
+    input.carouselLength ? CAROUSEL_FORMAT[input.carouselLength] : `Target duration: ${input.targetDurationSec}s (≈ ${targetWords} spoken words in total, including hook and CTA)`,
     `Language: ${input.language}`,
     input.audience ? `Audience: ${input.audience}` : brand?.targetAudience ? `Audience: ${brand.targetAudience}` : null,
     brand?.toneOfVoice ? `Brand voice guidelines: ${brand.toneOfVoice}` : null,
@@ -158,10 +191,12 @@ export async function generateScript(
   const anthropic = getClient();
   const model = env.anthropicModel;
 
-  const draft = await callForScript(anthropic, model, SCRIPT_SYSTEM_PROMPT, buildUserPrompt(input, brand), "medium");
-  const revised = await callForScript(anthropic, model, SCRIPT_CRITIC_SYSTEM_PROMPT, buildCriticUserPrompt(input, draft.parsed, brand), "high");
+  // Same two passes for a carousel — only the lens changes, never the bar.
+  const carousel = Boolean(input.carouselLength);
+  const draft = await callForScript(anthropic, model, carousel ? SCRIPT_SYSTEM_PROMPT + CAROUSEL_SCRIPT_RULES : SCRIPT_SYSTEM_PROMPT, buildUserPrompt(input, brand), "medium");
+  const revised = await callForScript(anthropic, model, carousel ? SCRIPT_CRITIC_SYSTEM_PROMPT + CAROUSEL_CRITIC_RULES : SCRIPT_CRITIC_SYSTEM_PROMPT, buildCriticUserPrompt(input, draft.parsed, brand), "high");
 
-  const normalized = normalizeScript(revised.parsed);
+  const normalized = normalizeScript(revised.parsed, input.carouselLength);
   const fullText = assembleFullText(normalized);
   const wordCount = countWords(fullText);
 
@@ -180,13 +215,17 @@ function clampScore(n: number) {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
-export function normalizeScript(s: GeneratedScript): GeneratedScript {
+/** A carousel script keeps no more scenes than its slides can hold: 1 for a single image, 2 for a short carousel, 7 for a full one. */
+const CAROUSEL_MAX_SCENES = { single: 1, short: 2, full: 7 } as const;
+
+export function normalizeScript(s: GeneratedScript, carouselLength?: GenerateScriptInput["carouselLength"]): GeneratedScript {
+  const maxScenes = carouselLength ? CAROUSEL_MAX_SCENES[carouselLength] : 12;
   return {
     ...s,
     hashtags: s.hashtags.map((h) => h.replace(/^#/, "").replace(/\s+/g, "")).filter(Boolean).slice(0, 12),
     socialCopy: normalizeSocialCopy(s.socialCopy),
     alternativeHooks: s.alternativeHooks.slice(0, 3),
-    scenes: s.scenes.slice(0, 12).map((sc) => ({
+    scenes: s.scenes.slice(0, maxScenes).map((sc) => ({
       ...sc,
       durationSec: Math.max(1, Math.min(30, Number.isFinite(sc.durationSec) ? sc.durationSec : countWords(sc.text) / 2.6)),
       emphasis: sc.emphasis.slice(0, 3),

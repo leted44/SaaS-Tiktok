@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { saveScriptEdits } from "@/server/actions/projects";
+import type { CarouselLength } from "@/lib/carousel/schema";
 
 export interface CarouselScript {
   id: string;
@@ -16,6 +17,10 @@ export interface CarouselScript {
   scenes: { id: string; text: string; visualDescription: string; brollQuery: string; onScreenText: string | null }[];
   callToAction: string;
   hashtags: string[];
+  /** Alternative hooks — for a carousel script, alternative cover headlines. */
+  alternativeHooks: string[];
+  /** The carousel length the script was written for, or null for a video script. */
+  carouselLength: CarouselLength | null;
 }
 
 /**
@@ -72,12 +77,12 @@ export function ScriptCard({ script, label, hint }: { script: CarouselScript; la
       {editing ? (
         <div className="space-y-3">
           <div className="space-y-1">
-            <Label className="text-[11px] text-brand-300">Accroche</Label>
+            <Label className="text-[11px] text-brand-300">{script.carouselLength ? "Couverture" : "Accroche"}</Label>
             <Textarea value={hook} maxLength={600} rows={2} onChange={(e) => setHook(e.target.value)} />
           </div>
           {scenes.map((text, i) => (
             <div key={script.scenes[i].id} className="space-y-1">
-              <Label className="text-[11px]">Scène {i + 1}</Label>
+              <Label className="text-[11px]">{script.carouselLength ? `Slide ${i + 1}` : `Scène ${i + 1}`}</Label>
               <Textarea value={text} rows={3} onChange={(e) => setScenes((prev) => prev.map((t, k) => (k === i ? e.target.value : t)))} />
             </div>
           ))}
@@ -92,7 +97,7 @@ export function ScriptCard({ script, label, hint }: { script: CarouselScript; la
         </div>
       ) : (
         <div className="max-h-64 space-y-2 overflow-y-auto text-sm">
-          <p><span className="font-semibold text-brand-300">Accroche · </span>{script.hook}</p>
+          <p><span className="font-semibold text-brand-300">{script.carouselLength ? "Couverture" : "Accroche"} · </span>{script.hook}</p>
           {script.scenes.map((s, i) => (
             <p key={s.id} className="text-muted-foreground"><span className="font-medium text-foreground">{i + 1}. </span>{s.text}</p>
           ))}

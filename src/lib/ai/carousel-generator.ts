@@ -112,6 +112,10 @@ export interface CarouselInput {
   template: CarouselTemplate;
   /** One image, a short 4-slide carousel (cover, 2 content, CTA) or a full one. */
   length: CarouselLength;
+  /** The length the script itself was written for, when it was written as a carousel: its scenes are then the slides. */
+  scriptLength?: CarouselLength | null;
+  /** The cover headline the creator picked — used word for word. */
+  coverHeadline?: string | null;
 }
 
 const LENGTH_BRIEF: Record<CarouselLength, string> = {
@@ -179,6 +183,11 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
     `Hook: ${input.hook}`,
     ...input.sceneTexts.map((t, i) => `Scene ${i + 1}: ${t}`),
     `Call to action: ${input.callToAction}`,
+    // A script written for this very carousel already has one idea per slide: the job is fitting it, never re-inventing it.
+    input.scriptLength === input.length
+      ? "\nThis script was already written for exactly this carousel: its hook is the cover, each scene is one content slide, in this order, and its call to action is the closing ask. Keep every idea, its order and its punch; only fit the wording to the length limits and write the image briefs. Never add, merge or drop an idea."
+      : null,
+    input.coverHeadline ? `\nThe cover headline is chosen by the creator — use it WORD FOR WORD as coverTitle: «${input.coverHeadline}». Pick coverEmphasis from it, and write the cover image and subtitle to serve it.` : null,
   ]
     .filter((line) => line !== null)
     .join("\n");
@@ -207,7 +216,8 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
   const L = SLIDE_LIMITS;
   const none = { action: "", image: null };
   const brief = (text: string) => stripEmoji(text).replace(/\s+/g, " ").trim().slice(0, 600);
-  const coverTitle = fit(out.coverTitle, L.cover.title);
+  // The creator's pick wins over whatever the model wrote, so a chosen cover is never paraphrased.
+  const coverTitle = fit(input.coverHeadline?.trim() || out.coverTitle, L.cover.title);
   const cover: CarouselSlide = {
     ...none,
     id: nanoid(8),

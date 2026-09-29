@@ -383,6 +383,8 @@ model Script {
   estimatedDurationSec Int      @default(0)
   wordCount            Int      @default(0)
   alternativeHooks     String[]
+  /// Set when the script was written for a carousel ("single" | "short" | "full"): its hook and alternative hooks are cover headlines, and its scenes are the slides. Null for a video script.
+  carouselLength       String?
 
   model        String?
   inputTokens  Int?

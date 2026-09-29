@@ -37,7 +37,7 @@ const asTemplate = (value: unknown): CarouselTemplate | null => ((CAROUSEL_TEMPL
  */
 export async function generateCarouselAction(
   projectId: string,
-  options: { visuals: "ai" | "stock"; visualStyle?: VisualStyle; length?: CarouselLength } = { visuals: "stock" },
+  options: { visuals: "ai" | "stock"; visualStyle?: VisualStyle; length?: CarouselLength; coverHeadline?: string | null } = { visuals: "stock" },
 ): Promise<ActionResult<{ carousel: CarouselSnapshot; creditsLeft: number }>> {
   return guard(async () => {
     const user = await requireDbUser();
@@ -73,6 +73,8 @@ export async function generateCarouselAction(
         visualStyle,
         template,
         length: asLength(options.length),
+        scriptLength: script.carouselLength ? asLength(script.carouselLength) : null,
+        coverHeadline: options.coverHeadline ? stripEmoji(options.coverHeadline).slice(0, 200) || null : null,
       });
     } catch (err) {
       if (cost > 0) await refundCredits(user.id, cost, "Remboursement — la génération du carrousel a échoué");

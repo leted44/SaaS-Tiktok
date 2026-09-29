@@ -88,6 +88,7 @@ export function needsAiVisual(slide: CarouselSlide, style: VisualStyle): boolean
 }
 
 /** How many slides a carousel is written at: a single punchy image, a short 4-slide post, or a full carousel. */
+export const CAROUSEL_LENGTHS: readonly CarouselLength[] = ["single", "short", "full"];
 export type CarouselLength = "single" | "short" | "full";
 /** Content slides per length — the cover and the closing slide come on top. */
 export const CONTENT_SLIDES: Record<Exclude<CarouselLength, "single">, number> = { short: 2, full: 7 };

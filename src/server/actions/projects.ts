@@ -172,6 +172,7 @@ export async function saveScriptEdits(scriptId: string, input: unknown): Promise
         hashtags: edits.hashtags,
         socialCopy: original.socialCopy ?? Prisma.DbNull,
         alternativeHooks: original.alternativeHooks,
+        carouselLength: original.carouselLength,
         viralityScore: scores.virality,
         hookScore: scores.hook,
         retentionScore: scores.retention,

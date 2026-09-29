@@ -4,7 +4,7 @@ import { getProjectForCarousel } from "@/server/queries";
 import { CarouselEditor } from "@/components/carousel/carousel-editor";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
 import { integrations } from "@/lib/env";
-import { carouselStateFromRow } from "@/lib/carousel/schema";
+import { carouselStateFromRow, CAROUSEL_LENGTHS, type CarouselLength } from "@/lib/carousel/schema";
 import { parseJson, scenesSchema } from "@/lib/validations";
 import { fallbackSocialCopy, socialCopySchema } from "@/lib/social/captions";
 
@@ -44,6 +44,8 @@ export default async function CarouselPage({ params }: { params: Promise<{ id: s
               scenes: parseJson(scenesSchema, activeScript.scenes, []).map((s) => ({ id: s.id, text: s.text, visualDescription: s.visualDescription, brollQuery: s.brollQuery, onScreenText: s.onScreenText })),
               callToAction: activeScript.callToAction,
               hashtags: activeScript.hashtags,
+              alternativeHooks: activeScript.alternativeHooks,
+              carouselLength: CAROUSEL_LENGTHS.includes(activeScript.carouselLength as CarouselLength) ? (activeScript.carouselLength as CarouselLength) : null,
               socialCopy: parseJson(socialCopySchema, activeScript.socialCopy, fallbackSocialCopy({ hook: activeScript.hook, callToAction: activeScript.callToAction, hashtags: activeScript.hashtags })),
             }
           : null

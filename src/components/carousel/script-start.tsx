@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { generateScriptAction } from "@/server/actions/scripts";
 import { AUTO_NICHE, CTA_GOALS, HOOK_STYLES, NICHES, type CtaGoal, type HookStyle } from "@/lib/scripts/options";
 import { TONES, TONE_LABELS, type Tone } from "@/lib/autopilot/template-shared";
+import { CarouselLengthPicker } from "@/components/shared/carousel-length-picker";
+import type { CarouselLength } from "@/lib/carousel/schema";
 
 const SELECT = "h-10 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm text-foreground outline-none transition focus:border-white/25";
 
@@ -28,6 +30,7 @@ export function ScriptStart({ projectId, topic: initialTopic, niche: initialNich
   const [tone, setTone] = useState<Tone>("energetic");
   const [hookStyle, setHookStyle] = useState<HookStyle>("auto");
   const [cta, setCta] = useState<CtaGoal>("follow");
+  const [length, setLength] = useState<CarouselLength>("short");
   const [loading, setLoading] = useState(false);
 
   const enough = credits >= cost;
@@ -45,6 +48,7 @@ export function ScriptStart({ projectId, topic: initialTopic, niche: initialNich
         callToActionGoal: cta,
         language,
         targetDurationSec: 45,
+        carouselLength: length,
       });
       if (!res.ok) {
         toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Obtenir des crédits", onClick: () => router.push("/billing") } : undefined });
@@ -64,7 +68,13 @@ export function ScriptStart({ projectId, topic: initialTopic, niche: initialNich
       <div>
         <GalleryHorizontalEnd className="h-6 w-6 text-brand-300" />
         <h2 className="mt-2 font-display text-lg font-bold">D'abord, le script</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Le carrousel est écrit à partir d'un script. Vérifie le sujet, l'IA écrit le script en quelques secondes, puis tu choisis le format et les images.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Le carrousel est écrit à partir d'un script. Vérifie le sujet, l'IA écrit le script en quelques secondes, puis tu choisis la couverture et les images.</p>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Format du post</Label>
+        <CarouselLengthPicker value={length} onChange={setLength} className="flex h-10 w-full" />
+        <p className="text-[11px] text-muted-foreground">Le script est écrit pour ce nombre de slides : ni idée de trop, ni remplissage.</p>
       </div>
 
       <div className="space-y-1.5">

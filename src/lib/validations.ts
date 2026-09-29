@@ -134,6 +134,8 @@ export const generateScriptSchema = z.object({
   audience: z.string().max(200).optional(),
   callToActionGoal: z.enum(["follow", "comment", "share", "link", "none"]).default("follow"),
   hookStyle: z.enum(["question", "bold-claim", "curiosity-gap", "story", "statistic", "auto"]).default("auto"),
+  /** Set when the script is written for a carousel of this length — read in a feed, not heard. Absent for a video. */
+  carouselLength: z.enum(["single", "short", "full"]).optional(),
 });
 export type GenerateScriptInput = z.infer<typeof generateScriptSchema>;
 

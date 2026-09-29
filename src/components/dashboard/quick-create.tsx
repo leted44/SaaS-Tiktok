@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { generateScriptAction } from "@/server/actions/scripts";
 import { TONES, TONE_LABELS, type Tone } from "@/lib/autopilot/template-shared";
 import { FormatPicker } from "@/components/shared/format-picker";
+import { CarouselLengthPicker } from "@/components/shared/carousel-length-picker";
+import type { CarouselLength } from "@/lib/carousel/schema";
 import { formatDestination, type ContentFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { AUTO_NICHE, CTA_GOALS, HOOK_STYLES, LANGUAGES, NICHES, type CtaGoal, type HookStyle } from "@/lib/scripts/options";
@@ -36,6 +38,7 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
   const [duration, setDuration] = useState(45);
   const [tone, setTone] = useState<Tone>("energetic");
   const [format, setFormat] = useState<ContentFormat>("video");
+  const [carouselLength, setCarouselLength] = useState<CarouselLength>("short");
   const [moreOpen, setMoreOpen] = useState(false);
   const [niche, setNiche] = useState(AUTO_NICHE);
   const [hookStyle, setHookStyle] = useState<HookStyle>("auto");
@@ -76,6 +79,8 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
         audience: audience.trim() || undefined,
         targetDurationSec: duration,
         language,
+        // "Les deux" keeps a video script, written for the ear; a carousel alone gets one written for its slides.
+        carouselLength: format === "carousel" ? carouselLength : undefined,
       });
       if (!res.ok) {
         toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Obtenir des crédits", onClick: () => router.push("/billing") } : undefined });
@@ -146,6 +151,7 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
                 <Link2 className="h-3.5 w-3.5" /> Partir d'un lien
               </button>
             )}
+            {format === "carousel" && <CarouselLengthPicker value={carouselLength} onChange={setCarouselLength} />}
             {format !== "carousel" && (
               <div className="inline-flex h-8 items-center rounded-full border border-white/10 p-0.5" role="radiogroup" aria-label="Durée">
                 {DURATIONS.map((d) => (
