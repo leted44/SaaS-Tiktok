@@ -15,9 +15,11 @@ const FILES = [
   { name: "Playfair Display", weight: 700, file: "PlayfairDisplay-Bold.ttf" },
   // Condensed poster face of the Immersive template (SIL Open Font License, see Anton-OFL.txt).
   { name: "Anton", weight: 400, file: "Anton-Regular.ttf" },
+  // Heavy condensed face of the Encadré template (SIL Open Font License, see BarlowCondensed-OFL.txt).
+  { name: "Barlow Condensed", weight: 900, file: "BarlowCondensed-Black.ttf" },
 ] as const;
 
-export type LoadedFont = { name: string; data: ArrayBuffer; weight: 400 | 600 | 700 | 800; style: "normal" };
+export type LoadedFont = { name: string; data: ArrayBuffer; weight: 400 | 600 | 700 | 800 | 900; style: "normal" };
 
 let cache: Promise<LoadedFont[]> | null = null;
 

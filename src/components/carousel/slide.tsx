@@ -99,6 +99,9 @@ function immersiveScrim(format: CarouselFormat): string {
   return `linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0) ${clear}%, rgba(0,0,0,0.35) ${(clear + dark) / 2}%, rgba(0,0,0,0.86) ${dark}%, rgba(0,0,0,0.96) 100%)`;
 }
 
+/** Encadré: the box carries the text, so the photo is only shaded at the very top, under the signature and counter. */
+const BOXED_SCRIM = "linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 16%, rgba(0,0,0,0) 100%)";
+
 /**
  * The closing slide's scrim: uniformly dim rather than clear-over-subject —
  * there is no subject to protect here, only the ask, and the photo is a
@@ -158,15 +161,18 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
   const bottomSafe = format === "story" ? 320 : 0;
   const compact = format === "square";
   const immersive = tokens.id === "immersive";
-  // Full-bleed: the cover always, and in Immersive every content slide too.
-  const bleedPhoto = Boolean(imageUrl) && (slide.kind === "cover" || (immersive && slide.kind === "content"));
-  const ctaBackdrop = immersive && slide.kind === "cta" && Boolean(closingImageUrl);
+  // Encadré: the headline sits in a dark box over the photo instead of on a scrim.
+  const boxed = tokens.id === "boxed";
+  const fullBleed = immersive || boxed;
+  // Full-bleed: the cover always, and in Immersive and Encadré every content slide too.
+  const bleedPhoto = Boolean(imageUrl) && (slide.kind === "cover" || (fullBleed && slide.kind === "content"));
+  const ctaBackdrop = fullBleed && slide.kind === "cta" && Boolean(closingImageUrl);
   const coverPhoto = slide.kind === "cover" && bleedPhoto;
   const bandPhoto = slide.kind === "content" && Boolean(imageUrl) && !bleedPhoto;
   const t = bleedPhoto ? onPhoto(tokens) : tokens;
   const editorial = t.id === "editorial" && !coverPhoto;
-  // Anton is condensed: at the same size it carries far fewer pixels per word, so it is set larger.
-  const faceScale = t.headlineFont === "Anton" ? 1.16 : 1;
+  // Condensed faces carry far fewer pixels per word at the same size, so they are set larger.
+  const faceScale = t.headlineFont === "Anton" ? 1.16 : t.headlineFont === "Barlow Condensed" ? 1.14 : 1;
   const photoScale = bandPhoto || (bleedPhoto && slide.kind === "content") ? 0.84 : 1;
   const titleSize = Math.round(headlineSize(slide.title, slide.kind, format) * photoScale * faceScale);
 
@@ -179,14 +185,15 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
     const words = headlineWords(text, slide.emphasis);
     // Measured on Anton: an accented capital (É, À) tops out at 1.10 em above the baseline.
     // Below a 1.18 line height it touches the line above — French needs the room English does not.
-    const lineHeight = t.headlineFont === "Anton" ? 1.18 : editorial ? 1.08 : 1.02;
+    // Barlow Condensed Black sits lower: 1.04 clears its accents.
+    const lineHeight = t.headlineFont === "Anton" ? 1.18 : t.headlineFont === "Barlow Condensed" ? 1.04 : editorial ? 1.08 : 1.02;
     return (
       <div
         style={{
           display: "flex",
           flexWrap: "wrap",
           marginTop,
-          columnGap: Math.round(titleSize * (t.headlineFont === "Anton" ? 0.22 : 0.26)),
+          columnGap: Math.round(titleSize * (t.headlineFont === "Anton" ? 0.22 : t.headlineFont === "Barlow Condensed" ? 0.2 : 0.26)),
           fontFamily: t.headlineFont,
           fontWeight: t.headlineWeight,
           fontSize: titleSize,
@@ -199,7 +206,11 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
         {words.map((segments, i) => (
           <div key={i} style={{ display: "flex" }}>
             {segments.map((s, j) =>
-              s.hot ? (
+              s.hot && t.flatEmphasis ? (
+                <span key={j} style={{ lineHeight, color: t.accent }}>
+                  {s.text}
+                </span>
+              ) : s.hot ? (
                 <span key={j} style={{ display: "flex", lineHeight, backgroundImage: hotGradient, backgroundClip: "text", color: "transparent" }}>
                   {s.text}
                 </span>
@@ -236,8 +247,41 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
       <div style={{ display: "flex", marginTop, width: 132, height: 10, borderRadius: 5, background: t.accent }} />
     );
 
+  /**
+   * The Encadré caption box: dark, rounded, a short accent bar on top — the
+   * headline reads on any photo, however bright, so the photo needs no
+   * darkening and stays as vivid as it was generated.
+   */
+  const captionBox = (...children: ReactNode[]): ReactNode => (
+    <div style={col({ padding: compact ? "28px 32px 32px" : "34px 40px 40px", borderRadius: 30, background: "rgba(10,11,13,0.86)" })}>
+      <div style={{ display: "flex", width: 96, height: 10, borderRadius: 5, background: t.accent }} />
+      {/* Children passed one by one: a fragment here was laid out as a row by Satori. */}
+      {children}
+    </div>
+  );
+
   let main: ReactNode;
-  if (slide.kind === "cover") {
+  if (boxed && slide.kind === "cover" && coverPhoto) {
+    main = (
+      <div style={col({ flexGrow: 1, justifyContent: "flex-end", paddingBottom: 24 })}>
+        {slide.kicker ? <div style={{ display: "flex", marginBottom: 22 }}>{label(slide.kicker)}</div> : null}
+        {captionBox(headline(slide.title, 22), body(slide.body, 20, "rgba(255,255,255,0.86)", 0.9))}
+      </div>
+    );
+  } else if (boxed && slide.kind === "content" && bleedPhoto) {
+    main = (
+      <div style={col({ flexGrow: 1, justifyContent: "flex-end", paddingBottom: 24 })}>
+        {captionBox(
+          <div key="n" style={row({ marginTop: 22, alignItems: "center", gap: 18 })}>
+            <div style={{ display: "flex", fontFamily: t.headlineFont, fontWeight: t.headlineWeight, fontSize: 60, lineHeight: 1, color: t.accent }}>{pad(step)}</div>
+            {slide.kicker ? label(slide.kicker) : null}
+          </div>,
+          headline(slide.title, 14),
+          body(slide.body, 18, "rgba(255,255,255,0.88)", 0.88),
+        )}
+      </div>
+    );
+  } else if (slide.kind === "cover") {
     main = (
       <div style={col({ flexGrow: 1, justifyContent: coverPhoto ? "flex-end" : "center", paddingBottom: coverPhoto ? 48 : 0 })}>
         {slide.kicker ? label(slide.kicker) : null}
@@ -301,7 +345,7 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
         />
       ) : null}
       {bleedPhoto || ctaBackdrop ? (
-        <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width, height, backgroundImage: ctaBackdrop ? closingScrim() : immersive ? immersiveScrim(format) : PHOTO_SCRIM }} />
+        <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width, height, backgroundImage: ctaBackdrop ? closingScrim() : boxed ? BOXED_SCRIM : immersive ? immersiveScrim(format) : PHOTO_SCRIM }} />
       ) : null}
       {t.overlay ? <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width, height, backgroundImage: t.overlay }} /> : null}
 

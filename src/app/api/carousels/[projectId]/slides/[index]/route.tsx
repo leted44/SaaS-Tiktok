@@ -40,7 +40,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
 
   const step = state.slides.slice(0, i + 1).filter((s) => s.kind === "content").length;
   const { workspace } = carousel.project;
-  const tokens = resolveTemplate(state.template, { primary: workspace.primaryColor, accent: workspace.accentColor });
+  const tokens = resolveTemplate(state.template, { primary: workspace.primaryColor, accent: workspace.accentColor }, state.accent);
   const { width, height } = FORMAT_SIZE[state.format];
   const fonts = await loadCarouselFonts();
   const coverImageUrl = state.slides.find((s) => s.kind === "cover")?.image?.url;

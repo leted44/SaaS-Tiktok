@@ -464,6 +464,8 @@ model Carousel {
   // recurring setting that makes them read as one series.
   visualStyle String?
   visualMotif String?
+  // Accent colour chosen for this carousel ("#RRGGBB"); null follows the brand's.
+  accent      String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

@@ -18,7 +18,7 @@ import { ScriptCard, type CarouselScript } from "@/components/carousel/script-ca
 import { ScriptStart } from "@/components/carousel/script-start";
 import { generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
-import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, SLIDE_LIMITS, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
+import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, SLIDE_LIMITS, fullBleedTemplate, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
 import { DEFAULT_VISUAL_STYLE, type VisualStyle } from "@/lib/carousel/art-direction";
 import { StylePicker } from "@/components/shared/style-picker";
 import { resolveTemplate } from "@/lib/carousel/templates";
@@ -51,7 +51,17 @@ interface Props {
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
-const withoutVersion = (s: CarouselSnapshot): CarouselState => ({ template: s.template, format: s.format, handle: s.handle, slides: s.slides, visualStyle: s.visualStyle, visualMotif: s.visualMotif });
+const withoutVersion = (s: CarouselSnapshot): CarouselState => ({ template: s.template, format: s.format, handle: s.handle, slides: s.slides, visualStyle: s.visualStyle, visualMotif: s.visualMotif, accent: s.accent });
+/** Accent colours offered per carousel — bright enough to pop on a photo. */
+const ACCENTS = [
+  { hex: "#FFC21A", label: "Jaune" },
+  { hex: "#2EA8FF", label: "Bleu" },
+  { hex: "#FF3B3B", label: "Rouge" },
+  { hex: "#22D46B", label: "Vert" },
+  { hex: "#FF4FA3", label: "Rose" },
+  { hex: "#FFFFFF", label: "Blanc" },
+];
+
 /** The cover choice that leaves the headline to the carousel AI. */
 const AI_COVER = "__ai__";
 /** AI images each length usually needs: one per slide but the closing one. */
@@ -567,36 +577,73 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       {marking && <MarkPostedDialog projectId={projectId} title={projectTitle} open={marking} onOpenChange={setMarking} />}
 
       <div className="mt-5 space-y-3">
-        <Section title="Design" icon={Palette} summary={`${resolveTemplate(state.template, brand).name} · ${FORMAT_SIZE[state.format].label}`} defaultOpen>
+        <Section title="Design" icon={Palette} summary={`${resolveTemplate(state.template, brand, state.accent).name} · ${FORMAT_SIZE[state.format].label}`} defaultOpen>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Modèle</Label>
-              <div className="grid grid-cols-5 gap-1.5">
+              <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
                 {CAROUSEL_TEMPLATES.map((id) => {
-                  const t = resolveTemplate(id, brand);
+                  const t = resolveTemplate(id, brand, state.accent);
                   const selected = state.template === id;
-                  const poster = t.headlineFont === "Anton";
+                  const poster = t.headlineFont === "Anton" || t.headlineFont === "Barlow Condensed";
+                  const photo = `linear-gradient(180deg, #6b4a2b 0%, #2a1c12 45%, ${t.background} 75%)`;
                   return (
                     <button key={id} type="button" onClick={() => set({ template: id })} className={cn("rounded-lg border p-1 text-left transition", selected ? "border-primary/60 bg-primary/10" : "border-white/10 hover:border-white/20")}>
-                      <div
-                        className="flex aspect-[4/5] flex-col justify-center gap-1.5 overflow-hidden rounded-md px-1.5"
-                        style={{ background: poster ? `linear-gradient(180deg, #6b4a2b 0%, #2a1c12 45%, ${t.background} 75%)` : t.background }}
-                      >
-                        <div className="h-1 w-5 rounded-full" style={{ background: t.accent }} />
-                        <span
-                          className={cn("leading-none", poster ? "text-base uppercase" : "text-lg font-extrabold")}
-                          style={{ color: t.text, fontFamily: poster ? "Impact, 'Arial Narrow Bold', 'Arial Narrow', sans-serif" : t.headlineFont === "Playfair Display" ? "Georgia, 'Times New Roman', serif" : "inherit" }}
-                        >
-                          Aa
-                        </span>
-                        <div className="h-1 w-4/5 rounded-full" style={{ background: t.muted }} />
-                      </div>
+                      {id === "boxed" ? (
+                        // A photo with the caption box at its foot, the way the slides are laid out.
+                        <div className="flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-md p-1" style={{ background: "linear-gradient(160deg, #d9432f 0%, #8c2b1f 55%, #3a1510 100%)" }}>
+                          <div className="flex flex-col gap-1 rounded bg-black/85 px-1.5 py-1.5">
+                            <div className="h-0.5 w-3 rounded-full" style={{ background: t.accent }} />
+                            <span className="text-sm font-black uppercase leading-none" style={{ color: t.text, fontFamily: "Impact, 'Arial Narrow Bold', 'Arial Narrow', sans-serif" }}>Aa <span style={{ color: t.accent }}>Aa</span></span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex aspect-[4/5] flex-col justify-center gap-1.5 overflow-hidden rounded-md px-1.5" style={{ background: poster ? photo : t.background }}>
+                          <div className="h-1 w-5 rounded-full" style={{ background: t.accent }} />
+                          <span
+                            className={cn("leading-none", poster ? "text-base uppercase" : "text-lg font-extrabold")}
+                            style={{ color: t.text, fontFamily: poster ? "Impact, 'Arial Narrow Bold', 'Arial Narrow', sans-serif" : t.headlineFont === "Playfair Display" ? "Georgia, 'Times New Roman', serif" : "inherit" }}
+                          >
+                            Aa
+                          </span>
+                          <div className="h-1 w-4/5 rounded-full" style={{ background: t.muted }} />
+                        </div>
+                      )}
                       <p className="mt-1 truncate text-[11px] font-medium">{t.name}</p>
                     </button>
                   );
                 })}
               </div>
-              <p className="text-[11px] text-muted-foreground">Les couleurs viennent de ta marque (page Marque).</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Couleur d'accent</Label>
+              <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Couleur d'accent">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={state.accent === null}
+                  onClick={() => set({ accent: null })}
+                  className={cn("inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs transition", state.accent === null ? "border-primary/60 bg-primary/10 text-foreground" : "border-white/10 text-muted-foreground hover:border-white/20")}
+                >
+                  <span className="h-4 w-4 rounded-full border border-white/20" style={{ background: brand.accent }} /> Marque
+                </button>
+                {ACCENTS.map((a) => (
+                  <button
+                    key={a.hex}
+                    type="button"
+                    role="radio"
+                    aria-checked={state.accent === a.hex}
+                    aria-label={a.label}
+                    title={a.label}
+                    onClick={() => set({ accent: a.hex })}
+                    className={cn("flex h-9 w-9 items-center justify-center rounded-full border-2 transition", state.accent === a.hex ? "border-white" : "border-transparent hover:border-white/30")}
+                  >
+                    <span className="h-6 w-6 rounded-full" style={{ background: a.hex }} />
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">Les mots clés, les numéros et les boutons. « Marque » reprend la couleur de ta page Marque.</p>
             </div>
 
             <div className="space-y-2">
@@ -658,9 +705,9 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                   ? "Les photos de banque et les images d'un autre style sont remplacées ; tes propres photos restent. La couverture est créée d'abord et sert de référence de lumière et de couleurs aux autres."
                   : "Toutes les images sont dans ce style. Pour en changer une seule : touche la slide dans l'aperçu."}
               </p>
-              {state.template !== "immersive" && (
+              {!fullBleedTemplate(state.template) && (
                 <p className="rounded-lg border border-amber-300/20 bg-amber-300/5 p-2.5 text-[11px] text-amber-200">
-                  Le modèle Immersif met chaque visuel en plein écran, avec un fond sombre continu d'une slide à l'autre.{" "}
+                  Les modèles Immersif et Encadré mettent chaque visuel en plein écran.{" "}
                   <button type="button" className="font-semibold underline" onClick={() => set({ template: "immersive" })}>Passer en Immersif</button>
                 </p>
               )}

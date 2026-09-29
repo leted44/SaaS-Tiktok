@@ -96,15 +96,20 @@ export const CONTENT_SLIDES: Record<Exclude<CarouselLength, "single">, number> =
 /** At least one slide: a single-image post is the cover alone. */
 export const carouselSlidesSchema = z.array(carouselSlideSchema).min(1).max(12);
 
-export const CAROUSEL_TEMPLATES = ["immersive", "minimal", "bold", "editorial", "brand"] as const;
+export const CAROUSEL_TEMPLATES = ["immersive", "boxed", "minimal", "bold", "editorial", "brand"] as const;
 export type CarouselTemplate = (typeof CAROUSEL_TEMPLATES)[number];
+
+/** Templates that put every content slide's image full screen, like the cover. */
+export function fullBleedTemplate(template: CarouselTemplate): boolean {
+  return template === "immersive" || template === "boxed";
+}
 
 /**
  * How a slide's image is laid out: the cover is always full-bleed; content
  * slides are full-bleed in the Immersive template and a band elsewhere.
  */
 export function imageLayout(kind: CarouselSlide["kind"], template: CarouselTemplate): VisualLayout {
-  return kind === "cover" || template === "immersive" ? "bleed" : "band";
+  return kind === "cover" || fullBleedTemplate(template) ? "bleed" : "band";
 }
 
 export const CAROUSEL_FORMATS = ["portrait", "story", "square"] as const;
@@ -137,13 +142,15 @@ export const carouselStateSchema = z.object({
   visualStyle: z.enum(VISUAL_STYLES).nullable().default(null),
   /** The recurring setting that ties the images together as one series. */
   visualMotif: z.string().max(300).default(""),
+  /** Accent colour for this carousel only; null follows the brand's. */
+  accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().default(null),
 });
 export type CarouselState = z.infer<typeof carouselStateSchema>;
 
 /** The stored row, read as editor state. An unknown style (a preset since removed) reads as none rather than failing the whole carousel. */
-export function carouselStateFromRow(row: { template: string; format: string; handle: string | null; slides: unknown; visualStyle?: string | null; visualMotif?: string | null }) {
+export function carouselStateFromRow(row: { template: string; format: string; handle: string | null; slides: unknown; visualStyle?: string | null; visualMotif?: string | null; accent?: string | null }) {
   const visualStyle = (VISUAL_STYLES as readonly string[]).includes(row.visualStyle ?? "") ? row.visualStyle : null;
-  return carouselStateSchema.safeParse({ template: row.template, format: row.format, handle: row.handle, slides: row.slides, visualStyle, visualMotif: row.visualMotif ?? "" });
+  return carouselStateSchema.safeParse({ template: row.template, format: row.format, handle: row.handle, slides: row.slides, visualStyle, visualMotif: row.visualMotif ?? "", accent: row.accent ?? null });
 }
 
 /**

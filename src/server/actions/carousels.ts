@@ -120,7 +120,7 @@ export async function saveCarouselAction(projectId: string, input: unknown): Pro
     const handle = state.handle?.trim() ? stripEmoji(state.handle.trim()).slice(0, 40) : null;
     const saved = await prisma.carousel.update({
       where: { projectId, userId: user.id },
-      data: { template: state.template, format: state.format, handle, slides, visualStyle: state.visualStyle, visualMotif: stripEmoji(state.visualMotif).trim() || null },
+      data: { template: state.template, format: state.format, handle, slides, visualStyle: state.visualStyle, visualMotif: stripEmoji(state.visualMotif).trim() || null, accent: state.accent },
     });
     return { version: saved.updatedAt.getTime() };
   });

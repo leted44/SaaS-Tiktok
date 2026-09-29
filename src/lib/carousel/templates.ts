@@ -24,10 +24,12 @@ export interface TemplateTokens {
   track: string;
   /** Background of inset cards (the call-to-action block). */
   surface: string;
-  headlineFont: "Inter" | "Playfair Display" | "Anton";
-  headlineWeight: 400 | 700 | 800;
+  headlineFont: "Inter" | "Playfair Display" | "Anton" | "Barlow Condensed";
+  headlineWeight: 400 | 700 | 800 | 900;
   headlineCase: "none" | "uppercase";
   headlineTracking: number;
+  /** Key words in the plain accent colour rather than the metallic sheen — the flat, punchy look of caption-box posts. */
+  flatEmphasis?: boolean;
 }
 
 interface Brand {
@@ -90,7 +92,22 @@ function legibleAccent(color: string, background: string): string {
   return candidate;
 }
 
-export function resolveTemplate(id: CarouselTemplate, brand: Brand): TemplateTokens {
+/**
+ * The template's tokens, with the carousel's own accent colour when it has one.
+ *
+ * A colour picked for one carousel only changes its accent — the key words,
+ * pills, numbers and buttons — never a template's background or text, and it
+ * is still nudged until it reads on that background. The Marque template is
+ * built from the brand colour itself, so it keeps it.
+ */
+export function resolveTemplate(id: CarouselTemplate, brand: Brand, accentOverride?: string | null): TemplateTokens {
+  const base = templateTokens(id, brand);
+  if (!accentOverride || !hexToRgb(accentOverride) || base.id === "brand" || !hexToRgb(base.background)) return base;
+  const accent = legibleAccent(accentOverride, base.background);
+  return { ...base, accent, onAccent: readableOn(accent), overlay: base.overlay ? base.overlay.split(base.accent).join(accent) : null };
+}
+
+function templateTokens(id: CarouselTemplate, brand: Brand): TemplateTokens {
   switch (id) {
     case "immersive": {
       // Built for AI visuals: every slide a full-bleed image under a warm near-black,
@@ -113,6 +130,31 @@ export function resolveTemplate(id: CarouselTemplate, brand: Brand): TemplateTok
         headlineWeight: 400,
         headlineCase: "uppercase",
         headlineTracking: 0.5,
+      };
+    }
+    case "boxed": {
+      // The caption-box post: a full-bleed image, the headline in a dark rounded
+      // box at the bottom, set in a heavy condensed face with its key words in
+      // flat accent — legible on any photo, bright or dark.
+      const background = "#0A0B0D";
+      const accent = legibleAccent(brand.accent, background);
+      return {
+        id,
+        name: "Encadré",
+        background,
+        overlay: null,
+        text: "#FFFFFF",
+        muted: "rgba(255,255,255,0.78)",
+        accent,
+        onAccent: readableOn(accent),
+        rule: "rgba(255,255,255,0.18)",
+        track: "rgba(255,255,255,0.28)",
+        surface: "rgba(255,255,255,0.08)",
+        headlineFont: "Barlow Condensed",
+        headlineWeight: 900,
+        headlineCase: "uppercase",
+        headlineTracking: 0.5,
+        flatEmphasis: true,
       };
     }
     case "bold": {
@@ -205,7 +247,7 @@ export function resolveTemplate(id: CarouselTemplate, brand: Brand): TemplateTok
 }
 
 /** Swatch colours for the template picker, so the choice is visible before it is made. */
-export function templateSwatch(id: CarouselTemplate, brand: Brand): { background: string; text: string; accent: string } {
-  const t = resolveTemplate(id, brand);
+export function templateSwatch(id: CarouselTemplate, brand: Brand, accent?: string | null): { background: string; text: string; accent: string } {
+  const t = resolveTemplate(id, brand, accent);
   return { background: t.background, text: t.text, accent: t.accent };
 }
