@@ -11,18 +11,21 @@ import type { KlingDuration } from "@/lib/plans";
  * request id at once; checkVideoStatus() is called again later (by the studio's
  * polling or the worker tick) to see whether it is done.
  *
- * Endpoint and field names are fal's documented image-to-video contract for
- * Kling 2.1 as of this writing — fal versions its Kling endpoints (v1, v2.1,
- * v2.6, v3…) independently of Kling's own releases, so this is worth
- * re-checking against https://fal.ai/models/fal-ai/kling-video if a real key
- * ever reports a shape mismatch.
+ * Kling 2.5 Turbo, standard (720p) and pro (1080p). It replaced 2.1: better
+ * prompt adherence and steadier motion, for less — on fal, 0.21$ / 0.35$ per
+ * 5s clip against 0.28$ / 0.49$. Its image-to-video input is image_url,
+ * prompt, duration ("5" | "10"), negative_prompt and cfg_scale; the clip
+ * takes the shape of the image, so no aspect ratio is sent. fal versions its
+ * Kling endpoints independently of Kling's own releases: re-check
+ * https://fal.ai/models/fal-ai/kling-video if a real key ever reports a shape
+ * mismatch (fal's error detail is passed through to the user).
  */
 
 export type VideoClipTier = "standard" | "pro";
 
 const ENDPOINT: Record<VideoClipTier, string> = {
-  standard: "fal-ai/kling-video/v2.1/standard/image-to-video",
-  pro: "fal-ai/kling-video/v2.1/pro/image-to-video",
+  standard: "fal-ai/kling-video/v2.5-turbo/standard/image-to-video",
+  pro: "fal-ai/kling-video/v2.5-turbo/pro/image-to-video",
 };
 
 const QUEUE_BASE = "https://queue.fal.run";
@@ -57,7 +60,7 @@ export async function submitImageToVideo(imageUrl: string, prompt: string, tier:
   const res = await fetch(`${QUEUE_BASE}/${ENDPOINT[tier]}`, {
     method: "POST",
     headers: authHeaders(),
-    body: JSON.stringify({ image_url: imageUrl, prompt: prompt.slice(0, 2500), duration, aspect_ratio: "9:16" }),
+    body: JSON.stringify({ image_url: imageUrl, prompt: prompt.slice(0, 2500), duration }),
   });
   if (!res.ok) throw new VideoClipError(`La demande d'animation a échoué (${await describeFailure(res)}).`, "UPSTREAM");
   const json = (await res.json()) as { request_id?: string };

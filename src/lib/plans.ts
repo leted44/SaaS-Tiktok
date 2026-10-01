@@ -183,11 +183,13 @@ export const CREDIT_COSTS = {
   // Gemini's Pro image model, ~0.12€/image. A credit is worth as little as
   // ~0.046€ on the Pro plan, so 4 credits keeps every plan above cost.
   AI_IMAGE: 4,
-  // Kling image-to-video via fal.ai. Kling only ever renders 5s or 10s — never
-  // a scene's actual length — so a short scene (~0.38€/0.51€ raw for 5s,
-  // standard/pro) and a long one (~0.77€/1.03€ raw for 10s) cost meaningfully
-  // different amounts to generate; folding them into one price would either
-  // overcharge every short scene or undercharge every long one.
+  // Kling 2.5 Turbo image-to-video via fal.ai. Kling only ever renders 5s or
+  // 10s — never a scene's actual length — so a short scene (0.21$/0.35$ raw
+  // for 5s, standard/pro, ~0.18€/0.30€) and a long one (0.42$/0.70$ for 10s,
+  // ~0.36€/0.60€) cost meaningfully different amounts to generate; folding
+  // them into one price would either overcharge every short scene or
+  // undercharge every long one. At ~0.046€ a credit at worst, every price
+  // below stays well above cost.
   VIDEO_CLIP_STANDARD: 20,
   VIDEO_CLIP_STANDARD_LONG: 35,
   VIDEO_CLIP_PRO: 30,
