@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { env } from "@/lib/env";
+import { env, integrations } from "@/lib/env";
 import { isAdmin } from "@/lib/plans";
 import { readObjectDetailed } from "@/lib/storage";
 import { fetchOwnImage, isOwnStorageUrl, ownedAssetKey } from "@/lib/ai/images";
@@ -66,6 +66,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ project
       endpointHost: env.s3.endpoint ? hostOf(env.s3.endpoint) : null,
       publicUrlHost: env.s3.publicUrl ? hostOf(env.s3.publicUrl) : null,
       appUrlHost: hostOf(env.appUrl),
+      r2Bucket: integrations.r2() ? env.r2.bucket : null,
+      r2PublicUrlHost: integrations.r2() ? hostOf(env.r2.publicUrl) : null,
     },
     slides,
   });

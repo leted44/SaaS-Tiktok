@@ -40,6 +40,19 @@ export const env = {
     secretAccessKey: read("S3_SECRET_ACCESS_KEY"),
     publicUrl: read("S3_PUBLIC_URL"),
   },
+  // Cloudflare R2. When all of it is set, every new file goes to R2 and the
+  // S3_* bucket above (Supabase) is only read from, for files stored before
+  // the move — R2 charges nothing for downloads, Supabase's free plan cuts
+  // the whole project off past 5 GB a month.
+  r2: {
+    accountId: read("R2_ACCOUNT_ID"),
+    bucket: read("R2_BUCKET"),
+    accessKeyId: read("R2_ACCESS_KEY_ID"),
+    secretAccessKey: read("R2_SECRET_ACCESS_KEY"),
+    publicUrl: read("R2_PUBLIC_URL"),
+    // Only for a bucket created in a jurisdiction (EU: https://<account>.eu.r2.cloudflarestorage.com).
+    endpoint: read("R2_ENDPOINT"),
+  },
 
   renderEngine: read("RENDER_ENGINE", "local") as "local" | "lambda",
   remotion: {
@@ -85,7 +98,8 @@ export const integrations = {
   aiImages: () => Boolean(env.geminiApiKey),
   videoClips: () => Boolean(env.falApiKey),
   stripe: () => Boolean(env.stripe.secretKey),
-  s3: () => env.storageDriver === "s3" && Boolean(env.s3.accessKeyId),
+  r2: () => Boolean(env.r2.accountId && env.r2.bucket && env.r2.accessKeyId && env.r2.secretAccessKey && env.r2.publicUrl),
+  s3: (): boolean => integrations.r2() || (env.storageDriver === "s3" && Boolean(env.s3.accessKeyId)),
   tiktok: () => Boolean(env.social.tiktok.clientKey),
   youtube: () => Boolean(env.social.youtube.clientId),
   instagram: () => Boolean(env.social.instagram.appId),

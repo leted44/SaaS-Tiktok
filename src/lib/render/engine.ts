@@ -4,7 +4,7 @@ import { promises as fs } from "fs";
 import type { RenderJob } from "@prisma/client";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
-import { putFile, storageKey } from "@/lib/storage";
+import { putFile, storageHosts, storageKey } from "@/lib/storage";
 import { updateRenderProgress } from "@/lib/render/queue";
 import { shortVideoPropsSchema, type ShortVideoProps } from "@/lib/render/props";
 
@@ -180,9 +180,9 @@ function readTimings(progress: LambdaProgress): RenderTimings {
  * without trouble, which is why only uploads were affected.
  */
 function hasOwnStorageVisual(props: ShortVideoProps): boolean {
-  const ownHost = safeHost(env.s3.publicUrl) ?? safeHost(env.s3.endpoint);
-  if (!ownHost) return false;
-  return props.visualLayers.some((l) => (l.type === "video" || l.type === "image") && safeHost(l.src) === ownHost);
+  const own = storageHosts();
+  if (own.length === 0) return false;
+  return props.visualLayers.some((l) => (l.type === "video" || l.type === "image") && own.includes(safeHost(l.src) ?? ""));
 }
 
 function safeHost(url: string | null | undefined): string | null {

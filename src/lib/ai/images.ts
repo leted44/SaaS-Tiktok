@@ -1,6 +1,5 @@
 import { nanoid } from "nanoid";
-import { env } from "@/lib/env";
-import { absoluteUrl, putObject, readObject, storageKey } from "@/lib/storage";
+import { absoluteUrl, putObject, readObject, storageHosts, storageKey } from "@/lib/storage";
 import type { GeneratedImage } from "@/lib/ai/image-generator";
 
 /**
@@ -37,8 +36,7 @@ export function isOwnStorageUrl(url: string): boolean {
   if (url.startsWith("/api/files/")) return true;
   const h = host(url);
   if (!h) return false;
-  const own = [env.s3.publicUrl, env.s3.endpoint, env.appUrl].map((u) => (u ? host(u) : null)).filter(Boolean);
-  return own.includes(h);
+  return storageHosts().includes(h);
 }
 
 /**

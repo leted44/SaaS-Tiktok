@@ -25,6 +25,8 @@ export async function GET() {
       endpoint: env.s3.endpoint || "aws",
       publicUrl: env.s3.publicUrl || null,
       directUpload: true,
+      // Set once R2 has taken over: new files go there, the bucket above is only read from.
+      r2: integrations.r2() ? { bucket: env.r2.bucket, publicUrl: env.r2.publicUrl } : null,
     },
     appUrl: env.appUrl,
     time: new Date().toISOString(),
