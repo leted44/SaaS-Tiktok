@@ -65,7 +65,7 @@ export async function generateProjectVisualsAiAction(
     const total = unit * targets.length;
     let creditsLeft = total > 0 ? await chargeCredits(user.id, total, "SCRIPT_GENERATION", `${targets.length} visuels vidéo générés par IA`) : user.credits;
 
-    const reference = await existingSceneReference(currentLayers, visualStyle);
+    const reference = await existingSceneReference(currentLayers, visualStyle, user.id);
     const outcomes = await generateSceneVisuals(user.id, targets, visualStyle, motif, videoAspect(project.aspectRatio), reference);
     const failures = outcomes.filter((o) => !o.layer);
     if (failures.length && unit > 0) {

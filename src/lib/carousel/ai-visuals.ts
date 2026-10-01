@@ -39,10 +39,10 @@ export function promptFor(slide: CarouselSlide, series: Series, sceneOverride?: 
 }
 
 /** The series' style reference: the cover's image, when it is an AI image in the same style. */
-export async function coverReference(slides: CarouselSlide[], style: VisualStyle): Promise<GeneratedImage | null> {
+export async function coverReference(slides: CarouselSlide[], style: VisualStyle, userId?: string): Promise<GeneratedImage | null> {
   const cover = slides.find((s) => s.kind === "cover");
   if (!cover?.image || cover.image.source !== aiSource(style)) return null;
-  return readOwnImage(cover.image.url);
+  return readOwnImage(cover.image.url, userId);
 }
 
 export interface VisualOutcome {
@@ -80,7 +80,7 @@ export async function generateSeries(userId: string, slides: CarouselSlide[], ta
     outcomes.push(first.outcome);
     reference = first.bytes ?? null;
   } else {
-    reference = await coverReference(slides, series.visualStyle);
+    reference = await coverReference(slides, series.visualStyle, userId);
   }
 
   const results = await Promise.all(rest.map((s) => one(userId, s, series, reference, 65_000)));

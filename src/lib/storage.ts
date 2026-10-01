@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { PutObjectCommand, S3Client, DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, S3Client, DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "@/lib/env";
 
@@ -95,6 +95,27 @@ export async function headObject(key: string): Promise<{ sizeBytes: number; cont
   try {
     const res = await s3().send(new HeadObjectCommand({ Bucket: env.s3.bucket, Key: key }));
     return { sizeBytes: res.ContentLength ?? 0, contentType: res.ContentType ?? null };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read an object straight from storage by its key — the bucket itself, or the
+ * local disk — without going through its public URL. The slide renderer and
+ * the AI style reference use this so an image never goes missing because its
+ * public address changed, is rate-limited or is slow to answer. Null when the
+ * object cannot be read.
+ */
+export async function readObject(key: string): Promise<Buffer | null> {
+  try {
+    if (env.storageDriver === "s3" && env.s3.accessKeyId) {
+      const res = await s3().send(new GetObjectCommand({ Bucket: env.s3.bucket, Key: key }));
+      if (!res.Body) return null;
+      return Buffer.from(await res.Body.transformToByteArray());
+    }
+    const target = localPathFor(key);
+    return target ? await fs.readFile(target) : null;
   } catch {
     return null;
   }

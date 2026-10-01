@@ -55,6 +55,9 @@ interface Props {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const withoutVersion = (s: CarouselSnapshot): CarouselState => ({ template: s.template, format: s.format, handle: s.handle, slides: s.slides, visualStyle: s.visualStyle, visualMotif: s.visualMotif, accent: s.accent });
+/** See slideUrl. 2: images read from storage instead of their public URL. */
+const RENDER_REVISION = 2;
+
 /** Accent colours offered per carousel — bright enough to pop on a photo. */
 const ACCENTS = [
   { hex: "#FFC21A", label: "Jaune" },
@@ -188,7 +191,9 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
     return () => clearTimeout(t);
   }, [state, dirty, persist]);
 
-  const slideUrl = (i: number, v: number, download = false) => `/api/carousels/${projectId}/slides/${i}?v=${v}${download ? "&download=1" : ""}`;
+  // `r` is the renderer's revision: bumped when a fix changes what a saved carousel renders to,
+  // so a slide the browser cached before it (immutable, keyed on the version) is drawn again.
+  const slideUrl = (i: number, v: number, download = false) => `/api/carousels/${projectId}/slides/${i}?v=${v}&r=${RENDER_REVISION}${download ? "&download=1" : ""}`;
 
   /** Take a carousel the server just wrote as the editor's state, as saved. */
   function apply(snapshot: CarouselSnapshot) {

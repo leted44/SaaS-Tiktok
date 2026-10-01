@@ -9,7 +9,7 @@ import { generateImage } from "@/lib/ai/image-generator";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
 import { carouselSlidesSchema, carouselStateFromRow, carouselStateSchema, stripEmoji, limitsFor, needsAiVisual, tooLongForImage, CAROUSEL_TEMPLATES, type CarouselLength, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
-import { copyStockImage, isOwnStorageUrl, storeGeneratedImage } from "@/lib/ai/images";
+import { copyStockImage, isOwnImage, storeGeneratedImage } from "@/lib/ai/images";
 import { withAutoPhotos } from "@/lib/carousel/auto-photos";
 import { aiSource, DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from "@/lib/carousel/art-direction";
 import { asImageModelChoice, coverReference, generateSeries, modelFor, promptFor } from "@/lib/carousel/ai-visuals";
@@ -102,8 +102,9 @@ export async function saveCarouselAction(projectId: string, input: unknown): Pro
     const state = carouselStateSchema.parse(input);
     const slides = carouselSlidesSchema.parse(
       state.slides.map((s) => {
-        // Only a copy in our own storage may be rendered — see lib/carousel/images.
-        const image = s.kind !== "cta" && s.image && isOwnStorageUrl(s.image.url) ? s.image : null;
+        // Only a copy in our own storage may be rendered — see lib/ai/images. Recognised by
+        // its path too, so a change of storage domain never wipes the images on autosave.
+        const image = s.kind !== "cta" && s.image && isOwnImage(s.image.url, user.id) ? s.image : null;
         const limit = limitsFor({ kind: s.kind, image }, state.template);
         return {
           ...s,
@@ -165,7 +166,7 @@ export async function generateSlideImageAction(
 
     const visualStyle = state.visualStyle ?? DEFAULT_VISUAL_STYLE;
     const series = { template: state.template, format: state.format, visualMotif: state.visualMotif, visualStyle };
-    const reference = slide.kind === "cover" ? null : await coverReference(state.slides, visualStyle);
+    const reference = slide.kind === "cover" ? null : await coverReference(state.slides, visualStyle, user.id);
 
     const cost = isAdmin(user.role) ? 0 : CREDIT_COSTS.AI_IMAGE;
     const creditsLeft = cost > 0 ? await chargeCredits(user.id, cost, "SCRIPT_GENERATION", "Image générée par IA") : user.credits;

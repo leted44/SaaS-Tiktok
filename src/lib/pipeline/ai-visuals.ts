@@ -35,10 +35,10 @@ export interface SceneVisualOutcome {
 }
 
 /** The series' style reference: scene 0's own visual, when it is already an AI image in this style. */
-export async function existingSceneReference(layers: VisualLayer[], style: VisualStyle): Promise<GeneratedImage | null> {
+export async function existingSceneReference(layers: VisualLayer[], style: VisualStyle, userId?: string): Promise<GeneratedImage | null> {
   const first = layers.find((l) => l.sceneIndex === 0);
   if (!first?.src || first.source !== aiSource(style)) return null;
-  return readOwnImage(first.src);
+  return readOwnImage(first.src, userId);
 }
 
 async function one(

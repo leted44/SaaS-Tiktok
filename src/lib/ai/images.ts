@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 import { env } from "@/lib/env";
-import { absoluteUrl, putObject, storageKey } from "@/lib/storage";
+import { absoluteUrl, putObject, readObject, storageKey } from "@/lib/storage";
 import type { GeneratedImage } from "@/lib/ai/image-generator";
 
 /**
@@ -39,6 +39,53 @@ export function isOwnStorageUrl(url: string): boolean {
   if (!h) return false;
   const own = [env.s3.publicUrl, env.s3.endpoint, env.appUrl].map((u) => (u ? host(u) : null)).filter(Boolean);
   return own.includes(h);
+}
+
+/**
+ * The storage key of an image this user stored, read from the path of its URL
+ * whatever host it was served from: `asset/<userId>/<file>`, which is how every
+ * AI image, stock copy and upload is filed (lib/storage storageKey).
+ *
+ * Matching on the host alone meant that a change of public storage domain
+ * turned every existing image into "not ours": the renderer dropped it — a
+ * black slide — and the next autosave wiped it from the carousel. A key found
+ * this way is only ever read from our own storage, never fetched from the URL,
+ * so recognising it whatever the host lets no outside address in.
+ */
+export function ownedAssetKey(url: string | null | undefined, userId: string): string | null {
+  if (!url) return null;
+  let pathname: string;
+  try {
+    pathname = decodeURIComponent(new URL(url, "http://local").pathname);
+  } catch {
+    return null;
+  }
+  const at = pathname.indexOf(`asset/${userId}/`);
+  if (at < 0) return null;
+  const key = pathname.slice(at);
+  return key.includes("..") ? null : key;
+}
+
+/** Whether this user may keep this image on a slide: our storage by host, or one of their own stored files by path. */
+export function isOwnImage(url: string, userId: string): boolean {
+  return isOwnStorageUrl(url) || ownedAssetKey(url, userId) !== null;
+}
+
+/**
+ * What the slide renderer draws: the image's bytes read straight from storage,
+ * as a data URI, so drawing it never depends on its public URL answering.
+ * Falls back to fetching the public URL for an image stored some other way.
+ */
+export async function slideImageSrc(url: string | null | undefined, userId: string): Promise<string | null> {
+  if (!url) return null;
+  const key = ownedAssetKey(url, userId);
+  if (key) {
+    const data = await readObject(key);
+    const type = data && data.length <= MAX_BYTES ? sniff(data) : null;
+    if (data && type) return `data:${type};base64,${data.toString("base64")}`;
+    console.error(`[slide-image] could not read stored image ${key} (${data ? `${data.length} bytes, unknown type` : "not found"})`);
+  }
+  return renderableImageUrl(url);
 }
 
 /** The absolute URL the renderer fetches, or null when the stored value is not ours. */
@@ -121,7 +168,14 @@ export async function storeGeneratedImage(userId: string, image: GeneratedImage,
  * model as the style reference for the rest of the series. Null when it is
  * not ours or cannot be read: generation then goes on without a reference.
  */
-export async function readOwnImage(url: string): Promise<GeneratedImage | null> {
+export async function readOwnImage(url: string, userId?: string): Promise<GeneratedImage | null> {
+  // Straight from storage when the key is known — no dependency on the public URL.
+  const key = userId ? ownedAssetKey(url, userId) : null;
+  if (key) {
+    const data = await readObject(key);
+    const type = data && data.length <= MAX_BYTES ? sniff(data) : null;
+    if (data && type) return { data, mimeType: type };
+  }
   if (!isOwnStorageUrl(url)) return null;
   try {
     const res = await fetch(absoluteUrl(url), { signal: AbortSignal.timeout(10_000) });
