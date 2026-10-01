@@ -732,6 +732,9 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                   <p className="text-[11px] leading-relaxed text-amber-100/80">
                     Visible par toi seul ; tes clients restent sur Pro. Choisis un modèle, puis « Tout régénérer » pour comparer sur le même carrousel. S'applique aussi au bouton de génération de chaque slide.
                   </p>
+                  <a href={`/api/admin/carousel-images/${projectId}`} target="_blank" rel="noreferrer" className="inline-flex text-[11px] font-semibold text-amber-200 underline">
+                    Diagnostiquer les images de ce carrousel
+                  </a>
                 </div>
               )}
 

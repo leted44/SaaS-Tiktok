@@ -108,16 +108,24 @@ export async function headObject(key: string): Promise<{ sizeBytes: number; cont
  * object cannot be read.
  */
 export async function readObject(key: string): Promise<Buffer | null> {
+  const res = await readObjectDetailed(key);
+  return "data" in res ? res.data : null;
+}
+
+/** readObject, with the reason when it fails — for the admin image diagnostic. */
+export async function readObjectDetailed(key: string): Promise<{ data: Buffer } | { error: string }> {
   try {
     if (env.storageDriver === "s3" && env.s3.accessKeyId) {
       const res = await s3().send(new GetObjectCommand({ Bucket: env.s3.bucket, Key: key }));
-      if (!res.Body) return null;
-      return Buffer.from(await res.Body.transformToByteArray());
+      if (!res.Body) return { error: "empty body" };
+      return { data: Buffer.from(await res.Body.transformToByteArray()) };
     }
     const target = localPathFor(key);
-    return target ? await fs.readFile(target) : null;
-  } catch {
-    return null;
+    if (!target) return { error: "invalid key" };
+    return { data: await fs.readFile(target) };
+  } catch (err) {
+    const e = err as { name?: string; message?: string; $metadata?: { httpStatusCode?: number } };
+    return { error: [e.name, e.$metadata?.httpStatusCode, e.message].filter(Boolean).join(" · ").slice(0, 300) || "unknown error" };
   }
 }
 

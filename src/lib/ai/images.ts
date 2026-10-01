@@ -83,9 +83,33 @@ export async function slideImageSrc(url: string | null | undefined, userId: stri
     const data = await readObject(key);
     const type = data && data.length <= MAX_BYTES ? sniff(data) : null;
     if (data && type) return `data:${type};base64,${data.toString("base64")}`;
-    console.error(`[slide-image] could not read stored image ${key} (${data ? `${data.length} bytes, unknown type` : "not found"})`);
+    console.error(`[slide-image] could not read stored image ${key} from storage (${data ? `${data.length} bytes, unknown type` : "read failed"})`);
   }
-  return renderableImageUrl(url);
+  // Second chance: its public URL, fetched here rather than by the renderer so a failure is
+  // logged, and with a browser user agent — CDNs in front of a bucket sometimes turn away
+  // server requests they would serve to a phone. Only ever our own storage host.
+  const fetched = await fetchOwnImage(url);
+  if ("data" in fetched) return `data:${fetched.type};base64,${fetched.data.toString("base64")}`;
+  console.error(`[slide-image] could not fetch ${url}: ${fetched.error}`);
+  return null;
+}
+
+/** The image at one of our storage URLs, fetched over HTTP — or why it could not be. */
+export async function fetchOwnImage(url: string): Promise<{ data: Buffer; type: "image/jpeg" | "image/png"; status: number } | { error: string; status?: number }> {
+  if (!isOwnStorageUrl(url)) return { error: "host is not this app's storage" };
+  try {
+    const res = await fetch(absoluteUrl(url), {
+      signal: AbortSignal.timeout(15_000),
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; VidiSprint slide renderer)", Accept: "image/*" },
+    });
+    if (!res.ok) return { error: `HTTP ${res.status} (${res.headers.get("content-type") ?? "no type"})`, status: res.status };
+    const data = Buffer.from(await res.arrayBuffer());
+    const type = data.length <= MAX_BYTES ? sniff(data) : null;
+    if (!type) return { error: `${data.length} bytes, not a JPEG/PNG (${res.headers.get("content-type") ?? "no type"})`, status: res.status };
+    return { data, type, status: res.status };
+  } catch (err) {
+    return { error: err instanceof Error ? `${err.name}: ${err.message}` : "fetch failed" };
+  }
 }
 
 /** The absolute URL the renderer fetches, or null when the stored value is not ours. */
