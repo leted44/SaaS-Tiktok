@@ -30,19 +30,18 @@ const DAY = 24 * 60 * 60 * 1000;
 /** Every storage key the database still uses — only the given user's, when one is given. */
 export async function referencedKeys(userId?: string): Promise<Set<string>> {
   if (userId !== undefined && !/^[A-Za-z0-9]+$/.test(userId)) throw new Error("invalid user id");
-  const keys = new Set<string>();
-  for (const c of await textColumns()) {
-    if (NOT_A_USE.has(`${c.table}.${c.column}`)) continue;
-    const col = `${ident(c.column)}::text`;
-    const pattern = userId ? `((?:audio|video|thumb|asset)/${userId}/[A-Za-z0-9._-]+)` : `(${KEY_PATTERN})`;
-    const rows = await prisma.$queryRawUnsafe<{ key: string }[]>(
-      `SELECT DISTINCT (regexp_matches(${col}, $1, 'g'))[1] AS key FROM ${ident(c.table)} WHERE strpos(${col}, $2) > 0`,
-      pattern,
-      userId ? `/${userId}/` : "/",
-    );
-    for (const r of rows) keys.add(r.key);
-  }
-  return keys;
+  const columns = (await textColumns()).filter((c) => !NOT_A_USE.has(`${c.table}.${c.column}`));
+  if (columns.length === 0) return new Set();
+  const pattern = userId ? `((?:audio|video|thumb|asset)/${userId}/[A-Za-z0-9._-]+)` : `(${KEY_PATTERN})`;
+  // One statement for the whole schema: a query per column meant over a hundred round trips to the database.
+  const sql = columns
+    .map((c) => {
+      const col = `${ident(c.column)}::text`;
+      return `SELECT (regexp_matches(${col}, $1, 'g'))[1] AS key FROM ${ident(c.table)} WHERE strpos(${col}, $2) > 0`;
+    })
+    .join(" UNION ");
+  const rows = await prisma.$queryRawUnsafe<{ key: string }[]>(sql, pattern, userId ? `/${userId}/` : "/");
+  return new Set(rows.map((r) => r.key));
 }
 
 /** The storage keys a value holds, belonging to one user. */

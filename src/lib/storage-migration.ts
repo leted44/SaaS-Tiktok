@@ -21,13 +21,14 @@ export interface Column {
 export const ident = (name: string) => `"${name.replace(/"/g, '""')}"`;
 
 export async function textColumns(): Promise<Column[]> {
+  // Cast to text: information_schema's own types (sql_identifier…) are not ones every driver decodes.
   const rows = await prisma.$queryRaw<{ table_name: string; column_name: string; data_type: string }[]>`
-    SELECT table_name, column_name, data_type
+    SELECT table_name::text AS table_name, column_name::text AS column_name, data_type::text AS data_type
     FROM information_schema.columns
     WHERE table_schema = current_schema()
       AND data_type IN ('text', 'character varying', 'json', 'jsonb')
       AND table_name <> '_prisma_migrations'`;
-  return rows.map((r) => ({ table: r.table_name, column: r.column_name, json: r.data_type === "json" || r.data_type === "jsonb" ? r.data_type : null }));
+  return rows.map((r) => ({ table: r.table_name, column: r.column_name, json: r.data_type === "json" || r.data_type === "jsonb" ? (r.data_type as "json" | "jsonb") : null }));
 }
 
 function prefixes(): { from: string; to: string }[] {
@@ -36,32 +37,48 @@ function prefixes(): { from: string; to: string }[] {
   return info.legacyBases.map((base) => ({ from: `${base}/`, to: `${info.toBase}/` }));
 }
 
+/*
+ * Each of these is one SQL statement, however many columns the schema has:
+ * the database sits behind a pooler, often in another region, and a query
+ * per column — over a hundred round trips — ran past a function's time limit.
+ */
+
 /** How many rows, per column, still link to a file of the old bucket. */
 export async function countLegacyUrls(): Promise<{ total: number; columns: { name: string; rows: number }[] }> {
   const pairs = prefixes();
-  if (pairs.length === 0) return { total: 0, columns: [] };
-  const columns: { name: string; rows: number }[] = [];
-  for (const c of await textColumns()) {
-    const where = pairs.map((_, i) => `strpos(${ident(c.column)}::text, $${i + 1}) > 0`).join(" OR ");
-    const [row] = await prisma.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) AS n FROM ${ident(c.table)} WHERE ${where}`, ...pairs.map((p) => p.from));
-    const rows = Number(row?.n ?? 0);
-    if (rows > 0) columns.push({ name: `${c.table}.${c.column}`, rows });
-  }
-  return { total: columns.reduce((sum, c) => sum + c.rows, 0), columns };
+  const columns = pairs.length === 0 ? [] : await textColumns();
+  if (columns.length === 0) return { total: 0, columns: [] };
+  const params = pairs.map((p) => p.from);
+  const sql = columns
+    .map((c, i) => {
+      const where = pairs.map((_, k) => `strpos(${ident(c.column)}::text, $${k + 1}) > 0`).join(" OR ");
+      return `SELECT ${i} AS i, count(*)::int AS n FROM ${ident(c.table)} WHERE ${where}`;
+    })
+    .join(" UNION ALL ");
+  const rows = await prisma.$queryRawUnsafe<{ i: number; n: number }[]>(sql, ...params);
+  const found = rows.filter((r) => r.n > 0).map((r) => ({ name: `${columns[r.i].table}.${columns[r.i].column}`, rows: r.n }));
+  return { total: found.reduce((sum, c) => sum + c.rows, 0), columns: found };
 }
 
-/** Rewrite every link to the old bucket into the same file's R2 URL, in one transaction. */
+/**
+ * Rewrite every link to the old bucket into the same file's R2 URL — one
+ * UPDATE per table, all in a single statement, so it applies entirely or not
+ * at all.
+ */
 export async function rewriteLegacyUrls(): Promise<number> {
   const pairs = prefixes();
-  if (pairs.length === 0) return 0;
-  const columns = await textColumns();
-  const statements = columns.flatMap((c) =>
-    pairs.map((p) => {
-      const col = ident(c.column);
-      const value = c.json ? `replace(${col}::text, $1, $2)::${c.json}` : `replace(${col}, $1, $2)`;
-      return prisma.$executeRawUnsafe(`UPDATE ${ident(c.table)} SET ${col} = ${value} WHERE strpos(${col}::text, $1) > 0`, p.from, p.to);
-    }),
-  );
-  const counts = await prisma.$transaction(statements);
-  return counts.reduce((sum, n) => sum + n, 0);
+  const columns = pairs.length === 0 ? [] : await textColumns();
+  if (columns.length === 0) return 0;
+  // $1 is the new prefix, $2… the old ones.
+  const replaced = (expr: string) => pairs.reduce((acc, _, k) => `replace(${acc}, $${k + 2}, $1)`, expr);
+  const byTable = new Map<string, Column[]>();
+  for (const c of columns) byTable.set(c.table, [...(byTable.get(c.table) ?? []), c]);
+  const updates = [...byTable].map(([table, cols], i) => {
+    const set = cols.map((c) => `${ident(c.column)} = ${c.json ? `${replaced(`${ident(c.column)}::text`)}::${c.json}` : replaced(ident(c.column))}`).join(", ");
+    const where = cols.flatMap((c) => pairs.map((_, k) => `strpos(${ident(c.column)}::text, $${k + 2}) > 0`)).join(" OR ");
+    return { name: `u${i}`, sql: `UPDATE ${ident(table)} SET ${set} WHERE ${where} RETURNING 1` };
+  });
+  const sql = `WITH ${updates.map((u) => `${u.name} AS (${u.sql})`).join(", ")} SELECT (${updates.map((u) => `(SELECT count(*) FROM ${u.name})`).join(" + ")})::int AS n`;
+  const [row] = await prisma.$queryRawUnsafe<{ n: number }[]>(sql, pairs[0].to, ...pairs.map((p) => p.from));
+  return row?.n ?? 0;
 }

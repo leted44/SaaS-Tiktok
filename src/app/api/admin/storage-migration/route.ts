@@ -27,7 +27,11 @@ export async function GET() {
   if (!(await admin())) return NextResponse.json({ error: "Réservé à l'administrateur" }, { status: 403 });
   const info = storageMigrationInfo();
   if (!info) return NextResponse.json({ configured: false });
-  return NextResponse.json({ configured: true, from: info.from, to: info.to, links: await countLegacyUrls() });
+  try {
+    return NextResponse.json({ configured: true, from: info.from, to: info.to, links: await countLegacyUrls() });
+  } catch (err) {
+    return failure(err);
+  }
 }
 
 /**
@@ -46,7 +50,11 @@ export async function POST(req: Request) {
     const rows = await rewriteLegacyUrls();
     return NextResponse.json({ rows, links: await countLegacyUrls() });
   } catch (err) {
-    const e = err as { name?: string; message?: string; $metadata?: { httpStatusCode?: number } };
-    return NextResponse.json({ error: [e.name, e.$metadata?.httpStatusCode, e.message].filter(Boolean).join(" · ").slice(0, 300) }, { status: 502 });
+    return failure(err);
   }
+}
+
+function failure(err: unknown) {
+  const e = err as { name?: string; message?: string; $metadata?: { httpStatusCode?: number } };
+  return NextResponse.json({ error: [e.name, e.$metadata?.httpStatusCode, e.message].filter(Boolean).join(" · ").slice(0, 300) }, { status: 502 });
 }

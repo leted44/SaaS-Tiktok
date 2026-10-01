@@ -16,7 +16,8 @@ async function admin() {
 }
 
 function failure(err: unknown) {
-  const message = err instanceof Error ? err.message : String(err);
+  const e = err as { name?: string; message?: string; $metadata?: { httpStatusCode?: number } };
+  const message = [e.name, e.$metadata?.httpStatusCode, e.message].filter(Boolean).join(" · ") || String(err);
   return NextResponse.json({ error: message.slice(0, 300) }, { status: 502 });
 }
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { readJson } from "@/components/admin/read-json";
 import type { CleanupReport } from "@/lib/storage-cleanup";
 
 const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} Mo`;
@@ -22,14 +23,14 @@ export function StorageCleanup() {
   async function analyse() {
     setError(null);
     const res = await fetch("/api/admin/storage-cleanup", { cache: "no-store" });
-    const data = await res.json();
+    const data = await readJson(res);
     if (!res.ok) return setError(data.error ?? `HTTP ${res.status}`);
     setReport(data.report);
     setLastRun(data.lastRun);
   }
 
   useEffect(() => {
-    analyse().catch(() => setError("Impossible d'analyser le stockage."));
+    analyse().catch((err) => setError(`Impossible d'analyser le stockage : ${err instanceof Error ? err.message : "erreur réseau"}`));
   }, []);
 
   async function run() {
@@ -38,7 +39,7 @@ export function StorageCleanup() {
     setRunning(true);
     try {
       const res = await fetch("/api/admin/storage-cleanup", { method: "POST" });
-      const data = await res.json();
+      const data = await readJson(res);
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       const r = data.report as CleanupReport;
       toast.success(`${r.deletedFiles} fichier(s) supprimé(s) (${mb(r.deletedBytes)})${r.complete ? "" : " — pas terminé, relance"}.`);

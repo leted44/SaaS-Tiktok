@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, Copy, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { readJson } from "@/components/admin/read-json";
 
 type Links = { total: number; columns: { name: string; rows: number }[] };
 type Status = { configured: false } | { configured: true; from: string; to: string; links: Links };
@@ -25,13 +26,13 @@ export function StorageMigration() {
 
   async function refresh() {
     const res = await fetch("/api/admin/storage-migration", { cache: "no-store" });
-    const data = await res.json();
+    const data = await readJson(res);
     if (!res.ok) return setError(data.error ?? `HTTP ${res.status}`);
     setStatus(data);
   }
 
   useEffect(() => {
-    refresh().catch(() => setError("Impossible de lire l'état du stockage."));
+    refresh().catch((err) => setError(`Impossible de lire l'état du stockage : ${err instanceof Error ? err.message : "erreur réseau"}`));
   }, []);
 
   async function copy() {
@@ -42,7 +43,7 @@ export function StorageMigration() {
     try {
       for (;;) {
         const res = await fetch("/api/admin/storage-migration", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "copy", after }) });
-        const batch = await res.json();
+        const batch = await readJson(res);
         if (!res.ok) throw new Error(batch.error ?? `HTTP ${res.status}`);
         const b = batch as Batch;
         total.copied += b.copied;
@@ -67,7 +68,7 @@ export function StorageMigration() {
     setRewriting(true);
     try {
       const res = await fetch("/api/admin/storage-migration", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "rewrite" }) });
-      const data = await res.json();
+      const data = await readJson(res);
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       toast.success(`${data.rows} ligne(s) mises à jour.`);
       await refresh();
