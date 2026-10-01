@@ -72,6 +72,35 @@ export function isOwnImage(url: string, userId: string): boolean {
 }
 
 /**
+ * Stored images kept in memory by the warm server instance, so drawing the
+ * slides of one carousel again and again — every preview, every download —
+ * reads each photo from storage once instead of every time. A stored file
+ * never changes (every key is new), so there is nothing to invalidate.
+ */
+const IMAGE_CACHE_BYTES = 96 * 1024 * 1024;
+const imageCache = new Map<string, Buffer>();
+let imageCacheSize = 0;
+
+async function readObjectCached(key: string): Promise<Buffer | null> {
+  const hit = imageCache.get(key);
+  if (hit) {
+    imageCache.delete(key); // most recently used goes last
+    imageCache.set(key, hit);
+    return hit;
+  }
+  const data = await readObject(key);
+  if (!data || data.length > IMAGE_CACHE_BYTES / 4) return data;
+  imageCache.set(key, data);
+  imageCacheSize += data.length;
+  for (const [k, v] of imageCache) {
+    if (imageCacheSize <= IMAGE_CACHE_BYTES) break;
+    imageCache.delete(k);
+    imageCacheSize -= v.length;
+  }
+  return data;
+}
+
+/**
  * What the slide renderer draws: the image's bytes read straight from storage,
  * as a data URI, so drawing it never depends on its public URL answering.
  * Falls back to fetching the public URL for an image stored some other way.
@@ -80,7 +109,7 @@ export async function slideImageSrc(url: string | null | undefined, userId: stri
   if (!url) return null;
   const key = ownedAssetKey(url, userId);
   if (key) {
-    const data = await readObject(key);
+    const data = await readObjectCached(key);
     const type = data && data.length <= MAX_BYTES ? sniff(data) : null;
     if (data && type) return `data:${type};base64,${data.toString("base64")}`;
     console.error(`[slide-image] could not read stored image ${key} from storage (${data ? `${data.length} bytes, unknown type` : "read failed"})`);

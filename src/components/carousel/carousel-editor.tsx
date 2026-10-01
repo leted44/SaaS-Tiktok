@@ -55,8 +55,34 @@ interface Props {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const withoutVersion = (s: CarouselSnapshot): CarouselState => ({ template: s.template, format: s.format, handle: s.handle, slides: s.slides, visualStyle: s.visualStyle, visualMotif: s.visualMotif, accent: s.accent });
-/** See slideUrl. 2: images read from storage instead of their public URL. */
-const RENDER_REVISION = 2;
+/** See slideUrl. 2: images read from storage instead of their public URL. 3: per-slide keys. */
+const RENDER_REVISION = 3;
+
+/**
+ * A short fingerprint of everything one slide's image is drawn from, in a
+ * saved carousel state (JSON): its own content, the design settings, its
+ * position and the slide count, and the cover photo the closing slide echoes.
+ */
+function slideRenderKey(savedJson: string, index: number): string {
+  let saved: CarouselState;
+  try {
+    saved = JSON.parse(savedJson) as CarouselState;
+  } catch {
+    return "0";
+  }
+  const slide = saved.slides?.[index];
+  if (!slide) return "0";
+  const cover = slide.kind === "cta" ? saved.slides.find((x) => x.kind === "cover")?.image?.url ?? null : null;
+  const step = saved.slides.slice(0, index + 1).filter((x) => x.kind === "content").length;
+  const input = JSON.stringify([slide, saved.template, saved.format, saved.handle, saved.accent, saved.slides.length, step, cover]);
+  // FNV-1a, 32 bits: a cache key, not a security measure.
+  let h = 0x811c9dc5;
+  for (let k = 0; k < input.length; k++) {
+    h ^= input.charCodeAt(k);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
 
 /** Accent colours offered per carousel — bright enough to pop on a photo. */
 const ACCENTS = [
@@ -103,7 +129,8 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   }
   const router = useRouter();
   const [state, setState] = useState<CarouselState | null>(initial ? withoutVersion(initial) : null);
-  const [version, setVersion] = useState(initial?.version ?? 0);
+  // Not read: setting it re-renders after a save, so the slide URLs pick up the new saved state.
+  const [, setVersion] = useState(initial?.version ?? 0);
   const [credits, setCredits] = useState(initialCredits);
   const [generating, setGenerating] = useState(false);
   /** Whether the initial text generation is in flight — the only automatic step; visuals are a deliberate follow-up once the script has been read. */
@@ -191,9 +218,18 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
     return () => clearTimeout(t);
   }, [state, dirty, persist]);
 
-  // `r` is the renderer's revision: bumped when a fix changes what a saved carousel renders to,
-  // so a slide the browser cached before it (immutable, keyed on the version) is drawn again.
-  const slideUrl = (i: number, v: number, download = false) => `/api/carousels/${projectId}/slides/${i}?v=${v}&r=${RENDER_REVISION}${download ? "&download=1" : ""}`;
+  /**
+   * A slide's preview URL is keyed on what that slide renders from, in the
+   * last saved state — not on the carousel's version. Keyed on the version,
+   * every autosave made the browser fetch every slide again, and the server
+   * download every photo again from storage to draw them: a few minutes of
+   * typing cost hundreds of megabytes of storage traffic. Now only the slides
+   * whose own content changed are drawn again.
+   *
+   * `r` is the renderer's revision: bumped when a fix changes what a saved
+   * carousel renders to, so a slide the browser cached before it is redrawn.
+   */
+  const slideUrl = (i: number, download = false) => `/api/carousels/${projectId}/slides/${i}?v=${slideRenderKey(lastSaved.current, i)}&r=${RENDER_REVISION}${download ? "&download=1" : ""}`;
 
   /** Take a carousel the server just wrote as the editor's state, as saved. */
   function apply(snapshot: CarouselSnapshot) {
@@ -328,16 +364,12 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
    */
   async function collectFiles(as: "photos" | "png" = "photos"): Promise<File[] | null> {
     if (!state) return null;
-    let v = version;
-    if (dirty) {
-      const saved = await persist(state);
-      if (saved === null) return null;
-      v = saved;
-    }
+    // Saving first updates the saved state the slide URLs are keyed on.
+    if (dirty && (await persist(state)) === null) return null;
     const takenAt = Date.now();
     return Promise.all(
       state.slides.map(async (_, i) => {
-        const res = await fetch(slideUrl(i, v));
+        const res = await fetch(slideUrl(i));
         if (!res.ok) throw new Error(`La slide ${i + 1} n'a pas pu être générée.`);
         const png = await res.blob();
         if (as === "png") return new File([png], slideFileName(projectTitle, state.format, i), { type: "image/png" });
@@ -562,14 +594,14 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
           {state.slides.map((s, i) => (
             <button
               type="button"
-              key={`${version}-${s.id}`}
+              key={`${slideRenderKey(lastSaved.current, i)}-${s.id}`}
               onClick={() => editSlide(s.id)}
               aria-label={`Modifier le texte de la slide ${i + 1}`}
               className="relative shrink-0 snap-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]"
               style={{ width: "min(76vw, 300px)", aspectRatio: `${width} / ${height}` }}
             >
               <div className="absolute inset-0 animate-pulse bg-white/[0.03]" />
-              <img src={slideUrl(i, version)} alt={`Slide ${i + 1}`} className="absolute inset-0 h-full w-full" loading={i < 3 ? "eager" : "lazy"} />
+              <img src={slideUrl(i)} alt={`Slide ${i + 1}`} className="absolute inset-0 h-full w-full" loading={i < 3 ? "eager" : "lazy"} />
               <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur">
                 <Pencil className="h-3 w-3" /> Modifier
               </span>
