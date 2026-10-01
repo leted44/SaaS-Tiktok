@@ -16,6 +16,7 @@ import { Section } from "@/components/ui/section";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
 import { ScriptCard, type CarouselScript } from "@/components/carousel/script-card";
 import { ScriptStart } from "@/components/carousel/script-start";
+import type { ImageModelChoice } from "@/lib/carousel/ai-visuals";
 import { generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
 import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, SLIDE_LIMITS, fullBleedTemplate, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
@@ -46,6 +47,8 @@ interface Props {
   stockConfigured: boolean;
   aiImagesConfigured: boolean;
   posted: { platforms: string[] } | null;
+  /** The admin account sees the image model test. */
+  admin: boolean;
   /** What the script of a project without one is written from. */
   scriptStart: { topic: string; niche: string | null; language: string; cost: number };
 }
@@ -60,6 +63,13 @@ const ACCENTS = [
   { hex: "#22D46B", label: "Vert" },
   { hex: "#FF4FA3", label: "Rose" },
   { hex: "#FFFFFF", label: "Blanc" },
+];
+
+/** Image model test, admin only. Prices per image at 1K, Google's own API. */
+const IMAGE_MODEL_CHOICES: { id: ImageModelChoice; label: string; price: string }[] = [
+  { id: "pro", label: "Pro", price: "0,134 $ / image" },
+  { id: "flash", label: "Nano Banana 2", price: "0,067 $ / image" },
+  { id: "mix", label: "Mélange", price: "Pro couverture, NB2 le reste" },
 ];
 
 /** The cover choice that leaves the headline to the carousel AI. */
@@ -77,7 +87,7 @@ function lengthOf(slides: CarouselState["slides"]): CarouselLength {
   return slides.filter((s) => s.kind === "content").length <= CONTENT_SLIDES.short ? "short" : "full";
 }
 
-export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured, posted, scriptStart }: Props) {
+export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured, posted, admin, scriptStart }: Props) {
   const [marking, setMarking] = useState(false);
   const [unmarking, setUnmarking] = useState(false);
   async function unmarkPosted() {
@@ -116,6 +126,25 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<null | "share" | "download" | "zip">(null);
   const [textsOpen, setTextsOpen] = useState(false);
+  /** Image model test, admin only — remembered on this device so a comparison survives a reload. Everyone else always gets Pro. */
+  const [imageModel, setImageModelState] = useState<ImageModelChoice>("pro");
+  useEffect(() => {
+    if (!admin) return;
+    try {
+      const saved = localStorage.getItem("vs-image-model");
+      if (saved === "flash" || saved === "mix") setImageModelState(saved);
+    } catch {
+      // Storage unavailable: the test simply starts on Pro.
+    }
+  }, [admin]);
+  function setImageModel(choice: ImageModelChoice) {
+    setImageModelState(choice);
+    try {
+      localStorage.setItem("vs-image-model", choice);
+    } catch {
+      // Not remembered, still applied for this session.
+    }
+  }
   /** Tapping a slide in the preview opens its text, where it can be changed. */
   function editSlide(id: string) {
     setTextsOpen(true);
@@ -175,7 +204,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
    * both together.
    */
   async function requestVisuals(mode: "missing" | "all"): Promise<boolean> {
-    const res = await generateCarouselVisualsAction(projectId, mode);
+    const res = await generateCarouselVisualsAction(projectId, mode, admin ? imageModel : undefined);
     if (!res.ok) {
       toast.error(res.error);
       return false;
@@ -677,6 +706,30 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                 </p>
               </div>
 
+              {admin && (
+                <div className="space-y-2 rounded-lg border border-amber-300/30 bg-amber-300/[0.06] p-3">
+                  <p className="text-xs font-semibold text-amber-200">Test admin · modèle d'image</p>
+                  <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Modèle d'image">
+                    {IMAGE_MODEL_CHOICES.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={imageModel === m.id}
+                        onClick={() => setImageModel(m.id)}
+                        className={cn("rounded-lg border p-2 text-left transition", imageModel === m.id ? "border-amber-300/70 bg-amber-300/10" : "border-white/10 hover:border-white/20")}
+                      >
+                        <p className="text-xs font-semibold">{m.label}</p>
+                        <p className="mt-0.5 text-[10px] text-muted-foreground">{m.price}</p>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-amber-100/80">
+                    Visible par toi seul ; tes clients restent sur Pro. Choisis un modèle, puis « Tout régénérer » pour comparer sur le même carrousel. S'applique aussi au bouton de génération de chaque slide.
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label>Direction artistique <span className="font-normal normal-case text-muted-foreground">· le style des images IA</span></Label>
                 <StylePicker value={style} onChange={(v) => set({ visualStyle: v })} />
@@ -750,6 +803,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
               return (
                 <SlideEditor
                   key={s.id}
+                  imageModel={admin ? imageModel : undefined}
                   anchorId={`slide-text-${s.id}`}
                   projectId={projectId}
                   slide={s}
@@ -836,7 +890,8 @@ function Counter({ value, max }: { value: string; max: number }) {
 }
 
 /** One slide. Limits come from what the layout can hold — tight for a band photo, the full room for a full-bleed one — so a slide within them never overflows. */
-function SlideEditor({ anchorId, projectId, slide, template, label, canDelete, canMoveUp, canMoveDown, aiImageCost, aiImagesConfigured, credits, ensureSaved, onGenerated, onChange, onRemove, onMove }: {
+function SlideEditor({ imageModel, anchorId, projectId, slide, template, label, canDelete, canMoveUp, canMoveDown, aiImageCost, aiImagesConfigured, credits, ensureSaved, onGenerated, onChange, onRemove, onMove }: {
+  imageModel?: ImageModelChoice;
   anchorId: string;
   projectId: string;
   slide: CarouselSlide;
@@ -898,6 +953,7 @@ function SlideEditor({ anchorId, projectId, slide, template, label, canDelete, c
         )}
         {slide.kind !== "cta" && (
           <ImageControl
+            imageModel={imageModel}
             projectId={projectId}
             slide={slide}
             aiImageCost={aiImageCost}
@@ -954,7 +1010,8 @@ async function toJpeg(file: File): Promise<File> {
 }
 
 /** Image of one slide: an AI visual in the carousel's art direction, a stock photo, or the user's own. */
-function ImageControl({ projectId, slide, aiImageCost, aiImagesConfigured, credits, blockedReason, ensureSaved, onGenerated, onPromptChange, onChange }: {
+function ImageControl({ imageModel, projectId, slide, aiImageCost, aiImagesConfigured, credits, blockedReason, ensureSaved, onGenerated, onPromptChange, onChange }: {
+  imageModel?: ImageModelChoice;
   projectId: string;
   slide: CarouselSlide;
   aiImageCost: number;
@@ -982,7 +1039,7 @@ function ImageControl({ projectId, slide, aiImageCost, aiImagesConfigured, credi
     try {
       // The server reads the slide and the carousel's style from the database.
       if (!(await ensureSaved())) return;
-      const res = await generateSlideImageAction(projectId, slide.id, slide.imagePrompt);
+      const res = await generateSlideImageAction(projectId, slide.id, slide.imagePrompt, imageModel);
       if (!res.ok) return toast.error(res.error);
       onChange({ url: res.data.url, source: res.data.source });
       onGenerated(res.data.visualStyle, res.data.creditsLeft);

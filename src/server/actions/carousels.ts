@@ -12,7 +12,7 @@ import { carouselSlidesSchema, carouselStateFromRow, carouselStateSchema, stripE
 import { copyStockImage, isOwnStorageUrl, storeGeneratedImage } from "@/lib/ai/images";
 import { withAutoPhotos } from "@/lib/carousel/auto-photos";
 import { aiSource, DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from "@/lib/carousel/art-direction";
-import { coverReference, generateSeries, promptFor } from "@/lib/carousel/ai-visuals";
+import { asImageModelChoice, coverReference, generateSeries, modelFor, promptFor } from "@/lib/carousel/ai-visuals";
 import { integrations } from "@/lib/env";
 import { guard, type ActionResult } from "@/server/action-result";
 
@@ -152,6 +152,7 @@ export async function generateSlideImageAction(
   projectId: string,
   slideId: string,
   scene?: string,
+  imageModel?: string,
 ): Promise<ActionResult<{ url: string; source: string; visualStyle: VisualStyle; creditsLeft: number }>> {
   return guard(async () => {
     const user = await requireDbUser();
@@ -169,7 +170,9 @@ export async function generateSlideImageAction(
     const cost = isAdmin(user.role) ? 0 : CREDIT_COSTS.AI_IMAGE;
     const creditsLeft = cost > 0 ? await chargeCredits(user.id, cost, "SCRIPT_GENERATION", "Image générée par IA") : user.credits;
     try {
-      const bytes = await generateImage({ ...promptFor(slide, series, scene), reference });
+      // The image model test is the admin's alone; everyone else always gets Pro.
+      const model = modelFor(slide.kind, isAdmin(user.role) ? asImageModelChoice(imageModel) : "pro");
+      const bytes = await generateImage({ ...promptFor(slide, series, scene), reference, model });
       const url = await storeGeneratedImage(user.id, bytes);
       return { url, source: aiSource(visualStyle), visualStyle, creditsLeft };
     } catch (err) {
@@ -191,6 +194,7 @@ export async function generateSlideImageAction(
 export async function generateCarouselVisualsAction(
   projectId: string,
   mode: "missing" | "all" = "missing",
+  imageModel?: string,
 ): Promise<ActionResult<{ carousel: CarouselSnapshot; generated: number; failed: number; tooLong: number; creditsLeft: number }>> {
   return guard(async () => {
     const user = await requireDbUser();
@@ -211,7 +215,8 @@ export async function generateCarouselVisualsAction(
     const total = unit * targets.length;
     let creditsLeft = total > 0 ? await chargeCredits(user.id, total, "SCRIPT_GENERATION", `${targets.length} images générées par IA`) : user.credits;
 
-    const outcomes = await generateSeries(user.id, state.slides, targets, { template: state.template, format: state.format, visualMotif: state.visualMotif, visualStyle });
+    const imageModelChoice = isAdmin(user.role) ? asImageModelChoice(imageModel) : "pro";
+    const outcomes = await generateSeries(user.id, state.slides, targets, { template: state.template, format: state.format, visualMotif: state.visualMotif, visualStyle, imageModel: imageModelChoice });
     const failures = outcomes.filter((o) => !o.image);
     if (failures.length && unit > 0) {
       creditsLeft = await refundCredits(user.id, unit * failures.length, `Remboursement — ${failures.length} image${failures.length > 1 ? "s" : ""} non générée${failures.length > 1 ? "s" : ""}`);

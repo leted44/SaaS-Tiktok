@@ -9,11 +9,19 @@ import { env } from "@/lib/env";
  * matches its light and colour instead of inventing a new look each time.
  */
 
-// Nano Banana Pro. gemini-2.5-flash-image is being shut down, and the
-// 3.1 Flash image model is reported to ignore the requested aspect ratio —
-// which every framing rule here depends on (subject up top, text below).
-const MODEL = "gemini-3-pro-image-preview";
-const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+/**
+ * Nano Banana Pro is the default. Nano Banana 2 (3.1 Flash Image) costs half
+ * (0.067$ against 0.134$ an image at 1K) and is under test from the admin
+ * account only: it is reported to sometimes ignore the requested aspect ratio
+ * — which every framing rule here depends on (subject up top, text below) —
+ * and to be slower, so it stays opt-in until real carousels show otherwise.
+ */
+export type ImageModel = "pro" | "flash";
+const MODELS: Record<ImageModel, string> = {
+  pro: "gemini-3-pro-image-preview",
+  flash: "gemini-3.1-flash-image-preview",
+};
+const endpoint = (model: ImageModel) => `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[model]}:generateContent`;
 
 export type ImageAspect = "1:1" | "4:5" | "9:16" | "16:9" | "5:4" | "21:9";
 
@@ -37,6 +45,8 @@ interface Options {
   reference?: GeneratedImage | null;
   /** Hard cap for one attempt. Batches pass a shorter one so a whole carousel fits in one request. */
   timeoutMs?: number;
+  /** Which Gemini image model draws it — Pro unless a test says otherwise. */
+  model?: ImageModel;
 }
 
 type GeminiResponse = {
@@ -44,7 +54,7 @@ type GeminiResponse = {
   promptFeedback?: { blockReason?: string };
 };
 
-async function attempt({ prompt, aspectRatio, reference, timeoutMs = 60_000 }: Options): Promise<GeneratedImage> {
+async function attempt({ prompt, aspectRatio, reference, timeoutMs = 60_000, model = "pro" }: Options): Promise<GeneratedImage> {
   const parts = reference
     ? [{ inlineData: { mimeType: reference.mimeType, data: reference.data.toString("base64") } }, { text: `${REFERENCE_NOTE}\n\n${prompt}` }]
     : [{ text: prompt }];
@@ -53,7 +63,7 @@ async function attempt({ prompt, aspectRatio, reference, timeoutMs = 60_000 }: O
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;
   try {
-    res = await fetch(ENDPOINT, {
+    res = await fetch(endpoint(model), {
       method: "POST",
       signal: controller.signal,
       headers: { "Content-Type": "application/json", "x-goog-api-key": env.geminiApiKey },

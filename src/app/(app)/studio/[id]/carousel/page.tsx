@@ -58,6 +58,7 @@ export default async function CarouselPage({ params }: { params: Promise<{ id: s
       stockConfigured={integrations.stock()}
       aiImagesConfigured={integrations.aiImages()}
       posted={project.postedAt ? { platforms: project.postedPlatforms } : null}
+      admin={admin}
       scriptStart={{ topic: project.topic ?? project.title, niche: project.niche, language: project.language, cost: admin ? 0 : CREDIT_COSTS.SCRIPT_GENERATION }}
     />
   );

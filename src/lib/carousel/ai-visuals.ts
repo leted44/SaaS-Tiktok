@@ -1,4 +1,4 @@
-import { generateImage, AiImageError, type GeneratedImage } from "@/lib/ai/image-generator";
+import { generateImage, AiImageError, type GeneratedImage, type ImageModel } from "@/lib/ai/image-generator";
 import { aiSource, composeImagePrompt, type VisualStyle } from "@/lib/carousel/art-direction";
 import { readOwnImage, storeGeneratedImage } from "@/lib/ai/images";
 import { imageAspect, imageLayout, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
@@ -12,7 +12,18 @@ import { imageAspect, imageLayout, type CarouselSlide, type CarouselState } from
  * prompt, and the carousel reads as a collection of unrelated pictures.
  */
 
-type Series = Pick<CarouselState, "template" | "format" | "visualMotif"> & { visualStyle: VisualStyle };
+type Series = Pick<CarouselState, "template" | "format" | "visualMotif"> & { visualStyle: VisualStyle; imageModel?: ImageModelChoice };
+
+/** Image model test (admin only): Pro everywhere, Nano Banana 2 everywhere, or Pro for the cover and Nano Banana 2 for the rest. */
+export type ImageModelChoice = "pro" | "flash" | "mix";
+export function asImageModelChoice(value: unknown): ImageModelChoice {
+  return value === "flash" || value === "mix" ? value : "pro";
+}
+/** The model that draws this slide — the cover decides the scroll, so "mix" keeps it on Pro. */
+export function modelFor(kind: CarouselSlide["kind"], choice: ImageModelChoice = "pro"): ImageModel {
+  if (choice === "mix") return kind === "cover" ? "pro" : "flash";
+  return choice;
+}
 
 /** The scene to depict: the AI-written brief, or for older carousels without one, the stock search words, then the title. */
 function sceneOf(slide: CarouselSlide): string {
@@ -42,7 +53,7 @@ export interface VisualOutcome {
 
 async function one(userId: string, slide: CarouselSlide, series: Series, reference: GeneratedImage | null, timeoutMs: number): Promise<{ outcome: VisualOutcome; bytes?: GeneratedImage }> {
   try {
-    const bytes = await generateImage({ ...promptFor(slide, series), reference, timeoutMs });
+    const bytes = await generateImage({ ...promptFor(slide, series), reference, timeoutMs, model: modelFor(slide.kind, series.imageModel) });
     const url = await storeGeneratedImage(userId, bytes);
     return { outcome: { slideId: slide.id, image: { url, source: aiSource(series.visualStyle) } }, bytes };
   } catch (err) {
