@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -12,6 +13,7 @@ import { guard, type ActionResult } from "@/server/action-result";
 import { assembleFullText, heuristicScores } from "@/lib/ai/script-generator";
 import { countWords } from "@/lib/utils";
 import { POST_PLATFORMS } from "@/lib/projects/progress";
+import { deleteUnusedKeys, keysIn } from "@/lib/storage-cleanup";
 
 export async function createProject(input: unknown): Promise<ActionResult<{ id: string }>> {
   return guard(async () => {
@@ -48,7 +50,23 @@ export async function createProject(input: unknown): Promise<ActionResult<{ id: 
 export async function deleteProject(projectId: string): Promise<ActionResult<undefined>> {
   return guard(async () => {
     const user = await requireUser();
+    // What the project's files are, read before the rows that name them go.
+    // A render's props snapshot is left out: it names files the project used
+    // to have, some of which may now belong to the library or another project.
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, userId: user.id },
+      include: {
+        carousel: true,
+        voiceovers: { select: { audioUrl: true } },
+        renderJobs: { select: { outputUrl: true, thumbnailUrl: true } },
+        videoClipJobs: { select: { imageUrl: true, resultUrl: true } },
+      },
+    });
+    if (!project) throw new Error("Ce projet n'existe plus.");
+    const keys = keysIn(project, user.id);
     await prisma.project.delete({ where: { id: projectId, userId: user.id } });
+    // After the response: deleting files must never make deleting the project fail or wait.
+    after(() => deleteUnusedKeys(user.id, keys).then(() => undefined, (err) => console.error(`[storage] files of deleted project ${projectId} not removed:`, err)));
     revalidatePath("/projects");
     return undefined;
   });

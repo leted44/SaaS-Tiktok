@@ -12,15 +12,15 @@ import { storageMigrationInfo } from "@/lib/storage";
  * https://… address of the old bucket, so nothing else can match it.
  */
 
-interface Column {
+export interface Column {
   table: string;
   column: string;
   json: "json" | "jsonb" | null;
 }
 
-const ident = (name: string) => `"${name.replace(/"/g, '""')}"`;
+export const ident = (name: string) => `"${name.replace(/"/g, '""')}"`;
 
-async function textColumns(): Promise<Column[]> {
+export async function textColumns(): Promise<Column[]> {
   const rows = await prisma.$queryRaw<{ table_name: string; column_name: string; data_type: string }[]>`
     SELECT table_name, column_name, data_type
     FROM information_schema.columns

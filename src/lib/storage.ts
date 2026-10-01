@@ -297,6 +297,63 @@ export async function deleteUserObjects(userId: string): Promise<number> {
   return removed;
 }
 
+/** One stored file, as listed by `listStoredObjects`. */
+export interface StoredEntry {
+  key: string;
+  lastModified: Date;
+  sizeBytes: number;
+}
+
+/**
+ * Every file `storageKey` ever wrote, in the bucket new files go to (or on the
+ * local disk) — what the storage cleanup weighs against the database.
+ */
+export async function* listStoredObjects(): AsyncGenerator<StoredEntry> {
+  const bucket = primary();
+  for (const kind of STORAGE_KINDS) {
+    if (!bucket) {
+      const root = localPathFor(`${kind}/`);
+      if (!root) continue;
+      const users = await fs.readdir(root).catch(() => [] as string[]);
+      for (const user of users) {
+        const files = await fs.readdir(path.join(root, user)).catch(() => [] as string[]);
+        for (const file of files) {
+          const stat = await fs.stat(path.join(root, user, file)).catch(() => null);
+          if (stat?.isFile()) yield { key: `${kind}/${user}/${file}`, lastModified: stat.mtime, sizeBytes: stat.size };
+        }
+      }
+      continue;
+    }
+    let token: string | undefined;
+    do {
+      const page = await bucket.client.send(new ListObjectsV2Command({ Bucket: bucket.name, Prefix: `${kind}/`, ContinuationToken: token }));
+      for (const o of page.Contents ?? []) {
+        if (o.Key && o.LastModified) yield { key: o.Key, lastModified: o.LastModified, sizeBytes: o.Size ?? 0 };
+      }
+      token = page.IsTruncated ? page.NextContinuationToken : undefined;
+    } while (token);
+  }
+}
+
+/** Delete many files at once — from the legacy bucket too, where a not-yet-copied one may still sit. */
+export async function deleteObjects(keys: string[]): Promise<void> {
+  const bucket = primary();
+  if (!bucket) {
+    await Promise.all(keys.map((key) => deleteObject(key)));
+    return;
+  }
+  for (const target of [bucket, legacy()]) {
+    if (!target) continue;
+    for (let i = 0; i < keys.length; i += 1000) {
+      const batch = keys.slice(i, i + 1000);
+      const send = target.client.send(new DeleteObjectsCommand({ Bucket: target.name, Delete: { Objects: batch.map((Key) => ({ Key })), Quiet: true } }));
+      // The legacy bucket may be unreachable (a restricted Supabase project); the file is gone from the one that counts.
+      if (target === bucket) await send;
+      else await send.catch(() => undefined);
+    }
+  }
+}
+
 /** Whether files are being moved: R2 is the primary bucket and the old one is still configured. */
 export function storageMigrationInfo(): { from: string; to: string; legacyBases: string[]; toBase: string } | null {
   const to = r2Bucket();

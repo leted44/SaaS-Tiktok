@@ -6,6 +6,7 @@ import { refundCredits } from "@/lib/credits";
 import { processDuePublishJobs } from "@/lib/publish";
 import { advanceAutopilot } from "@/lib/autopilot/engine";
 import { processOneVideoClipJob } from "@/lib/video-clips/worker";
+import { maybeCleanStorage } from "@/lib/storage-cleanup";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -75,7 +76,12 @@ export async function runWorkerTick(workerId: string) {
     const render = await processOneRenderJob(workerId);
     const videoClip = await processOneVideoClipJob(workerId);
     const published = await processDuePublishJobs(5);
-    return { autopilot, render, videoClip, published };
+    // Once a day, last: files nothing uses any more. Isolated like autopilot — never holds up the rest.
+    const storage = await maybeCleanStorage().catch((err) => {
+      console.error("[storage-cleanup] failed:", err);
+      return null;
+    });
+    return { autopilot, render, videoClip, published, storageCleaned: storage?.deletedFiles ?? null };
   } catch (err) {
     error = err instanceof Error ? err.message : String(err);
     throw err;
