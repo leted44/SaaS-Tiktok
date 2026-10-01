@@ -212,8 +212,32 @@ export async function storeGeneratedImage(userId: string, image: GeneratedImage,
   if (image.data.length > MAX_BYTES) throw new AiImageStoreError("L'image générée est trop lourde.");
   const type = sniff(image.data);
   if (!type) throw new AiImageStoreError(`Format d'image inattendu renvoyé par l'IA (${image.mimeType}).`);
-  const stored = await putObject(storageKey(userId, "asset", `${kind}-ai-${nanoid(10)}.${type === "image/png" ? "png" : "jpg"}`), image.data, type);
+  const { data, type: storedType } = type === "image/png" ? await pngToJpeg(image.data) : { data: image.data, type };
+  const stored = await putObject(storageKey(userId, "asset", `${kind}-ai-${nanoid(10)}.${storedType === "image/png" ? "png" : "jpg"}`), data, storedType);
   return stored.url;
+}
+
+/**
+ * An AI image comes back as a PNG of several megabytes; stored as a high
+ * quality JPEG it weighs several times less, for every preview, download and
+ * render that reads it — and storage traffic is what the hosting plan caps.
+ *
+ * Quality 90 with full colour resolution (4:4:4, no chroma subsampling) keeps
+ * the edges of text-free illustrations and the fine texture of photos
+ * visually identical, at the same pixel size; Instagram and TikTok recompress
+ * every post far harder than this anyway. A JPEG from the model is stored as
+ * is — re-encoding one only loses quality. If conversion fails for any reason
+ * the original PNG is kept.
+ */
+async function pngToJpeg(png: Buffer): Promise<{ data: Buffer; type: "image/jpeg" | "image/png" }> {
+  try {
+    const { default: sharp } = await import("sharp");
+    const jpeg = await sharp(png).flatten({ background: "#000000" }).jpeg({ quality: 90, chromaSubsampling: "4:4:4", mozjpeg: true }).toBuffer();
+    return jpeg.length < png.length ? { data: jpeg, type: "image/jpeg" } : { data: png, type: "image/png" };
+  } catch (err) {
+    console.error("[ai-image] JPEG conversion failed, keeping the PNG:", err instanceof Error ? err.message : err);
+    return { data: png, type: "image/png" };
+  }
 }
 
 /**

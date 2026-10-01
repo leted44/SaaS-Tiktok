@@ -58,6 +58,7 @@
     "react": "^19.1.9",
     "react-dom": "^19.1.9",
     "remotion": "4.0.526",
+    "sharp": "^0.35.4",
     "sonner": "^2.0.8",
     "stripe": "^22.6.2",
     "tailwind-merge": "^3.7.0",
