@@ -23,6 +23,7 @@ import { DEFAULT_VISUAL_STYLE, type VisualStyle } from "@/lib/carousel/art-direc
 import { generateProjectVisualsAiAction } from "@/server/actions/video-visuals";
 import { animateSceneClipAction, cancelVideoClipJobAction } from "@/server/actions/video-clips";
 import type { VideoClipTier } from "@/lib/ai/video-clip-generator";
+import { ImageModelPicker, useAdminImageModel } from "@/components/shared/image-model-picker";
 import { klingDurationFor } from "@/lib/plans";
 
 interface Asset { id: string; type: string; url: string; name: string; mimeType: string }
@@ -50,6 +51,8 @@ interface Props {
   onCaptionStyleChange: (style: CaptionStyle) => void;
   aiImagesConfigured: boolean;
   aiImageCost: number;
+  /** The admin sees the image model test; everyone else always gets Pro. */
+  admin: boolean;
   credits: number;
   hasScript: boolean;
   /** Saves editor state immediately, bypassing the autosave debounce — the server reads the row back right after. */
@@ -77,6 +80,7 @@ export function VisualsPanel({
   onCaptionStyleChange,
   aiImagesConfigured,
   aiImageCost,
+  admin,
   credits,
   hasScript,
   ensureSaved,
@@ -85,6 +89,7 @@ export function VisualsPanel({
 }: Props) {
   const router = useRouter();
   const [generatingAi, setGeneratingAi] = useState(false);
+  const [imageModel, setImageModel] = useAdminImageModel(admin);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [uploading, setUploading] = useState<{ name: string; done: number; total: number; fraction: number; phase: "converting" | "uploading" } | null>(null);
@@ -353,7 +358,7 @@ export function VisualsPanel({
     setGeneratingAi(true);
     try {
       if (!(await ensureSaved())) return;
-      const res = await generateProjectVisualsAiAction(projectId, mode);
+      const res = await generateProjectVisualsAiAction(projectId, mode, admin ? imageModel : undefined);
       if (!res.ok) return toast.error(res.error);
       const { generated, failed, layers: newLayers, visualStyle: usedStyle, captionStyle: newCaptionStyle } = res.data;
       onLayersChange(newLayers);
@@ -494,6 +499,7 @@ export function VisualsPanel({
       {aiImagesConfigured && (
         <Section title="Visuels IA" icon={Wand2} summary={style ? "Style choisi" : undefined} defaultOpen={emptyScenes.length > 0 && layers.length === 0}>
           <div className="space-y-4">
+            {admin && <ImageModelPicker value={imageModel} onChange={setImageModel} note="Visible par toi seul ; tes clients restent sur Pro. Le même choix que dans le carrousel : « Mélange » garde Pro pour la 1re scène, qui fixe le style des suivantes." />}
             <div className="space-y-2">
               <Label>Direction artistique</Label>
               <StylePicker value={style} onChange={onVisualStyleChange} />
@@ -504,10 +510,10 @@ export function VisualsPanel({
                 value={visualMotif}
                 maxLength={500}
                 rows={2}
-                placeholder="Ex. : filmé dans le même salon éclairé à la bougie, d'un plan à l'autre"
+                placeholder="Ex. : un homme d'une trentaine d'années, brun, débardeur noir uni, dans une salle de street workout sombre"
                 onChange={(e) => onMotifChange(e.target.value)}
               />
-              <p className="text-[11px] text-muted-foreground">Le décor commun à tous les plans. C'est lui qui en fait une seule vidéo tournée d'un coup plutôt que des extraits sans rapport.</p>
+              <p className="text-[11px] text-muted-foreground">La personne récurrente et le décor communs à tous les plans. C'est ce qui en fait une seule vidéo tournée d'un coup plutôt que des extraits sans rapport. Rempli par le script s'il est vide.</p>
             </div>
 
             {emptyScenes.length > 0 ? (

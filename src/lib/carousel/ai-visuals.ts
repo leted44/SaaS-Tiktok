@@ -1,5 +1,6 @@
 import { AiImageError, type GeneratedImage, type ImageModel } from "@/lib/ai/image-generator";
 import { generateCheckedImage } from "@/lib/ai/checked-image";
+import { modelForImage, type ImageModelChoice } from "@/lib/ai/image-models";
 import { aiSource, composeImagePrompt, type VisualStyle } from "@/lib/carousel/art-direction";
 import { readOwnImage, storeGeneratedImage } from "@/lib/ai/images";
 import { imageAspect, imageLayout, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
@@ -15,15 +16,10 @@ import { imageAspect, imageLayout, type CarouselSlide, type CarouselState } from
 
 type Series = Pick<CarouselState, "template" | "format" | "visualMotif"> & { visualStyle: VisualStyle; imageModel?: ImageModelChoice };
 
-/** Image model test (admin only): Pro everywhere, Nano Banana 2 everywhere, or Pro for the cover and Nano Banana 2 for the rest. */
-export type ImageModelChoice = "pro" | "flash" | "mix";
-export function asImageModelChoice(value: unknown): ImageModelChoice {
-  return value === "flash" || value === "mix" ? value : "pro";
-}
-/** The model that draws this slide — the cover decides the scroll, so "mix" keeps it on Pro. */
+export { asImageModelChoice, type ImageModelChoice } from "@/lib/ai/image-models";
+/** The model that draws this slide — the cover sets the series, so "mix" keeps it on Pro. */
 export function modelFor(kind: CarouselSlide["kind"], choice: ImageModelChoice = "pro"): ImageModel {
-  if (choice === "mix") return kind === "cover" ? "pro" : "flash";
-  return choice;
+  return modelForImage(kind === "cover", choice);
 }
 
 /** The scene to depict: the AI-written brief, or for older carousels without one, the stock search words, then the title. */

@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import type { AspectRatio } from "@prisma/client";
 import { AiImageError, type GeneratedImage } from "@/lib/ai/image-generator";
 import { generateCheckedImage } from "@/lib/ai/checked-image";
+import { modelForImage, type ImageModelChoice } from "@/lib/ai/image-models";
 import { aiSource, composeImagePrompt, type VisualStyle } from "@/lib/carousel/art-direction";
 import { storeGeneratedImage, readOwnImage } from "@/lib/ai/images";
 import type { VisualLayer } from "@/lib/validations";
@@ -53,6 +54,7 @@ async function one(
   reference: GeneratedImage | null,
   timeoutMs: number,
   deadline: number,
+  modelChoice: ImageModelChoice,
 ): Promise<{ outcome: SceneVisualOutcome; bytes?: GeneratedImage }> {
   try {
     // "frame": captions can land anywhere over a video scene, not a fixed text
@@ -64,6 +66,8 @@ async function one(
       aspectRatio,
       reference,
       timeoutMs,
+      // Scene 0 sets the series, the video's counterpart of the carousel's cover.
+      model: modelForImage(target.index === 0, modelChoice),
       intent: target.intent || target.description,
       scene: target.description,
       layout: "frame",
@@ -99,6 +103,7 @@ export async function generateSceneVisuals(
   existingReference: GeneratedImage | null,
   // A studio server action may run 180 s; the scenes are done by 170 s, checks and corrections included.
   deadline = Date.now() + 170_000,
+  modelChoice: ImageModelChoice = "pro",
 ): Promise<SceneVisualOutcome[]> {
   if (!targets.length) return [];
   const first = targets.find((t) => t.index === 0);
@@ -108,12 +113,12 @@ export async function generateSceneVisuals(
   let reference = existingReference;
   if (first) {
     // The other scenes still need ~70 s after the first, so its own check stops in time for them.
-    const firstResult = await one(userId, first, style, motif, aspectRatio, null, 55_000, rest.length ? deadline - 70_000 : deadline);
+    const firstResult = await one(userId, first, style, motif, aspectRatio, null, 55_000, rest.length ? deadline - 70_000 : deadline, modelChoice);
     outcomes.push(firstResult.outcome);
     reference = firstResult.bytes ?? null;
   }
 
-  const restResults = await Promise.all(rest.map((t) => one(userId, t, style, motif, aspectRatio, reference, 65_000, deadline)));
+  const restResults = await Promise.all(rest.map((t) => one(userId, t, style, motif, aspectRatio, reference, 65_000, deadline, modelChoice)));
   outcomes.push(...restResults.map((r) => r.outcome));
   return outcomes;
 }

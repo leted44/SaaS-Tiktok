@@ -74,7 +74,8 @@ Principles you always apply:
 - Write in the requested language. Keep hashtags in that language plus 2-3 global ones.
 - brollQuery is the one exception: always English, and always a literal thing a camera can film (a person doing something, an object, a place). "man opening empty wallet" works; "financial anxiety" returns nothing usable.
 - socialCopy is read silently in a feed, not spoken. It gives a reason to watch, save or comment, and never repeats the hook word for word. TikTok rewards short and blunt; Instagram rewards a first line that earns the "more" tap. Its hashtags are returned in their own lists and never written inside the caption text.
-- This is automated content a real audience will take as fact, with no human fact-checking it before it posts. Never invent a statistic, study, percentage or specific mechanism to sound authoritative. When you are not certain a specific figure or claim is true, use the true qualitative version instead of a fake-precise number — a real mechanism is more interesting than a fabricated-sounding one anyway. A punchier line is never worth a false claim.`;
+- This is automated content a real audience will take as fact, with no human fact-checking it before it posts. Never invent a statistic, study, percentage or specific mechanism to sound authoritative. When you are not certain a specific figure or claim is true, use the true qualitative version instead of a fake-precise number — a real mechanism is more interesting than a fabricated-sounding one anyway. A punchier line is never worth a false claim.
+- Never promise a result the brief does not support — a result in a fixed number of days or weeks, a guaranteed outcome, a health benefit. Bold hooks are welcome; a promise a viewer can easily prove false costs the account its credibility.`;
 
 /**
  * A script for a photo carousel is read, not heard, and its shape is set by
@@ -125,6 +126,7 @@ Reject and fix, specifically:
 - Any scene that could be cut without the video losing anything, or that restates the previous scene instead of escalating toward the payoff.
 - Any sentence too long or abstract to say out loud naturally, or any passive phrasing a real creator wouldn't use.
 - Any invented, exaggerated, or suspiciously-precise claim — a statistic, a mechanism, "studies show". This is automated content a real audience will trust as fact with nobody checking it before it posts: replace anything you cannot personally stand behind with the true, still-interesting version, or cut it. A fabricated number is a defect, never a stylistic choice.
+- Any promise the brief does not support — a result in a fixed number of days or weeks, a guaranteed outcome. Keep the boldness, drop the invented guarantee.
 - A CTA that begs, or that doesn't follow naturally from the payoff just delivered.
 - Dead pacing: nothing changing on screen or in delivery for more than ~7 seconds straight.
 

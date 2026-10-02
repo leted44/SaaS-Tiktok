@@ -12,6 +12,7 @@ import { DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from "@/lib/car
 import { CAPTION_PRESET_FOR_VISUAL_STYLE, presetStyle } from "@/lib/captions/presets";
 import { captionStyleSchema, visualLayersSchema, type CaptionStyle, type VisualLayer } from "@/lib/validations";
 import { integrations } from "@/lib/env";
+import { asImageModelChoice } from "@/lib/ai/image-models";
 import { guard, type ActionResult } from "@/server/action-result";
 
 const asStyle = (value: unknown): VisualStyle | null => ((VISUAL_STYLES as readonly unknown[]).includes(value) ? (value as VisualStyle) : null);
@@ -31,6 +32,7 @@ const asStyle = (value: unknown): VisualStyle | null => ((VISUAL_STYLES as reado
 export async function generateProjectVisualsAiAction(
   projectId: string,
   mode: "missing" | "all" = "missing",
+  imageModel?: string,
 ): Promise<ActionResult<{ layers: VisualLayer[]; visualStyle: string; generated: number; failed: number; creditsLeft: number; captionStyle: CaptionStyle | null }>> {
   const started = Date.now();
   return guard(async () => {
@@ -67,7 +69,9 @@ export async function generateProjectVisualsAiAction(
     let creditsLeft = total > 0 ? await chargeCredits(user.id, total, "SCRIPT_GENERATION", `${targets.length} visuels vidéo générés par IA`) : user.credits;
 
     const reference = await existingSceneReference(currentLayers, visualStyle, user.id);
-    const outcomes = await generateSceneVisuals(user.id, targets, visualStyle, motif, videoAspect(project.aspectRatio), reference, started + 170_000);
+    const outcomes = await generateSceneVisuals(user.id, targets, visualStyle, motif, videoAspect(project.aspectRatio), reference, started + 170_000,
+      // The image model test is the admin's alone, as on the carousel; everyone else always gets Pro.
+      isAdmin(user.role) ? asImageModelChoice(imageModel) : "pro");
     const failures = outcomes.filter((o) => !o.layer);
     if (failures.length && unit > 0) {
       creditsLeft = await refundCredits(user.id, unit * failures.length, `Remboursement — ${failures.length} visuel${failures.length > 1 ? "s" : ""} vidéo non généré${failures.length > 1 ? "s" : ""}`);

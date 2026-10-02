@@ -16,7 +16,8 @@ import { Section } from "@/components/ui/section";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
 import { ScriptCard, type CarouselScript } from "@/components/carousel/script-card";
 import { ScriptStart } from "@/components/carousel/script-start";
-import type { ImageModelChoice } from "@/lib/carousel/ai-visuals";
+import type { ImageModelChoice } from "@/lib/ai/image-models";
+import { ImageModelPicker, useAdminImageModel } from "@/components/shared/image-model-picker";
 import { generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
 import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, IMAGE_PROMPT_MAX, VISUAL_MOTIF_MAX, SLIDE_LIMITS, fullBleedTemplate, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
@@ -94,34 +95,6 @@ const ACCENTS = [
   { hex: "#FFFFFF", label: "Blanc" },
 ];
 
-/** Image model test, admin only. Prices per image at 1K, Google's own API. */
-const IMAGE_MODEL_CHOICES: { id: ImageModelChoice; label: string; price: string }[] = [
-  { id: "pro", label: "Pro", price: "0,134 $ / image" },
-  { id: "flash", label: "Nano Banana 2", price: "0,067 $ / image" },
-  { id: "mix", label: "Mélange", price: "Pro couverture, NB2 le reste" },
-];
-
-/** The admin's image model choice, shown on the creation screen and in the editor's Visuels section. */
-function ImageModelPicker({ value, onChange }: { value: ImageModelChoice; onChange: (choice: ImageModelChoice) => void }) {
-  return (
-    <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Modèle d'image">
-      {IMAGE_MODEL_CHOICES.map((m) => (
-        <button
-          key={m.id}
-          type="button"
-          role="radio"
-          aria-checked={value === m.id}
-          onClick={() => onChange(m.id)}
-          className={cn("rounded-lg border p-2 text-left transition", value === m.id ? "border-amber-300/70 bg-amber-300/10" : "border-white/10 hover:border-white/20")}
-        >
-          <p className="text-xs font-semibold">{m.label}</p>
-          <p className="mt-0.5 text-[10px] text-muted-foreground">{m.price}</p>
-        </button>
-      ))}
-    </div>
-  );
-}
-
 /** The cover choice that leaves the headline to the carousel AI. */
 const AI_COVER = "__ai__";
 /** AI images each length usually needs: one per slide but the closing one. */
@@ -177,25 +150,8 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<null | "share" | "download" | "zip">(null);
   const [textsOpen, setTextsOpen] = useState(false);
-  /** Image model test, admin only — remembered on this device so a comparison survives a reload. Everyone else always gets Pro. */
-  const [imageModel, setImageModelState] = useState<ImageModelChoice>("pro");
-  useEffect(() => {
-    if (!admin) return;
-    try {
-      const saved = localStorage.getItem("vs-image-model");
-      if (saved === "flash" || saved === "mix") setImageModelState(saved);
-    } catch {
-      // Storage unavailable: the test simply starts on Pro.
-    }
-  }, [admin]);
-  function setImageModel(choice: ImageModelChoice) {
-    setImageModelState(choice);
-    try {
-      localStorage.setItem("vs-image-model", choice);
-    } catch {
-      // Not remembered, still applied for this session.
-    }
-  }
+  /** Image model test, admin only — shared with the video studio. Everyone else always gets Pro. */
+  const [imageModel, setImageModel] = useAdminImageModel(admin);
   /** Tapping a slide in the preview opens its text, where it can be changed. */
   function editSlide(id: string) {
     setTextsOpen(true);
@@ -571,11 +527,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
           )}
 
           {ai && admin && (
-            <div className="space-y-2 rounded-lg border border-amber-300/30 bg-amber-300/[0.06] p-3">
-              <p className="text-xs font-semibold text-amber-200">Test admin · modèle d'image</p>
-              <ImageModelPicker value={imageModel} onChange={setImageModel} />
-              <p className="text-[11px] leading-relaxed text-amber-100/80">Visible par toi seul ; tes clients restent sur Pro. Le même choix reste ensuite dans l'éditeur, pour régénérer une image ou tout le carrousel.</p>
-            </div>
+            <ImageModelPicker value={imageModel} onChange={setImageModel} note="Visible par toi seul ; tes clients restent sur Pro. Le même choix reste ensuite dans l'éditeur et dans le studio vidéo." />
           )}
 
           {ai && (
@@ -773,16 +725,11 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
               </div>
 
               {admin && (
-                <div className="space-y-2 rounded-lg border border-amber-300/30 bg-amber-300/[0.06] p-3">
-                  <p className="text-xs font-semibold text-amber-200">Test admin · modèle d'image</p>
-                  <ImageModelPicker value={imageModel} onChange={setImageModel} />
-                  <p className="text-[11px] leading-relaxed text-amber-100/80">
-                    Visible par toi seul ; tes clients restent sur Pro. Choisis un modèle, puis « Tout régénérer » pour comparer sur le même carrousel. S'applique aussi au bouton de génération de chaque slide.
-                  </p>
+                <ImageModelPicker value={imageModel} onChange={setImageModel} note="Visible par toi seul ; tes clients restent sur Pro. Choisis un modèle, puis « Tout régénérer » pour comparer sur le même carrousel. S'applique aussi au bouton de génération de chaque slide, et au studio vidéo.">
                   <a href={`/api/admin/carousel-images/${projectId}`} target="_blank" rel="noreferrer" className="inline-flex text-[11px] font-semibold text-amber-200 underline">
                     Diagnostiquer les images de ce carrousel
                   </a>
-                </div>
+                </ImageModelPicker>
               )}
 
               <div className="space-y-2">
@@ -790,7 +737,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                 <StylePicker value={style} onChange={(v) => set({ visualStyle: v })} />
               </div>
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between"><Label>Fil conducteur <span className="font-normal normal-case text-muted-foreground">· le décor des images IA</span></Label><Counter value={state.visualMotif} max={VISUAL_MOTIF_MAX} /></div>
+                <div className="flex items-center justify-between"><Label>Fil conducteur <span className="font-normal normal-case text-muted-foreground">· la personne et le décor des images IA</span></Label><Counter value={state.visualMotif} max={VISUAL_MOTIF_MAX} /></div>
                 <Textarea
                   value={state.visualMotif}
                   maxLength={VISUAL_MOTIF_MAX}
@@ -800,8 +747,8 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                 />
                 <p className="text-[11px] text-muted-foreground">
                   {state.slides.length === 1
-                    ? "Le lieu, les objets et l'ambiance de ton image IA."
-                    : "Le décor commun à toutes les images IA du carrousel : c'est lui qui en fait une série plutôt qu'une suite d'images sans rapport."}{" "}
+                    ? "La personne, le lieu et les objets de ton image IA."
+                    : "La personne récurrente et le décor communs à toutes les images IA du carrousel : c'est ce qui en fait une série plutôt qu'une suite d'images sans rapport."}{" "}
                   Il s'applique à la prochaine génération : les images déjà créées ne changent pas tant que tu ne les régénères pas.
                 </p>
               </div>

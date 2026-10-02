@@ -93,7 +93,7 @@ export interface StudioProps {
   voiceover: StudioVoiceover | null;
   renders: StudioRender[];
   previewProps: ShortVideoProps | null;
-  user: { credits: number; plan: string };
+  user: { credits: number; plan: string; admin: boolean };
   planLimits: {
     watermark: boolean;
     maxResolution: "720p" | "1080p" | "4K";

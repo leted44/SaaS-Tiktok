@@ -89,7 +89,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
       voiceover={activeVoiceover ? { id: activeVoiceover.id, audioUrl: activeVoiceover.audioUrl, durationMs: activeVoiceover.durationMs, voiceId: activeVoiceover.voiceId, provider: activeVoiceover.provider, createdAt: activeVoiceover.createdAt.toISOString() } : null}
       renders={project.renderJobs.map((r) => ({ id: r.id, status: r.status, progress: r.progress, step: r.step, outputUrl: r.outputUrl, thumbnailUrl: r.thumbnailUrl, error: r.error, createdAt: r.createdAt.toISOString(), width: r.width, height: r.height, creditsCharged: r.creditsCharged, timings: parseJson(renderTimingsSchema.nullable(), r.logs, null) }))}
       previewProps={previewProps}
-      user={{ credits: user.credits, plan: user.plan }}
+      user={{ credits: user.credits, plan: user.plan, admin }}
       planLimits={{
         watermark: plan.watermark,
         maxResolution: plan.maxResolution,

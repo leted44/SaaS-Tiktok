@@ -270,6 +270,7 @@ export function Studio(props: StudioProps) {
                     onCaptionStyleChange={(s) => patch("captionStyle", s)}
                     aiImagesConfigured={integrations.aiImages}
                     aiImageCost={planLimits.costs.aiImage}
+                    admin={user.admin}
                     credits={user.credits}
                     hasScript={Boolean(activeScript)}
                     ensureSaved={saveNow}
