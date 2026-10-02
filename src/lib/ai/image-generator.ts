@@ -25,8 +25,14 @@ const endpoint = (model: ImageModel) => `https://generativelanguage.googleapis.c
 
 export type ImageAspect = "1:1" | "4:5" | "9:16" | "16:9" | "5:4" | "21:9";
 
+/**
+ * How the series' first image is to be used: its look always, its recurring
+ * person or character when the new scene has them too — a series whose
+ * athlete changes face, or gender, from one slide to the next reads as stock
+ * photos. The action and framing always come from the new description.
+ */
 const REFERENCE_NOTE =
-  "The attached image is the first picture of the same series. Match its art direction exactly — lighting, colour grade, lens, depth of field, texture and mood — so both images unmistakably belong together. Do NOT copy its subject or its composition: depict only the new scene described below.";
+  "The attached image is the first image of the same series. Keep its art direction exactly — lighting, colour grade, lens, depth of field, texture and mood — so both images unmistakably belong together. If the new scene features the same recurring person or character, keep them identical: same face, hair, skin tone, build and outfit. The action, pose, camera angle and framing come only from the new description below, not from the attached image.";
 
 export class AiImageError extends Error {
   constructor(message: string, public code: "NOT_CONFIGURED" | "REFUSED" | "UPSTREAM" | "RATE_LIMITED") {
@@ -54,10 +60,12 @@ type GeminiResponse = {
   promptFeedback?: { blockReason?: string };
 };
 
-async function attempt({ prompt, aspectRatio, reference, timeoutMs = 60_000, model = "pro" }: Options): Promise<GeneratedImage> {
-  const parts = reference
-    ? [{ inlineData: { mimeType: reference.mimeType, data: reference.data.toString("base64") } }, { text: `${REFERENCE_NOTE}\n\n${prompt}` }]
-    : [{ text: prompt }];
+async function attempt({ prompt, aspectRatio, reference, edit, timeoutMs = 60_000, model = "pro" }: Options & { edit?: GeneratedImage }): Promise<GeneratedImage> {
+  const parts = edit
+    ? [{ inlineData: { mimeType: edit.mimeType, data: edit.data.toString("base64") } }, { text: prompt }]
+    : reference
+      ? [{ inlineData: { mimeType: reference.mimeType, data: reference.data.toString("base64") } }, { text: `${REFERENCE_NOTE}\n\n${prompt}` }]
+      : [{ text: prompt }];
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -106,4 +114,15 @@ export async function generateImage(options: Options): Promise<GeneratedImage> {
     if (!retryable) throw err;
     return attempt(options);
   }
+}
+
+/**
+ * Correct one defect of an image without redrawing it — Google's advice for
+ * its image models is to edit an image that is mostly right rather than roll
+ * a new one, which would bring new defects of its own.
+ */
+export async function editImage(options: { image: GeneratedImage; instruction: string; aspectRatio: ImageAspect; timeoutMs?: number; model?: ImageModel }): Promise<GeneratedImage> {
+  if (!env.geminiApiKey) throw new AiImageError("La génération d'images IA n'est pas configurée (clé GEMINI_API_KEY manquante).", "NOT_CONFIGURED");
+  const prompt = `Edit the attached image: ${options.instruction.trim().replace(/[.\s]+$/, "")}. Keep everything else exactly as it is — the same person, pose, framing, lighting, colours and background. The image contains no text of any kind.`;
+  return attempt({ prompt, aspectRatio: options.aspectRatio, edit: options.image, timeoutMs: options.timeoutMs, model: options.model });
 }

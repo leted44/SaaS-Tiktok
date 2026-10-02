@@ -227,7 +227,7 @@ export const projectEditorStateSchema = z.object({
   /** Art direction of the AI scene visuals (lib/carousel/art-direction), null until they are used. */
   visualStyle: z.string().nullable().default(null),
   /** The recurring setting that ties the scenes' AI visuals together as one shoot. */
-  visualMotif: z.string().max(300).default(""),
+  visualMotif: z.string().max(500).default(""),
 });
 export type ProjectEditorState = z.infer<typeof projectEditorStateSchema>;
 

@@ -32,6 +32,7 @@ export async function generateProjectVisualsAiAction(
   projectId: string,
   mode: "missing" | "all" = "missing",
 ): Promise<ActionResult<{ layers: VisualLayer[]; visualStyle: string; generated: number; failed: number; creditsLeft: number; captionStyle: CaptionStyle | null }>> {
+  const started = Date.now();
   return guard(async () => {
     const user = await requireDbUser();
     if (!integrations.aiImages()) throw new Error("La génération d'images IA n'est pas configurée.");
@@ -54,7 +55,7 @@ export async function generateProjectVisualsAiAction(
     const hasLayer = new Set(currentLayers.map((l) => l.sceneIndex).filter((i) => i !== undefined));
 
     const targets: SceneTarget[] = props.scenes
-      .map((scene, index) => ({ index, startMs: scene.startMs, endMs: scene.endMs, description: descriptions[index]?.trim() ?? "" }))
+      .map((scene, index) => ({ index, startMs: scene.startMs, endMs: scene.endMs, description: descriptions[index]?.trim() ?? "", intent: scene.text }))
       .filter((t) => t.description && (mode === "all" || !hasLayer.has(t.index)));
 
     if (!targets.length) {
@@ -66,7 +67,7 @@ export async function generateProjectVisualsAiAction(
     let creditsLeft = total > 0 ? await chargeCredits(user.id, total, "SCRIPT_GENERATION", `${targets.length} visuels vidéo générés par IA`) : user.credits;
 
     const reference = await existingSceneReference(currentLayers, visualStyle, user.id);
-    const outcomes = await generateSceneVisuals(user.id, targets, visualStyle, motif, videoAspect(project.aspectRatio), reference);
+    const outcomes = await generateSceneVisuals(user.id, targets, visualStyle, motif, videoAspect(project.aspectRatio), reference, started + 170_000);
     const failures = outcomes.filter((o) => !o.layer);
     if (failures.length && unit > 0) {
       creditsLeft = await refundCredits(user.id, unit * failures.length, `Remboursement — ${failures.length} visuel${failures.length > 1 ? "s" : ""} vidéo non généré${failures.length > 1 ? "s" : ""}`);

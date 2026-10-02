@@ -5,14 +5,13 @@ import { prisma } from "@/lib/prisma";
 import { requireDbUser } from "@/lib/auth";
 import { parseJson, scenesSchema } from "@/lib/validations";
 import { generateCarousel } from "@/lib/ai/carousel-generator";
-import { generateImage } from "@/lib/ai/image-generator";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
 import { carouselSlidesSchema, carouselStateFromRow, carouselStateSchema, stripEmoji, limitsFor, needsAiVisual, tooLongForImage, CAROUSEL_TEMPLATES, type CarouselLength, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
 import { copyStockImage, isOwnImage, storeGeneratedImage } from "@/lib/ai/images";
 import { withAutoPhotos } from "@/lib/carousel/auto-photos";
 import { aiSource, DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from "@/lib/carousel/art-direction";
-import { asImageModelChoice, coverReference, generateSeries, modelFor, promptFor } from "@/lib/carousel/ai-visuals";
+import { asImageModelChoice, coverReference, generateSeries, generateSlideImage, SERIES_BUDGET_MS } from "@/lib/carousel/ai-visuals";
 import { integrations } from "@/lib/env";
 import { guard, type ActionResult } from "@/server/action-result";
 
@@ -155,6 +154,7 @@ export async function generateSlideImageAction(
   scene?: string,
   imageModel?: string,
 ): Promise<ActionResult<{ url: string; source: string; visualStyle: VisualStyle; creditsLeft: number }>> {
+  const started = Date.now();
   return guard(async () => {
     const user = await requireDbUser();
     if (!integrations.aiImages()) throw new Error("La génération d'images IA n'est pas configurée.");
@@ -172,8 +172,7 @@ export async function generateSlideImageAction(
     const creditsLeft = cost > 0 ? await chargeCredits(user.id, cost, "SCRIPT_GENERATION", "Image générée par IA") : user.credits;
     try {
       // The image model test is the admin's alone; everyone else always gets Pro.
-      const model = modelFor(slide.kind, isAdmin(user.role) ? asImageModelChoice(imageModel) : "pro");
-      const bytes = await generateImage({ ...promptFor(slide, series, scene), reference, model });
+      const bytes = await generateSlideImage(slide, { ...series, imageModel: isAdmin(user.role) ? asImageModelChoice(imageModel) : "pro" }, { reference, deadline: started + SERIES_BUDGET_MS, sceneOverride: scene });
       const url = await storeGeneratedImage(user.id, bytes);
       return { url, source: aiSource(visualStyle), visualStyle, creditsLeft };
     } catch (err) {
@@ -197,6 +196,7 @@ export async function generateCarouselVisualsAction(
   mode: "missing" | "all" = "missing",
   imageModel?: string,
 ): Promise<ActionResult<{ carousel: CarouselSnapshot; generated: number; failed: number; tooLong: number; creditsLeft: number }>> {
+  const started = Date.now();
   return guard(async () => {
     const user = await requireDbUser();
     if (!integrations.aiImages()) throw new Error("La génération d'images IA n'est pas configurée.");
@@ -217,7 +217,7 @@ export async function generateCarouselVisualsAction(
     let creditsLeft = total > 0 ? await chargeCredits(user.id, total, "SCRIPT_GENERATION", `${targets.length} images générées par IA`) : user.credits;
 
     const imageModelChoice = isAdmin(user.role) ? asImageModelChoice(imageModel) : "pro";
-    const outcomes = await generateSeries(user.id, state.slides, targets, { template: state.template, format: state.format, visualMotif: state.visualMotif, visualStyle, imageModel: imageModelChoice });
+    const outcomes = await generateSeries(user.id, state.slides, targets, { template: state.template, format: state.format, visualMotif: state.visualMotif, visualStyle, imageModel: imageModelChoice }, started + SERIES_BUDGET_MS);
     const failures = outcomes.filter((o) => !o.image);
     if (failures.length && unit > 0) {
       creditsLeft = await refundCredits(user.id, unit * failures.length, `Remboursement — ${failures.length} image${failures.length > 1 ? "s" : ""} non générée${failures.length > 1 ? "s" : ""}`);

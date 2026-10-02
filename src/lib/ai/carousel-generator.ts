@@ -3,35 +3,51 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod/v4";
 import { nanoid } from "nanoid";
 import { env } from "@/lib/env";
-import { CONTENT_SLIDES, IMAGE_SLIDE_LIMITS, SLIDE_LIMITS, imageLayout, stripEmoji, type CarouselLength, type CarouselSlide, type CarouselTemplate } from "@/lib/carousel/schema";
-import { ART_DIRECTIONS, type VisualStyle } from "@/lib/carousel/art-direction";
+import { CONTENT_SLIDES, IMAGE_PROMPT_MAX, IMAGE_SLIDE_LIMITS, SLIDE_LIMITS, VISUAL_MOTIF_MAX, imageLayout, stripEmoji, type CarouselLength, type CarouselSlide, type CarouselTemplate } from "@/lib/carousel/schema";
+import { ART_DIRECTIONS, type VisualLayout, type VisualStyle } from "@/lib/carousel/art-direction";
 
 const EMPHASIS = "The 1 to 3 consecutive words of the title that carry its punch — the surprising number, the key noun, the twist — copied EXACTLY as they appear in the title. They are set in the accent colour.";
-const IMAGE_BRIEF =
-  "Brief for an image model, in the script's language, 2 to 3 sentences: one striking, richly detailed scene that makes this slide's idea felt at a glance, the way the best nutrition and science accounts illustrate it. Prefer a vivid visual metaphor or a dramatised hero shot over a plain object on a table: organs, cells or foods as small expressive characters at work (tiny workers welding a torn muscle fibre, a worried stomach clutching itself), a food caught in action in extreme close-up (steam rising, cheese stretching, juice splashing, a crust cracking open), or a relatable person visibly reacting to the situation. Name the concrete textures, props and action. No lighting, colour or camera words — the art direction adds them.";
-
-const COVER_FIELDS = {
-  coverKicker: z.string().describe("A 1 to 3 word category label for the topic, e.g. 'Psychologie', 'Nutrition', 'Business'. 32 characters maximum."),
-  coverTitle: z
-    .string()
-    .describe("The cover headline: the single strongest promise or counter-intuitive claim of the idea, written to make someone swipe. 70 characters maximum — short headlines stop the scroll. No question unless it is irresistible."),
-  coverEmphasis: z.string().describe(EMPHASIS),
-  coverSubtitle: z.string().describe("One short line under the headline that makes the swipe feel worth it, e.g. 'Voici comment.' or the key tension. 110 characters maximum."),
-  coverImagePrompt: z.string().describe(`${IMAGE_BRIEF} This is the cover: the most spectacular image of the series, making the promise of the headline visible at a glance.`),
-  coverImageQuery: z
-    .string()
-    .describe("2 to 4 ENGLISH words describing one concrete, photographable scene for a stock-photo search behind the cover — a person, a place or an object, never an abstract idea. Example: 'woman journaling morning light'."),
+/**
+ * The brief an image is drawn from, in the order Google recommends for its
+ * image models — subject, action, setting, composition — in English, the
+ * language their training captions are richest in. A short, metaphor-first
+ * brief with no camera words (what this used to ask for) left the model to
+ * pick the shot: it cropped out what the slide was about and drew the wrong
+ * movement. The art direction (light, colour, lens, grain) is added after.
+ */
+const FRAMING: Record<VisualLayout, string> = {
+  bleed: "every element the slide relies on is visible and uncut in the upper 55% of a vertical frame — text covers the lower part",
+  band: "every element the slide relies on is fully inside a wide horizontal frame",
+  frame: "every element the scene relies on is fully visible and uncut",
 };
+function imageBrief(layout: VisualLayout): string {
+  return `The brief for the image model, written in ENGLISH, 60 to 120 words of precise, concrete description, in this order: (1) Subject — who or what, with a precise appearance; when the series' recurring person or character appears, describe them exactly as the visualMotif does. (2) Action — precisely what this slide says, shown literally when it is physical: for an exercise, a technique or a posture, the exact mechanics performed with correct form — body angle and line, position of the arms, hands, legs and feet, grip, contact points with the floor or the equipment, the equipment and its height. (3) Setting — where. (4) Composition — the shot size (close-up, medium shot, full-body wide shot) and camera angle (side view, three-quarter view, low angle…) chosen so that ${FRAMING[layout]}. Describe what to show, never what to avoid. No lighting, colour or film-look words: the art direction adds them.`;
+}
+
+function coverFields(layout: VisualLayout) {
+  return {
+    coverKicker: z.string().describe("A 1 to 3 word category label for the topic, e.g. 'Psychologie', 'Nutrition', 'Business'. 32 characters maximum."),
+    coverTitle: z
+      .string()
+      .describe("The cover headline: the single strongest promise or counter-intuitive claim of the idea, written to make someone swipe. 70 characters maximum — short headlines stop the scroll. No question unless it is irresistible."),
+    coverEmphasis: z.string().describe(EMPHASIS),
+    coverSubtitle: z.string().describe("One short line under the headline that makes the swipe feel worth it, e.g. 'Voici comment.' or the key tension. 110 characters maximum."),
+    coverImagePrompt: z.string().describe(`${imageBrief(layout)} This is the cover: the most striking image of the series, making the promise of the headline visible at a glance.`),
+    coverImageQuery: z
+      .string()
+      .describe("2 to 4 ENGLISH words describing one concrete, photographable scene for a stock-photo search behind the cover — a person, a place or an object, never an abstract idea. Example: 'woman journaling morning light'."),
+  };
+}
+
+/** The series bible: one recurring cast described once, and the world the images share. */
+const MOTIF =
+  "In the script's language, at most 450 characters, two parts. (1) The recurring cast: when a person appears in the series, ONE precise description reused for every image — gender, approximate age, build, skin tone, hair, and outfit with its colours (plain, no logos); otherwise the recurring character or family of objects. (2) The world the images share: the place and its recurring elements, never one identical prop repeated on every slide. No lighting or colour-grading words, nothing about the subject's size or place in the frame — the framing is set separately.";
 
 /** A single-image post: no swipe, no CTA slide — the cover alone has to land the whole idea. */
-function singleImageFields() {
+function singleImageFields(coverLayout: VisualLayout) {
   return z.object({
-    visualMotif: z
-      .string()
-      .describe(
-        "In the script's language, one sentence: the visual world this image belongs to — concrete, photographable, no lighting or colour words, nothing about the subject's size or place in the frame (the framing is set separately).",
-      ),
-    ...COVER_FIELDS,
+    visualMotif: z.string().describe(MOTIF),
+    ...coverFields(coverLayout),
   });
 }
 
@@ -42,23 +58,19 @@ function singleImageFields() {
  * height). Built per call rather than once at import time so the model is
  * only ever told the limit that actually applies to what it is writing.
  */
-function carouselFields(contentLimits: { title: number; body: number }, length: "short" | "full") {
+function carouselFields(contentLimits: { title: number; body: number }, length: "short" | "full", coverLayout: VisualLayout, contentLayout: VisualLayout) {
   const bandPhoto = contentLimits.body <= IMAGE_SLIDE_LIMITS.body;
   const slideCount = length === "short" ? "Exactly 2 content slides — the single strongest supporting point and the payoff, nothing else." : "Between 5 and 7 content slides. Each slide carries exactly one idea, and together they build: tension, then mechanism, then what to do.";
   return z.object({
-    visualMotif: z
-      .string()
-      .describe(
-        "In the script's language, one sentence: the visual world every image of this carousel shares, so the eight read as one series — its universe and recurring elements, never one identical prop repeated on every slide, which makes a series monotonous. E.g. 'l'intérieur du corps humain et une cuisine chaleureuse, où organes et aliments sont de petits personnages expressifs'. No lighting or colour words, and nothing about the subject's size or place in the frame ('petit', 'au centre', 'dans un coin'): the framing is set separately so the subject stays large and clear of the text.",
-      ),
-    ...COVER_FIELDS,
+    visualMotif: z.string().describe(MOTIF),
+    ...coverFields(coverLayout),
     slides: z
       .array(
         z.object({
           title: z.string().describe(`One complete, punchy statement carrying the idea of the slide — never a vague label like 'Le problème'. ${contentLimits.title} characters maximum.`),
           emphasis: z.string().describe(EMPHASIS),
           body: z.string().describe(`One or two short sentences that explain, prove or illustrate the title with something concrete. ${contentLimits.body} characters maximum${bandPhoto ? " — a photo shares the slide." : "."}`),
-          imagePrompt: z.string().describe(IMAGE_BRIEF),
+          imagePrompt: z.string().describe(imageBrief(contentLayout)),
           imageQuery: z.string().describe("2 to 4 ENGLISH words for a stock photo that illustrates this slide concretely."),
         }),
       )
@@ -90,12 +102,14 @@ Rules you always apply:
 - Respect every length limit. A slide that runs long is cut off in the image.
 
 Every cover and content slide carries a full image, so you are also the art director of the series. The images are what make people stop scrolling and follow the account: aim for the level of the best accounts in the niche, never a stock-photo look.
-- The visualMotif is the world the series lives in, so eight images look like one professional account instead of eight unrelated pictures. It is a universe, not a single prop repeated on every slide.
-- Each image brief is a small scene with a story that makes that slide's idea felt: a visual metaphor, a food caught in action, a character or person reacting. One clear focal point, rich concrete detail, never a lone object on an empty table.
-- Fit the scene to the art direction you are given: with Illustration 3D, organs, cells and foods can be expressive characters; with a photographic direction, tell the idea through food caught in action, macro detail and real people instead.
+- Each image is the shot a professional photographer would take for exactly that slide: someone who only looks at the image understands what the slide is about.
+- When a slide teaches something physical — an exercise, a technique, a posture, a recipe step, a gesture — the image shows that very thing, literally, done correctly, with every element the text relies on in the frame (if the text says the feet stay on the floor, the feet and the floor are visible). Visual metaphors, dramatised scenes and characters are for abstract ideas: psychology, money, biology, habits.
+- The visualMotif is the series bible: one recurring cast, described once with precision, and one world. Every brief that shows the recurring person describes them with those same words, so the same person appears on every slide.
+- Vary the shots across slides — wide, medium, close-up, different angles — so the series never looks like one image repeated, while the cast and the world stay the same.
+- Fit the scene to the art direction you are given: with Illustration 3D, organs, cells and foods can be expressive characters; with a photographic direction, show real people, real objects and real places.
 - Never an abstract concept, a chart, a diagram, a screen, a document, or anything carrying written words, numbers or a clock face.
-- When a person helps, show them in a natural, flattering, fully clothed situation, never a close-up of hands. Characters (organs, cells, foods with faces) are appealing and friendly, never scary.
-- Every image must match the tone of the account: a health topic never shows anything unappetising, gory or embarrassing.`;
+- People are shown in a natural, flattering, fully clothed situation, with correct anatomy. Characters (organs, cells, foods with faces) are appealing and friendly, never scary.
+- Every image matches the tone of the account: a health topic never shows anything unappetising, gory or embarrassing.`;
 
 export interface CarouselInput {
   title: string;
@@ -192,7 +206,9 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
     .filter((line) => line !== null)
     .join("\n");
 
-  const format = input.length === "single" ? singleImageFields() : carouselFields(contentLimits, input.length);
+  const coverLayout = imageLayout("cover", input.template);
+  const contentLayout = imageLayout("content", input.template);
+  const format = input.length === "single" ? singleImageFields(coverLayout) : carouselFields(contentLimits, input.length, coverLayout, contentLayout);
   let response;
   try {
     response = await anthropic.messages.parse({
@@ -215,7 +231,7 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
 
   const L = SLIDE_LIMITS;
   const none = { action: "", image: null };
-  const brief = (text: string) => stripEmoji(text).replace(/\s+/g, " ").trim().slice(0, 600);
+  const brief = (text: string) => stripEmoji(text).replace(/\s+/g, " ").trim().slice(0, IMAGE_PROMPT_MAX);
   // The creator's pick wins over whatever the model wrote, so a chosen cover is never paraphrased.
   const coverTitle = fit(input.coverHeadline?.trim() || out.coverTitle, L.cover.title);
   const cover: CarouselSlide = {
@@ -229,7 +245,7 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
     imageQuery: fit(out.coverImageQuery, 80),
     imagePrompt: brief(out.coverImagePrompt),
   };
-  const visualMotif = brief(out.visualMotif).slice(0, 300);
+  const visualMotif = brief(out.visualMotif).slice(0, VISUAL_MOTIF_MAX);
   if (input.length === "single") return { slides: [cover], visualMotif };
 
   if (!out.slides?.length || !out.ctaTitle) throw unreadable();

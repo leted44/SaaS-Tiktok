@@ -28,7 +28,7 @@ export const ART_DIRECTIONS: Record<VisualStyle, ArtDirection> = {
     label: "Cinématique",
     hint: "Lumière dorée, ambiance chaude",
     prompt:
-      "Cinematic editorial photograph, hyper-detailed and tactile. Warm golden-hour backlight with glowing rim highlights and soft volumetric haze, rich warm colour grade (amber, honey, deep brown), creamy bokeh background, shallow depth of field, 85mm lens look, macro-sharp textures on the subject, subtle film grain. Moody, premium and appetising.",
+      "Cinematic editorial photograph, hyper-detailed and tactile. Warm golden-hour backlight with glowing rim highlights and soft volumetric haze, rich warm colour grade (amber, honey, deep brown), creamy bokeh background, shallow depth of field, 85mm lens look, razor-sharp textures on the subject, subtle film grain. Moody and premium.",
     swatch: ["#2A1A0E", "#C8873A", "#F3D9A4"],
   },
   studio: {
@@ -42,14 +42,14 @@ export const ART_DIRECTIONS: Record<VisualStyle, ArtDirection> = {
     label: "Contraste",
     hint: "Fond noir, lumière dramatique",
     prompt:
-      "Low-key dramatic photograph, hyper-detailed. A single directional light carving the subject out of a deep black background, strong contrast, glossy highlights, rich saturated subject colours, fine macro detail, drifting steam or particles catching the light, luxurious mood.",
+      "Low-key dramatic photograph, hyper-detailed. Chiaroscuro lighting: a single hard directional light carving the subject out of a deep black background, strong contrast, glossy highlights on skin and surfaces, rich saturated subject colours, fine texture detail, airborne particles (dust, chalk or steam) catching the light, intense and premium mood.",
     swatch: ["#050505", "#3A2A1F", "#E8B04A"],
   },
   illustration: {
     label: "Illustration 3D",
     hint: "Film d'animation, chaleureux",
     prompt:
-      "Still from a high-end 3D animated feature film, ultra-detailed. Expressive, appealing characters with big eyes and clear emotions, set in hyper-realistic surroundings with tactile textures (glistening food, skin, fabric, fibres). Warm cinematic lighting with a glowing rim light and soft volumetric atmosphere, rich warm palette (amber, peach, deep brown), subsurface scattering, shallow depth of field, magical sparkle in the details.",
+      "Still from a high-end 3D animated feature film, ultra-detailed. Expressive, appealing characters with clear emotions, set in hyper-realistic surroundings with tactile textures (skin, fabric, metal, food, fibres). Warm cinematic lighting with a glowing rim light and soft volumetric atmosphere, rich warm palette (amber, peach, deep brown), subsurface scattering, shallow depth of field.",
     swatch: ["#3B2418", "#F08A5D", "#FFD6A5"],
   },
   pastel: {
@@ -70,34 +70,51 @@ export const ART_DIRECTIONS: Record<VisualStyle, ArtDirection> = {
 export type VisualLayout = "bleed" | "band" | "frame";
 
 const COMPOSITION: Record<VisualLayout, string> = {
-  // Image models follow the start of a prompt far more reliably than the
-  // end, and a tabletop motif ("a plate on a worktop") pulls the subject to
-  // the bottom of the frame on its own — exactly where the headline goes.
+  // The headline is printed over the lower part of a full-bleed slide, so the
+  // action has to live above it. The shot size is left to the scene: forcing
+  // a close-up (as this once did) cropped out exactly what a slide was about —
+  // the feet on the floor, the bar, the body line of an exercise.
   bleed:
-    "FRAMING, the most important rule: a close-up where the main subject is large — at least half the width of the frame — and sits in the upper half of the image. The bottom third is only plain, darker surface or background with nothing important in it, because a headline is printed over it. Never place the subject in the lower half, never show it small in a wide empty space.",
-  band: "Wide horizontal composition: centre the subject with generous margins, nothing important near the edges.",
+    "Composition: vertical frame. The subject and the key action sit in the upper 55% of the frame, entirely visible and uncut — choose the shot size (close-up, medium or full-body wide shot) and camera angle that keep every element the scene mentions inside that area. The lower 45% continues the same background in darker, simpler tones, with nothing important in it, because a headline is printed over it.",
+  band: "Composition: wide horizontal frame, subject centred with generous margins, every element the scene mentions fully inside the frame.",
   // A video scene: captions can land anywhere over it, not a fixed text band,
-  // so nothing is reserved — the photo is the whole frame, not a subject
-  // floating over empty space the way "bleed" deliberately leaves for a slide.
-  frame: "Fill the entire frame edge to edge with the subject and scene — no empty, plain or simplified area anywhere, nothing reserved for text.",
+  // so nothing is reserved — the photo is the whole frame.
+  frame: "Composition: fill the entire frame edge to edge with the subject and scene, every element the scene mentions fully visible and uncut — no empty or simplified area reserved for text.",
 };
 
 /**
- * Failure modes common enough in image models to rule out in every prompt —
- * none can be detected reliably from the pixels afterwards. Text and digits
- * come out garbled, and hands grow extra fingers.
+ * What every image must get right, phrased as what to show — Google's own
+ * guidance for its image models is to describe what you want rather than
+ * what you don't — plus the one prohibition image models need spelled out:
+ * text, which they render garbled.
  */
 const RULES =
-  "Absolutely no text, letters, numbers, logos, watermarks, captions, signage, screens or clock faces anywhere in the image. No close-up of hands or fingers. Anatomically correct people. One clear focal point in sharp focus, with rich detail everywhere.";
+  "Quality: anatomically correct people with natural proportions — two arms, two legs, five fingers on each hand, joints bending the right way, a natural grip on any object. Equipment and objects are realistic and physically coherent (a bar is straight and continuous, a weight sits on the floor). Clothing and surfaces are plain and unbranded. One clear focal point in sharp focus, rich detail everywhere. The image contains no text of any kind: no letters, numbers, logos, watermarks, captions or signs.";
 
-export function composeImagePrompt(input: { scene: string; motif: string; style: VisualStyle; layout: VisualLayout }): string {
+const MEDIUM: Record<VisualStyle, string> = {
+  cinematic: "photograph",
+  studio: "photograph",
+  noir: "photograph",
+  illustration: "3D animated film still",
+  pastel: "photograph",
+};
+
+/**
+ * The prompt an image model gets, in the order Google recommends for its
+ * image models: a strong verb and the medium, then subject and action,
+ * setting, composition, style. The scene comes from the slide's own brief;
+ * the recurring cast and world, the framing and the art direction are the
+ * same for every image of the series, which is what makes it one series.
+ */
+export function composeImagePrompt(input: { scene: string; motif: string; style: VisualStyle; layout: VisualLayout; purpose?: "carousel" | "video" }): string {
   const scene = input.scene.trim().replace(/[.\s]+$/, "");
   const motif = input.motif.trim().replace(/[.\s]+$/, "");
   return [
+    `Create a ${MEDIUM[input.style]} for ${input.purpose === "video" ? "a scene of a premium vertical short-form video" : "a premium Instagram carousel slide"}.`,
+    `Scene — subject, action, setting: ${scene}.`,
+    motif ? `Recurring cast and world of the series, identical in every image (where it gives a size or position, the composition below wins): ${motif}.` : null,
     COMPOSITION[input.layout],
-    `Scene: ${scene}.`,
-    motif ? `Recurring series setting (props and surfaces only — any size or position it mentions is overridden by the framing rule): ${motif}.` : null,
-    `Art direction: ${ART_DIRECTIONS[input.style].prompt}`,
+    `Style: ${ART_DIRECTIONS[input.style].prompt}`,
     RULES,
   ]
     .filter(Boolean)

@@ -19,7 +19,7 @@ import { ScriptStart } from "@/components/carousel/script-start";
 import type { ImageModelChoice } from "@/lib/carousel/ai-visuals";
 import { generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
-import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, SLIDE_LIMITS, fullBleedTemplate, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
+import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, IMAGE_PROMPT_MAX, VISUAL_MOTIF_MAX, SLIDE_LIMITS, fullBleedTemplate, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
 import { DEFAULT_VISUAL_STYLE, type VisualStyle } from "@/lib/carousel/art-direction";
 import { StylePicker } from "@/components/shared/style-picker";
 import { resolveTemplate } from "@/lib/carousel/templates";
@@ -790,10 +790,10 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                 <StylePicker value={style} onChange={(v) => set({ visualStyle: v })} />
               </div>
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between"><Label>Fil conducteur <span className="font-normal normal-case text-muted-foreground">· le décor des images IA</span></Label><Counter value={state.visualMotif} max={300} /></div>
+                <div className="flex items-center justify-between"><Label>Fil conducteur <span className="font-normal normal-case text-muted-foreground">· le décor des images IA</span></Label><Counter value={state.visualMotif} max={VISUAL_MOTIF_MAX} /></div>
                 <Textarea
                   value={state.visualMotif}
-                  maxLength={300}
+                  maxLength={VISUAL_MOTIF_MAX}
                   rows={2}
                   placeholder="Ex. : chaque aliment présenté dans une cuillère en bois, au-dessus d'un verger flou"
                   onChange={(e) => set({ visualMotif: e.target.value })}
@@ -1183,10 +1183,10 @@ function ImageControl({ imageModel, projectId, slide, aiImageCost, aiImagesConfi
         <div className="space-y-3 rounded-lg border border-white/[0.06] bg-black/20 p-2.5">
           {aiImagesConfigured && (
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between"><Label className="text-[11px]">Scène à illustrer</Label><Counter value={slide.imagePrompt} max={600} /></div>
+              <div className="flex items-center justify-between"><Label className="text-[11px]">Scène à illustrer</Label><Counter value={slide.imagePrompt} max={IMAGE_PROMPT_MAX} /></div>
               <Textarea
                 value={slide.imagePrompt}
-                maxLength={600}
+                maxLength={IMAGE_PROMPT_MAX}
                 rows={3}
                 className="text-xs"
                 placeholder="Ex. : un bol de bouillon fumant posé sur une table en bois, près d'une fenêtre"

@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { slugify } from "@/lib/utils";
+
+/** Room for a full image brief (subject, action, setting, composition) and for the series bible (cast and world). */
+export const IMAGE_PROMPT_MAX = 1000;
+export const VISUAL_MOTIF_MAX = 500;
 import { VISUAL_STYLES, aiSource, isAiSource, type VisualLayout, type VisualStyle } from "@/lib/carousel/art-direction";
 
 /**
@@ -20,7 +24,7 @@ export const carouselSlideSchema = z.object({
   /** Search words for a matching photo, written by the AI. Pre-fills the image search. */
   imageQuery: z.string().max(80).default(""),
   /** The scene an AI visual depicts for this slide — written by the AI, editable. Style and framing are added separately. */
-  imagePrompt: z.string().max(600).default(""),
+  imagePrompt: z.string().max(IMAGE_PROMPT_MAX).default(""),
   /** The one to three words of the title set in the accent colour — the punch of the line. */
   emphasis: z.string().max(60).default(""),
   /**
@@ -141,7 +145,7 @@ export const carouselStateSchema = z.object({
   /** Art direction every AI visual of this carousel is generated in. Null until AI visuals are used. */
   visualStyle: z.enum(VISUAL_STYLES).nullable().default(null),
   /** The recurring setting that ties the images together as one series. */
-  visualMotif: z.string().max(300).default(""),
+  visualMotif: z.string().max(VISUAL_MOTIF_MAX).default(""),
   /** Accent colour for this carousel only; null follows the brand's. */
   accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().default(null),
 });

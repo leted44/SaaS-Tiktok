@@ -499,10 +499,10 @@ export function VisualsPanel({
               <StylePicker value={style} onChange={onVisualStyleChange} />
             </div>
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between"><Label>Fil conducteur</Label><span className="text-[11px] text-muted-foreground">{visualMotif.length}/300</span></div>
+              <div className="flex items-center justify-between"><Label>Fil conducteur</Label><span className="text-[11px] text-muted-foreground">{visualMotif.length}/500</span></div>
               <Textarea
                 value={visualMotif}
-                maxLength={300}
+                maxLength={500}
                 rows={2}
                 placeholder="Ex. : filmé dans le même salon éclairé à la bougie, d'un plan à l'autre"
                 onChange={(e) => onMotifChange(e.target.value)}

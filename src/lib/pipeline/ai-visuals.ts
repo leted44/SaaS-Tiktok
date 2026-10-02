@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import type { AspectRatio } from "@prisma/client";
-import { generateImage, AiImageError, type GeneratedImage } from "@/lib/ai/image-generator";
+import { AiImageError, type GeneratedImage } from "@/lib/ai/image-generator";
+import { generateCheckedImage } from "@/lib/ai/checked-image";
 import { aiSource, composeImagePrompt, type VisualStyle } from "@/lib/carousel/art-direction";
 import { storeGeneratedImage, readOwnImage } from "@/lib/ai/images";
 import type { VisualLayer } from "@/lib/validations";
@@ -26,6 +27,8 @@ export interface SceneTarget {
   endMs: number;
   /** The AI-written scene description — the substance of the prompt, before the art direction and motif are added. */
   description: string;
+  /** What the scene says (its narration) — what the image must make visible, for the image check. */
+  intent: string;
 }
 
 export interface SceneVisualOutcome {
@@ -49,13 +52,26 @@ async function one(
   aspectRatio: "9:16" | "1:1" | "16:9",
   reference: GeneratedImage | null,
   timeoutMs: number,
+  deadline: number,
 ): Promise<{ outcome: SceneVisualOutcome; bytes?: GeneratedImage }> {
   try {
     // "frame": captions can land anywhere over a video scene, not a fixed text
     // band, so nothing is reserved the way the carousel's "bleed" leaves room
     // for a headline — the photo fills the whole frame.
-    const prompt = composeImagePrompt({ scene: target.description, motif, style, layout: "frame" });
-    const bytes = await generateImage({ prompt, aspectRatio, reference, timeoutMs });
+    const compose = (scene: string) => composeImagePrompt({ scene, motif, style, layout: "frame", purpose: "video" });
+    const result = await generateCheckedImage({
+      prompt: compose(target.description),
+      aspectRatio,
+      reference,
+      timeoutMs,
+      intent: target.intent || target.description,
+      scene: target.description,
+      layout: "frame",
+      recompose: compose,
+      deadline,
+    });
+    if (result.outcome !== "pass" && result.outcome !== "unchecked") console.log(`[video-image] scene ${target.index}: ${result.outcome} — ${result.problems.join("; ")}`);
+    const bytes = result.image;
     const url = await storeGeneratedImage(userId, bytes, "video");
     const layer: VisualLayer = { id: nanoid(8), type: "image", src: url, startMs: target.startMs, endMs: target.endMs, fit: "cover", kenBurns: "in", opacity: 1, sceneIndex: target.index, source: aiSource(style) };
     return { outcome: { index: target.index, layer }, bytes };
@@ -81,6 +97,8 @@ export async function generateSceneVisuals(
   motif: string,
   aspectRatio: "9:16" | "1:1" | "16:9",
   existingReference: GeneratedImage | null,
+  // A studio server action may run 180 s; the scenes are done by 170 s, checks and corrections included.
+  deadline = Date.now() + 170_000,
 ): Promise<SceneVisualOutcome[]> {
   if (!targets.length) return [];
   const first = targets.find((t) => t.index === 0);
@@ -89,12 +107,13 @@ export async function generateSceneVisuals(
 
   let reference = existingReference;
   if (first) {
-    const firstResult = await one(userId, first, style, motif, aspectRatio, null, 55_000);
+    // The other scenes still need ~70 s after the first, so its own check stops in time for them.
+    const firstResult = await one(userId, first, style, motif, aspectRatio, null, 55_000, rest.length ? deadline - 70_000 : deadline);
     outcomes.push(firstResult.outcome);
     reference = firstResult.bytes ?? null;
   }
 
-  const restResults = await Promise.all(rest.map((t) => one(userId, t, style, motif, aspectRatio, reference, 65_000)));
+  const restResults = await Promise.all(rest.map((t) => one(userId, t, style, motif, aspectRatio, reference, 65_000, deadline)));
   outcomes.push(...restResults.map((r) => r.outcome));
   return outcomes;
 }
