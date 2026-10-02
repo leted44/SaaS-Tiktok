@@ -6,6 +6,16 @@ import type { GenerateScriptInput } from "@/lib/validations";
 import { normalizeSocialCopy, socialCopyFields } from "@/lib/ai/caption-generator";
 import { countWords } from "@/lib/utils";
 
+/**
+ * The brief an AI image of a scene is drawn from — the same formula as the
+ * carousel's (lib/ai/carousel-generator): in English, in the order Google
+ * recommends for its image models, precise enough that the image shows the
+ * very thing the narration says. "Concrete, filmable", which this used to
+ * ask for, left the model to guess the pose, the moment and the framing.
+ */
+const SCENE_VISUAL_BRIEF =
+  "The brief for the AI image of this scene, written in ENGLISH, 60 to 120 words of precise, concrete description, in this order: (1) Subject — who or what, with a precise appearance; when the video's recurring person or character appears, describe them exactly as visualMotif does. (2) Action — precisely what the narration of this scene says, shown literally when it is physical: for an exercise, a technique, a gesture or a recipe step, the exact mechanics done correctly — body angle and line, position of the arms, hands, legs and feet, grip, contact points, the equipment or utensil and its height — caught at the single key moment the narration is about. Abstract ideas get a concrete, relatable situation or a clear visual metaphor instead. (3) Setting — where. (4) Composition — shot size (close-up, medium shot, full-body wide shot) and camera angle (side view, three-quarter view, low angle…) for a vertical 9:16 frame, chosen so every element the scene relies on is fully visible. Vary shots from scene to scene. Describe what to show, never what to avoid; no lighting or colour words, no text, screens or charts in the image.";
+
 export const scriptOutputSchema = z.object({
   title: z.string().describe("Short, punchy internal title for the video (max 8 words)"),
   hook: z.string().describe("The first 1-2 sentences spoken. Must stop the scroll in under 3 seconds."),
@@ -14,7 +24,7 @@ export const scriptOutputSchema = z.object({
     .array(
       z.object({
         text: z.string().describe("Narration for this scene, 1-3 sentences, spoken aloud"),
-        visualDescription: z.string().describe("What appears on screen — concrete, filmable"),
+        visualDescription: z.string().describe(SCENE_VISUAL_BRIEF),
         brollQuery: z.string().describe("ALWAYS IN ENGLISH, whatever the script language. 2-4 words naming a concrete, filmable subject that stock libraries actually carry, e.g. 'woman counting coins', 'city street night'. Never abstract concepts, brand names, or text."),
         durationSec: z.number().describe("Estimated spoken duration in seconds"),
         emphasis: z.array(z.string()).describe("1-3 words from the text to highlight in captions"),
@@ -23,6 +33,11 @@ export const scriptOutputSchema = z.object({
     )
     .describe("Ordered scenes after the hook. 4-10 scenes."),
   callToAction: z.string().describe("Closing line that drives the requested action, spoken aloud"),
+  visualMotif: z
+    .string()
+    .describe(
+      "The series bible for the AI images of this video, in the script's language, at most 450 characters, two parts. (1) The recurring cast: when a person appears, ONE precise description reused in every scene — gender, approximate age, build, skin tone, hair, and outfit with its colours (plain, no logos); otherwise the recurring character or family of objects. (2) The world the scenes share: the place and its recurring elements. No lighting or colour-grading words, nothing about size or position in the frame.",
+    ),
   hashtags: z.array(z.string()).describe("8-12 hashtags without the # symbol, mix of broad and niche. This is the editable master pool; socialCopy carries the publish-ready selection for each platform."),
   socialCopy: socialCopyFields,
   scores: z.object({

@@ -166,6 +166,9 @@ export async function splitIntoSeriesAction(scriptId: string, parts: number): Pr
             musicVolume: source.musicVolume,
             captionStyle: source.captionStyle ?? Prisma.DbNull,
             backgroundStyle: source.backgroundStyle ?? Prisma.DbNull,
+            // One cast and world for every episode, so the series' AI images show the same person throughout.
+            visualStyle: source.visualStyle,
+            visualMotif: source.visualMotif?.trim() || result.episodes[0]?.script.visualMotif.trim().slice(0, 500) || null,
             status: "SCRIPTED",
             seriesId,
             episodeNumber: index + 1,

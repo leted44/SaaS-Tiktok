@@ -268,7 +268,7 @@ function SceneRow({ scene, index, total, selected, onSelect, onPatch, onMove, on
             <Input value={scene.brollQuery} onChange={(e) => onPatch({ brollQuery: e.target.value })} placeholder="Recherche de b-roll" className="h-8 text-xs" />
             <Input value={scene.onScreenText ?? ""} onChange={(e) => onPatch({ onScreenText: e.target.value || null })} placeholder="Texte à l'écran" className="h-8 text-xs" />
           </div>
-          {scene.visualDescription && <p className="text-[11px] italic text-muted-foreground">{scene.visualDescription}</p>}
+          {scene.visualDescription && <p className="line-clamp-2 text-[11px] italic text-muted-foreground" title={scene.visualDescription}>{scene.visualDescription}</p>}
         </div>
       )}
     </div>
