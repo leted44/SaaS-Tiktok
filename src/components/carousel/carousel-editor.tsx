@@ -101,6 +101,27 @@ const IMAGE_MODEL_CHOICES: { id: ImageModelChoice; label: string; price: string 
   { id: "mix", label: "Mélange", price: "Pro couverture, NB2 le reste" },
 ];
 
+/** The admin's image model choice, shown on the creation screen and in the editor's Visuels section. */
+function ImageModelPicker({ value, onChange }: { value: ImageModelChoice; onChange: (choice: ImageModelChoice) => void }) {
+  return (
+    <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Modèle d'image">
+      {IMAGE_MODEL_CHOICES.map((m) => (
+        <button
+          key={m.id}
+          type="button"
+          role="radio"
+          aria-checked={value === m.id}
+          onClick={() => onChange(m.id)}
+          className={cn("rounded-lg border p-2 text-left transition", value === m.id ? "border-amber-300/70 bg-amber-300/10" : "border-white/10 hover:border-white/20")}
+        >
+          <p className="text-xs font-semibold">{m.label}</p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">{m.price}</p>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** The cover choice that leaves the headline to the carousel AI. */
 const AI_COVER = "__ai__";
 /** AI images each length usually needs: one per slide but the closing one. */
@@ -549,6 +570,14 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
             </div>
           )}
 
+          {ai && admin && (
+            <div className="space-y-2 rounded-lg border border-amber-300/30 bg-amber-300/[0.06] p-3">
+              <p className="text-xs font-semibold text-amber-200">Test admin · modèle d'image</p>
+              <ImageModelPicker value={imageModel} onChange={setImageModel} />
+              <p className="text-[11px] leading-relaxed text-amber-100/80">Visible par toi seul ; tes clients restent sur Pro. Le même choix reste ensuite dans l'éditeur, pour régénérer une image ou tout le carrousel.</p>
+            </div>
+          )}
+
           {ai && (
             <div className="space-y-2">
               <Label>Direction artistique</Label>
@@ -746,21 +775,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
               {admin && (
                 <div className="space-y-2 rounded-lg border border-amber-300/30 bg-amber-300/[0.06] p-3">
                   <p className="text-xs font-semibold text-amber-200">Test admin · modèle d'image</p>
-                  <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Modèle d'image">
-                    {IMAGE_MODEL_CHOICES.map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        role="radio"
-                        aria-checked={imageModel === m.id}
-                        onClick={() => setImageModel(m.id)}
-                        className={cn("rounded-lg border p-2 text-left transition", imageModel === m.id ? "border-amber-300/70 bg-amber-300/10" : "border-white/10 hover:border-white/20")}
-                      >
-                        <p className="text-xs font-semibold">{m.label}</p>
-                        <p className="mt-0.5 text-[10px] text-muted-foreground">{m.price}</p>
-                      </button>
-                    ))}
-                  </div>
+                  <ImageModelPicker value={imageModel} onChange={setImageModel} />
                   <p className="text-[11px] leading-relaxed text-amber-100/80">
                     Visible par toi seul ; tes clients restent sur Pro. Choisis un modèle, puis « Tout régénérer » pour comparer sur le même carrousel. S'applique aussi au bouton de génération de chaque slide.
                   </p>
