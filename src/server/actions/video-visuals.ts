@@ -12,7 +12,7 @@ import { DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from "@/lib/car
 import { CAPTION_PRESET_FOR_VISUAL_STYLE, presetStyle } from "@/lib/captions/presets";
 import { captionStyleSchema, visualLayersSchema, type CaptionStyle, type VisualLayer } from "@/lib/validations";
 import { integrations } from "@/lib/env";
-import { asImageModelChoice } from "@/lib/ai/image-models";
+import { asImageModelChoice, DEFAULT_IMAGE_MODEL } from "@/lib/ai/image-models";
 import { guard, type ActionResult } from "@/server/action-result";
 
 const asStyle = (value: unknown): VisualStyle | null => ((VISUAL_STYLES as readonly unknown[]).includes(value) ? (value as VisualStyle) : null);
@@ -70,8 +70,8 @@ export async function generateProjectVisualsAiAction(
 
     const reference = await existingSceneReference(currentLayers, visualStyle, user.id);
     const outcomes = await generateSceneVisuals(user.id, targets, visualStyle, motif, videoAspect(project.aspectRatio), reference, started + 170_000,
-      // The image model test is the admin's alone, as on the carousel; everyone else always gets Pro.
-      isAdmin(user.role) ? asImageModelChoice(imageModel) : "pro");
+      // The image model test is the admin's alone, as on the carousel; clients get Nano Banana 2.
+      isAdmin(user.role) ? asImageModelChoice(imageModel) : DEFAULT_IMAGE_MODEL);
     const failures = outcomes.filter((o) => !o.layer);
     if (failures.length && unit > 0) {
       creditsLeft = await refundCredits(user.id, unit * failures.length, `Remboursement — ${failures.length} visuel${failures.length > 1 ? "s" : ""} vidéo non généré${failures.length > 1 ? "s" : ""}`);

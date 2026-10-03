@@ -150,7 +150,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<null | "share" | "download" | "zip">(null);
   const [textsOpen, setTextsOpen] = useState(false);
-  /** Image model test, admin only — shared with the video studio. Everyone else always gets Pro. */
+  /** Image model test, admin only — shared with the video studio. Clients get Nano Banana 2. */
   const [imageModel, setImageModel] = useAdminImageModel(admin);
   /** Tapping a slide in the preview opens its text, where it can be changed. */
   function editSlide(id: string) {
@@ -527,7 +527,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
           )}
 
           {ai && admin && (
-            <ImageModelPicker value={imageModel} onChange={setImageModel} note="Visible par toi seul ; tes clients restent sur Pro. Le même choix reste ensuite dans l'éditeur et dans le studio vidéo." />
+            <ImageModelPicker value={imageModel} onChange={setImageModel} note="Visible par toi seul ; tes clients sont sur Nano Banana 2. Le même choix reste ensuite dans l'éditeur et dans le studio vidéo." />
           )}
 
           {ai && (
@@ -725,7 +725,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
               </div>
 
               {admin && (
-                <ImageModelPicker value={imageModel} onChange={setImageModel} note="Visible par toi seul ; tes clients restent sur Pro. Choisis un modèle, puis « Tout régénérer » pour comparer sur le même carrousel. S'applique aussi au bouton de génération de chaque slide, et au studio vidéo.">
+                <ImageModelPicker value={imageModel} onChange={setImageModel} note="Visible par toi seul ; tes clients sont sur Nano Banana 2. Choisis un modèle, puis « Tout régénérer » pour comparer sur le même carrousel. S'applique aussi au bouton de génération de chaque slide, et au studio vidéo.">
                   <a href={`/api/admin/carousel-images/${projectId}`} target="_blank" rel="noreferrer" className="inline-flex text-[11px] font-semibold text-amber-200 underline">
                     Diagnostiquer les images de ce carrousel
                   </a>

@@ -51,7 +51,7 @@ interface Props {
   onCaptionStyleChange: (style: CaptionStyle) => void;
   aiImagesConfigured: boolean;
   aiImageCost: number;
-  /** The admin sees the image model test; everyone else always gets Pro. */
+  /** The admin sees the image model test; clients get Nano Banana 2. */
   admin: boolean;
   credits: number;
   hasScript: boolean;
@@ -499,7 +499,7 @@ export function VisualsPanel({
       {aiImagesConfigured && (
         <Section title="Visuels IA" icon={Wand2} summary={style ? "Style choisi" : undefined} defaultOpen={emptyScenes.length > 0 && layers.length === 0}>
           <div className="space-y-4">
-            {admin && <ImageModelPicker value={imageModel} onChange={setImageModel} note="Visible par toi seul ; tes clients restent sur Pro. Le même choix que dans le carrousel : « Mélange » garde Pro pour la 1re scène, qui fixe le style des suivantes." />}
+            {admin && <ImageModelPicker value={imageModel} onChange={setImageModel} note="Visible par toi seul ; tes clients sont sur Nano Banana 2. Le même choix que dans le carrousel : « Mélange » garde Pro pour la 1re scène, qui fixe le style des suivantes." />}
             <div className="space-y-2">
               <Label>Direction artistique</Label>
               <StylePicker value={style} onChange={onVisualStyleChange} />

@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ImageModelChoice } from "@/lib/ai/image-models";
+import { asImageModelChoice, DEFAULT_IMAGE_MODEL, type ImageModelChoice } from "@/lib/ai/image-models";
 import { cn } from "@/lib/utils";
 
 /** Prices per image at 1K, Google's own API. */
 const CHOICES: { id: ImageModelChoice; label: string; price: string }[] = [
+  { id: "flash", label: "Nano Banana 2", price: "0,067 $ / image · clients" },
   { id: "pro", label: "Pro", price: "0,134 $ / image" },
-  { id: "flash", label: "Nano Banana 2", price: "0,067 $ / image" },
   { id: "mix", label: "Mélange", price: "Pro la 1re image, NB2 le reste" },
 ];
 
@@ -16,17 +16,17 @@ const KEY = "vs-image-model";
 /**
  * The admin's image model choice, remembered on this device and shared by
  * the carousel and the video studio, so a comparison survives a reload and
- * a switch of format. Anyone else is always on Pro.
+ * a switch of format. Clients are always on DEFAULT_IMAGE_MODEL.
  */
 export function useAdminImageModel(admin: boolean): [ImageModelChoice, (choice: ImageModelChoice) => void] {
-  const [model, setModel] = useState<ImageModelChoice>("pro");
+  const [model, setModel] = useState<ImageModelChoice>(DEFAULT_IMAGE_MODEL);
   useEffect(() => {
     if (!admin) return;
     try {
       const saved = localStorage.getItem(KEY);
-      if (saved === "flash" || saved === "mix") setModel(saved);
+      if (saved) setModel(asImageModelChoice(saved));
     } catch {
-      // Storage unavailable: the test simply starts on Pro.
+      // Storage unavailable: the test simply starts on the clients' model.
     }
   }, [admin]);
   function choose(choice: ImageModelChoice) {

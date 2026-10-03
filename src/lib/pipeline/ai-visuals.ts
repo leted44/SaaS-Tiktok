@@ -2,7 +2,7 @@ import { nanoid } from "nanoid";
 import type { AspectRatio } from "@prisma/client";
 import { AiImageError, type GeneratedImage } from "@/lib/ai/image-generator";
 import { generateCheckedImage } from "@/lib/ai/checked-image";
-import { modelForImage, type ImageModelChoice } from "@/lib/ai/image-models";
+import { DEFAULT_IMAGE_MODEL, modelForImage, type ImageModelChoice } from "@/lib/ai/image-models";
 import { aiSource, composeImagePrompt, type VisualStyle } from "@/lib/carousel/art-direction";
 import { storeGeneratedImage, readOwnImage } from "@/lib/ai/images";
 import type { VisualLayer } from "@/lib/validations";
@@ -103,7 +103,7 @@ export async function generateSceneVisuals(
   existingReference: GeneratedImage | null,
   // A studio server action may run 180 s; the scenes are done by 170 s, checks and corrections included.
   deadline = Date.now() + 170_000,
-  modelChoice: ImageModelChoice = "pro",
+  modelChoice: ImageModelChoice = DEFAULT_IMAGE_MODEL,
 ): Promise<SceneVisualOutcome[]> {
   if (!targets.length) return [];
   const first = targets.find((t) => t.index === 0);

@@ -1,6 +1,6 @@
 import { AiImageError, type GeneratedImage, type ImageModel } from "@/lib/ai/image-generator";
 import { generateCheckedImage } from "@/lib/ai/checked-image";
-import { modelForImage, type ImageModelChoice } from "@/lib/ai/image-models";
+import { DEFAULT_IMAGE_MODEL, modelForImage, type ImageModelChoice } from "@/lib/ai/image-models";
 import { aiSource, composeImagePrompt, type VisualStyle } from "@/lib/carousel/art-direction";
 import { readOwnImage, storeGeneratedImage } from "@/lib/ai/images";
 import { imageAspect, imageLayout, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
@@ -18,7 +18,7 @@ type Series = Pick<CarouselState, "template" | "format" | "visualMotif"> & { vis
 
 export { asImageModelChoice, type ImageModelChoice } from "@/lib/ai/image-models";
 /** The model that draws this slide — the cover sets the series, so "mix" keeps it on Pro. */
-export function modelFor(kind: CarouselSlide["kind"], choice: ImageModelChoice = "pro"): ImageModel {
+export function modelFor(kind: CarouselSlide["kind"], choice: ImageModelChoice = DEFAULT_IMAGE_MODEL): ImageModel {
   return modelForImage(kind === "cover", choice);
 }
 

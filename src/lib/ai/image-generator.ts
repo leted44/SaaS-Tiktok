@@ -51,7 +51,7 @@ interface Options {
   reference?: GeneratedImage | null;
   /** Hard cap for one attempt. Batches pass a shorter one so a whole carousel fits in one request. */
   timeoutMs?: number;
-  /** Which Gemini image model draws it — Pro unless a test says otherwise. */
+  /** Which Gemini image model draws it — Nano Banana 2 unless a test says otherwise. */
   model?: ImageModel;
 }
 
@@ -60,7 +60,7 @@ type GeminiResponse = {
   promptFeedback?: { blockReason?: string };
 };
 
-async function attempt({ prompt, aspectRatio, reference, edit, timeoutMs = 60_000, model = "pro" }: Options & { edit?: GeneratedImage }): Promise<GeneratedImage> {
+async function attempt({ prompt, aspectRatio, reference, edit, timeoutMs = 60_000, model = "flash" }: Options & { edit?: GeneratedImage }): Promise<GeneratedImage> {
   const parts = edit
     ? [{ inlineData: { mimeType: edit.mimeType, data: edit.data.toString("base64") } }, { text: prompt }]
     : reference

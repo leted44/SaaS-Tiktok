@@ -11,6 +11,7 @@ import { carouselSlidesSchema, carouselStateFromRow, carouselStateSchema, stripE
 import { copyStockImage, isOwnImage, storeGeneratedImage } from "@/lib/ai/images";
 import { withAutoPhotos } from "@/lib/carousel/auto-photos";
 import { aiSource, DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from "@/lib/carousel/art-direction";
+import { DEFAULT_IMAGE_MODEL } from "@/lib/ai/image-models";
 import { asImageModelChoice, coverReference, generateSeries, generateSlideImage, SERIES_BUDGET_MS } from "@/lib/carousel/ai-visuals";
 import { integrations } from "@/lib/env";
 import { guard, type ActionResult } from "@/server/action-result";
@@ -171,8 +172,8 @@ export async function generateSlideImageAction(
     const cost = isAdmin(user.role) ? 0 : CREDIT_COSTS.AI_IMAGE;
     const creditsLeft = cost > 0 ? await chargeCredits(user.id, cost, "SCRIPT_GENERATION", "Image générée par IA") : user.credits;
     try {
-      // The image model test is the admin's alone; everyone else always gets Pro.
-      const bytes = await generateSlideImage(slide, { ...series, imageModel: isAdmin(user.role) ? asImageModelChoice(imageModel) : "pro" }, { reference, deadline: started + SERIES_BUDGET_MS, sceneOverride: scene });
+      // The image model test is the admin's alone; clients get Nano Banana 2.
+      const bytes = await generateSlideImage(slide, { ...series, imageModel: isAdmin(user.role) ? asImageModelChoice(imageModel) : DEFAULT_IMAGE_MODEL }, { reference, deadline: started + SERIES_BUDGET_MS, sceneOverride: scene });
       const url = await storeGeneratedImage(user.id, bytes);
       return { url, source: aiSource(visualStyle), visualStyle, creditsLeft };
     } catch (err) {
@@ -216,7 +217,7 @@ export async function generateCarouselVisualsAction(
     const total = unit * targets.length;
     let creditsLeft = total > 0 ? await chargeCredits(user.id, total, "SCRIPT_GENERATION", `${targets.length} images générées par IA`) : user.credits;
 
-    const imageModelChoice = isAdmin(user.role) ? asImageModelChoice(imageModel) : "pro";
+    const imageModelChoice = isAdmin(user.role) ? asImageModelChoice(imageModel) : DEFAULT_IMAGE_MODEL;
     const outcomes = await generateSeries(user.id, state.slides, targets, { template: state.template, format: state.format, visualMotif: state.visualMotif, visualStyle, imageModel: imageModelChoice }, started + SERIES_BUDGET_MS);
     const failures = outcomes.filter((o) => !o.image);
     if (failures.length && unit > 0) {
