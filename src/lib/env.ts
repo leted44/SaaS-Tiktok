@@ -13,7 +13,7 @@ export const env = {
   isProd: process.env.NODE_ENV === "production",
 
   anthropicApiKey: read("ANTHROPIC_API_KEY"),
-  anthropicModel: read("ANTHROPIC_MODEL", "claude-opus-5"),
+  anthropicModel: read("ANTHROPIC_MODEL", "claude-opus-5-5"),
 
   elevenLabsApiKey: read("ELEVENLABS_API_KEY"),
   elevenLabsModelId: read("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2"),

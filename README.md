@@ -41,7 +41,7 @@ Everything boots without third-party keys. Modules show a "not configured" state
 
 | Variable | Enables |
 |---|---|
-| `ANTHROPIC_API_KEY` | AI script generation (`claude-opus-5` by default) |
+| `ANTHROPIC_API_KEY` | AI script generation (`claude-opus-5-5` by default) |
 | `ELEVENLABS_API_KEY` | Real voiceovers with word-level alignment (otherwise a silent placeholder with estimated timing is produced) |
 | `PEXELS_API_KEY` | One-click b-roll: portrait stock clips matched to each scene's AI-suggested query (manual upload still works without it) |
 | `PIXABAY_API_KEY` | Second, independent stock catalog merged into every search — optional, fills gaps Pexels leaves empty on narrow subjects |
