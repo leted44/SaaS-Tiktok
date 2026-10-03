@@ -50,7 +50,7 @@ const KenBurns: React.FC<{ layer: VisualLayer; durationInFrames: number; startFr
   const scale = drift + pulse * BEAT_PUNCH;
   const x = layer.kenBurns === "pan-left" ? -t * 4 : layer.kenBurns === "pan-right" ? t * 4 : 0;
   const fadeIn = fadeInFrames <= 0 ? 1 : interpolate(frame, [0, fadeInFrames], [0, 1], { extrapolateRight: "clamp" });
-  const fadeOut = interpolate(frame, [durationInFrames - fadeOutFrames, durationInFrames], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const fadeOut = fadeOutFrames <= 0 ? 1 : interpolate(frame, [durationInFrames - fadeOutFrames, durationInFrames], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
     <AbsoluteFill style={{ opacity: Math.min(fadeIn, fadeOut) * layer.opacity, transform: `scale(${scale}) translateX(${x}%)` }}>
       {children}
@@ -92,7 +92,9 @@ export const VisualLayers: React.FC<{ layers: VisualLayer[]; beatGrid?: BeatGrid
         // there at full strength from frame 0, never fading in from the
         // background colour.
         const fadeInFrames = nominalFrom === 0 ? 0 : i === 0 || !canStretch ? 10 : Math.max(1, leftOverlap);
-        const fadeOutFrames = i === sorted.length - 1 || !canStretch ? 10 : Math.max(1, to - nominalTo);
+        // Same for the end: a short video replays in a loop, so the layer that
+        // closes it holds to the last frame instead of fading to the background.
+        const fadeOutFrames = nominalTo >= totalFrames - 1 ? 0 : i === sorted.length - 1 || !canStretch ? 10 : Math.max(1, to - nominalTo);
         return (
           <Sequence key={layer.id} from={from} durationInFrames={duration} layout="none">
             <KenBurns layer={layer} durationInFrames={duration} startFrame={from} beatGrid={beatGrid} fadeInFrames={fadeInFrames} fadeOutFrames={fadeOutFrames}>

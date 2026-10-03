@@ -7,6 +7,30 @@ function sceneIndexFor(wordIndex: number, boundaries: number[]): number {
 }
 
 /**
+ * French typography puts a space before ? ! : ; and inside « », so splitting on
+ * whitespace makes words of lone punctuation — a caption page showing just
+ * "?" (seen in a real export). A token with no letter or digit joins its
+ * neighbour instead: closing punctuation the word before, an opening « the
+ * word after. It still counts as a token, so word indices keep matching the
+ * scene boundaries, which are counted the same whitespace-split way.
+ */
+const isPunctuationOnly = (token: string) => !/[\p{L}\p{N}]/u.test(token);
+const isOpening = (token: string) => /^[«“(\[]+$/.test(token);
+
+function attachPunctuation(words: WordTiming[], token: string, endMs: number, pendingOpen: { text: string }): boolean {
+  if (!isPunctuationOnly(token)) return false;
+  if (isOpening(token)) {
+    pendingOpen.text += `${token} `;
+    return true;
+  }
+  const previous = words[words.length - 1];
+  if (!previous) return false;
+  previous.word = `${previous.word} ${token}`;
+  previous.endMs = Math.max(previous.endMs, endMs);
+  return true;
+}
+
+/**
  * Convert ElevenLabs character-level alignment into word-level timings.
  * Words are split on whitespace; punctuation stays attached to its word.
  */
@@ -17,9 +41,14 @@ export function alignmentToWordTimings(characters: string[], starts: number[], e
   let end = 0;
   let wordIndex = 0;
 
+  const pendingOpen = { text: "" };
   const flush = () => {
     if (!current.trim()) return;
-    words.push({ word: current, startMs: Math.round(start * 1000), endMs: Math.round(end * 1000), sceneIndex: sceneIndexFor(wordIndex, sceneBoundaries) });
+    const timing = { word: current, startMs: Math.round(start * 1000), endMs: Math.round(end * 1000), sceneIndex: sceneIndexFor(wordIndex, sceneBoundaries) };
+    if (!attachPunctuation(words, current, timing.endMs, pendingOpen)) {
+      words.push({ ...timing, word: pendingOpen.text + timing.word });
+      pendingOpen.text = "";
+    }
     wordIndex++;
     current = "";
   };
@@ -43,15 +72,23 @@ export function estimateWordTimings(text: string, sceneBoundaries: number[], wor
   const tokens = text.split(/\s+/).filter(Boolean);
   const base = 1000 / wordsPerSecond;
   let t = 250;
-  return tokens.map((word, i) => {
+  const words: WordTiming[] = [];
+  const pendingOpen = { text: "" };
+  tokens.forEach((word, i) => {
+    // Lone punctuation joins its neighbour and adds the pause it marks, not a word's length.
+    if (attachPunctuation(words, word, Math.round(t), pendingOpen)) {
+      t += /[.!?]/.test(word) ? 260 : /[,;:]/.test(word) ? 120 : 0;
+      return;
+    }
     // Longer words and sentence ends take a little longer — mimics real cadence.
     const weight = 0.7 + Math.min(word.replace(/[^a-zA-Z0-9]/g, "").length, 12) * 0.05;
     const pause = /[.!?]$/.test(word) ? 260 : /[,;:]$/.test(word) ? 120 : 0;
     const dur = Math.round(base * weight);
-    const timing = { word, startMs: Math.round(t), endMs: Math.round(t + dur), sceneIndex: sceneIndexFor(i, sceneBoundaries) };
+    words.push({ word: pendingOpen.text + word, startMs: Math.round(t), endMs: Math.round(t + dur), sceneIndex: sceneIndexFor(i, sceneBoundaries) });
+    pendingOpen.text = "";
     t += dur + pause;
-    return timing;
   });
+  return words;
 }
 
 function mergeTinyGaps(words: WordTiming[]): WordTiming[] {
