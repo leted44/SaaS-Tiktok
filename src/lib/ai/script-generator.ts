@@ -19,11 +19,11 @@ const SCENE_VISUAL_BRIEF =
 
 export const scriptOutputSchema = z.object({
   title: z.string().describe("Short, punchy internal title for the video (max 8 words)"),
-  hook: z.string().describe("The first 1-2 sentences spoken. Must stop the scroll in under 3 seconds."),
+  hook: z.string().describe("The first 1-2 sentences spoken. The first sentence is 8 words at most and creates the tension on its own: it must stop the scroll within the first second."),
   hookVisualDescription: z
     .string()
     .describe(
-      `${SCENE_VISUAL_BRIEF} This is the image of the HOOK, the first frame a scroller sees: the most striking image of the video, built to stop the thumb on its own, and a different shot from the first scene's (other angle or shot size) so the opening never holds one image for two scenes.`,
+      `${SCENE_VISUAL_BRIEF} This is the image of the HOOK, the first frame a scroller sees: the most striking image of the video, built to stop the thumb on its own — the subject at its most telling moment (the action at its peak, the finished result, the mistake in full view), never an empty setting or a plain establishing shot — and a different shot from the first scene's (other angle or shot size) so the opening never holds one image for two scenes.`,
     ),
   alternativeHooks: z.array(z.string()).describe("3 alternative hooks with different angles"),
   scenes: z
@@ -70,14 +70,16 @@ export interface ScriptGenerationResult {
 export const SCRIPT_SYSTEM_PROMPT = `You are VidiSprint's short-form video strategist. You write scripts for TikTok, Instagram Reels and YouTube Shorts that maximize watch-time and shares.
 
 Principles you always apply:
-- The hook is spoken in the first 3 seconds and creates an open loop, a bold claim, or a specific curiosity gap. No "Hey guys", no "In this video".
+- Viewers decide to stay or swipe within the first second, on the first image and the first words. The hook's first sentence is 8 words at most and opens straight on the tension — a specific claim, a visible mistake, a surprising contrast, a direct "you" statement with something at stake. Nothing comes before it: no greeting, no "Hey guys", no "In this video", no scene-setting, no generic statement with nothing at stake ("Tu n'as pas besoin d'un abonnement").
+- The first concrete payoff — the answer, the mistake, the key number — lands by second 6. At most one sentence of setup before it; the rest of the video proves it, explains it or says what to do.
 - One idea per video. Every scene earns its place by moving toward the payoff.
 - Write for the ear: short sentences, contractions, concrete nouns, active verbs, numbers written as digits.
 - The narration (hook, scene text, call to action) is read aloud by a synthetic voice, which reads exactly what is written. Write every word the way it is said: no symbols (×, %, &, +, /, →, ~), no abbreviations or shorthand ("1re", "exos", "min", "kg", "vs", "etc."), no parentheses, no emoji. Numbers may stay digits; everything around them is written out ("3 séries de 12", "20 pour cent", "la première traction").
 - Punctuate for breath, the way a confident speaker talks: a comma where they would pause, a full stop where they would land a point, a question mark where the voice rises. One idea per sentence; no sentence longer than about 20 words.
 - Pace: ~2.6 words per second of narration. Respect the requested target duration within ±15%.
 - Pattern interrupts every 5-8 seconds: change of visual, on-screen text, or rhetorical question.
-- Close the loop before the CTA. The CTA is one sentence, natural, never begging.
+- Close the loop before the CTA. The CTA is one sentence, natural, never begging. When it asks for a comment, it asks a question the viewer can answer in one word or a number (e.g. «Toi, c'est 1, 2 ou 3 ?»), never «dis-moi ce que tu en penses».
+- Short beats complete: say the idea once, without padding. A viewer who watches to the end is worth more to the platform than one more point.
 - Scores are honest and calibrated: 90+ is rare and reserved for genuinely exceptional concepts.
 - Write in the requested language. Keep hashtags in that language plus 2-3 global ones.
 - brollQuery is the one exception: always English, and always a literal thing a camera can film (a person doing something, an object, a place). "man opening empty wallet" works; "financial anxiety" returns nothing usable.
@@ -94,11 +96,13 @@ Principles you always apply:
 export const CAROUSEL_SCRIPT_RULES = `
 
 THIS SCRIPT IS FOR A PHOTO CAROUSEL, NOT A VIDEO. It is read slide by slide in a feed, never heard. These rules replace the ones above about speech, pace, duration and pattern interrupts:
-- The hook is the COVER HEADLINE: it must stop the scroll on its own, with no voice or motion to help. 80 characters maximum. A specific, surprising claim, number or truth; never a vague teaser.
+- The hook is the COVER HEADLINE: it must stop the scroll on its own, with no voice or motion to help. Aim for 8 words or fewer, 12 at most, 80 characters maximum. A specific, surprising claim, number or truth; never a vague teaser.
 - The 3 alternativeHooks are 3 alternative cover headlines with genuinely different angles (a number, a counter-intuitive truth, a direct "you" statement...), 80 characters maximum each. The creator will pick one of the four as the cover, so each must be strong enough to be the one.
 - Each scene is ONE SLIDE: one complete, punchy statement that teaches something even if read alone, then one concrete proof — a mechanism, a real example, a precise action. 1 to 2 short sentences, written for the eye. No transitions ("Mais attends", "Et ce n'est pas tout", "Voici pourquoi"), no filler, no rhetorical build-up.
+- The FIRST scene delivers the payoff: the answer the cover promises, stated plainly, so a reader who stops there still got it. Most readers stop after 3 or 4 slides: never keep the answer for the end. The following scenes prove it, explain why, and say what to do.
+- The LAST scene ends with a short question the reader can answer in one word or a number (e.g. «Toi, c'est 1 ou 2 ?»): it is the last slide most readers still see.
 - Scenes escalate: never two slides saying the same thing. Write EXACTLY the number of scenes the format asks for — no padding to fill slides, no idea squeezed out.
-- The callToAction is the closing slide's ask: one explicit action (comment a keyword, share with someone, follow for the next one), direct and specific.
+- The callToAction is the closing slide's ask: one explicit action, direct and specific — when it asks for a comment, it asks for the one-word answer to the last scene's question; otherwise share with someone, or follow for the next one.
 - durationSec is the reading time of the slide in seconds; visualDescription and brollQuery describe the image of that slide.`;
 
 /** What each carousel length asks of the script. */
@@ -106,7 +110,7 @@ const CAROUSEL_FORMAT: Record<NonNullable<GenerateScriptInput["carouselLength"]>
   single:
     "Format: ONE single-image post. The hook is the entire post — the one impactful line people stop on, save and share. Write EXACTLY 1 scene: the proof or the one concrete action that makes that line useful, 1 to 2 short sentences.",
   short: "Format: a 4-slide carousel — cover, 2 content slides, closing slide. Write EXACTLY 2 scenes: the single strongest point, then its payoff or what to do.",
-  full: "Format: a full carousel — cover, 5 to 7 content slides, closing slide. Write between 5 and 7 scenes, as many as the idea genuinely has and no more: the false belief or tension, why it happens, then what to do.",
+  full: "Format: a 6-slide carousel — cover, 4 content slides, closing slide. Write EXACTLY 4 scenes: the payoff the cover promises, then why it works, then what to do, then a last point that ends on the one-word question.",
 };
 
 /** The critic's own carousel lens: the same demanding bar, judged as a scroller swiping rather than a viewer watching. */
@@ -115,6 +119,7 @@ export const CAROUSEL_CRITIC_RULES = `
 THIS SCRIPT IS FOR A PHOTO CAROUSEL, read slide by slide in a feed. Judge it as a scroller swiping, with the same demanding bar — these criteria replace the ones above about speech and pacing:
 - The hook is the cover headline (80 characters maximum): would it stop YOUR thumb with no image, no voice? If not, rewrite it. The 3 alternativeHooks are alternative covers the creator will choose from: each must be strong enough to be the one, with a genuinely different angle — rewrite any weak or redundant one.
 - Every scene is a slide that must teach something read alone, with one concrete proof. Cut or rewrite any slide that is vague, repeats another, or only sets up the next one.
+- The cover headline aims for 8 words or fewer (12 at most). The first scene gives the payoff the cover promises — a carousel that keeps its answer for the end loses most readers before it. The last scene ends on a question answerable in one word or a number.
 - Keep EXACTLY the number of scenes the format asks for.
 - Scores: retention is the predicted swipe-through to the last slide.`;
 
@@ -130,13 +135,15 @@ export const SCRIPT_CRITIC_SYSTEM_PROMPT = `You are VidiSprint's most demanding 
 Rewrite the ENTIRE script, keeping only what already earns its place. Do not just patch lines — a merely acceptable script rewritten with fresh eyes still isn't good enough.
 
 Reject and fix, specifically:
-- A hook that is vague, generic, or a phrasing a hundred other videos already used. It must land one sharp, specific claim or question framed in a way that earns the stop.
+- A hook that is vague, generic, or a phrasing a hundred other videos already used. It must land one sharp, specific claim or question framed in a way that earns the stop. Its first sentence is 8 words at most, with nothing before it — viewers leave within the first second.
+- A payoff that comes late: the first concrete answer, mistake or number must land by second 6, with at most one sentence of setup.
+- Padding: a script longer than its target duration, or a point that adds length without adding value. Short and watched to the end beats complete and abandoned.
 - Any scene that could be cut without the video losing anything, or that restates the previous scene instead of escalating toward the payoff.
 - Any sentence too long or abstract to say out loud naturally, or any passive phrasing a real creator wouldn't use.
 - Any symbol, abbreviation or shorthand in the narration (×, %, "1re", "exos", "kg"…): a synthetic voice reads it literally, so write it the way it is said.
 - Any invented, exaggerated, or suspiciously-precise claim — a statistic, a mechanism, "studies show". This is automated content a real audience will trust as fact with nobody checking it before it posts: replace anything you cannot personally stand behind with the true, still-interesting version, or cut it. A fabricated number is a defect, never a stylistic choice.
 - Any promise the brief does not support — a result in a fixed number of days or weeks, a guaranteed outcome. Keep the boldness, drop the invented guarantee.
-- A CTA that begs, or that doesn't follow naturally from the payoff just delivered.
+- A CTA that begs, or that doesn't follow naturally from the payoff just delivered. A comment ask is a question answerable in one word or a number.
 - Dead pacing: nothing changing on screen or in delivery for more than ~7 seconds straight.
 
 Score honestly against this bar, not against an average video: a script that does nothing wrong but breaks no new ground is a 60-70, not an 85 — 85+ is earned by a genuinely sharp, specific angle, not given for competent execution. If your rewrite would still score in the 70s or below on virality or hook, that means keep rewriting, not report the low score and stop — your job is to hand back a script that deserves a high score, not to grade the one you were given.
@@ -241,8 +248,8 @@ function clampScore(n: number) {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
-/** A carousel script keeps no more scenes than its slides can hold: 1 for a single image, 2 for a short carousel, 7 for a full one. */
-const CAROUSEL_MAX_SCENES = { single: 1, short: 2, full: 7 } as const;
+/** A carousel script keeps no more scenes than its slides can hold: 1 for a single image, 2 for a short carousel, 4 for a full one. */
+const CAROUSEL_MAX_SCENES = { single: 1, short: 2, full: 4 } as const;
 
 export function normalizeScript(s: GeneratedScript, carouselLength?: GenerateScriptInput["carouselLength"]): GeneratedScript {
   const maxScenes = carouselLength ? CAROUSEL_MAX_SCENES[carouselLength] : 12;
@@ -274,8 +281,10 @@ export function assembleFullText(s: Pick<GeneratedScript, "hook" | "scenes" | "c
 export function heuristicScores(fullText: string, hook: string): { virality: number; hook: number; retention: number; clarity: number } {
   const words = countWords(fullText);
   const hookWords = countWords(hook);
-  const hookScore = clampScore(70 + (hookWords <= 14 ? 12 : hookWords <= 20 ? 4 : -10) + (/\?|\d/.test(hook) ? 8 : 0) - (/^(hey|hi|in this video)/i.test(hook.trim()) ? 30 : 0));
-  const retention = clampScore(75 - Math.abs(words - 120) / 6);
+  const firstSentence = countWords(hook.split(/[.!?…]/)[0] ?? hook);
+  const hookScore = clampScore(70 + (firstSentence <= 8 ? 12 : hookWords <= 14 ? 4 : -10) + (/\?|\d/.test(hook) ? 8 : 0) - (/^(hey|hi|in this video)/i.test(hook.trim()) ? 30 : 0));
+  // About 20 seconds of speech keeps viewers to the end; every word past it costs retention.
+  const retention = clampScore(80 - Math.max(0, words - 55) / 4);
   const clarity = clampScore(72 + (fullText.split(/[.!?]/).filter((s) => countWords(s) > 22).length ? -14 : 8));
   const virality = clampScore(hookScore * 0.45 + retention * 0.35 + clarity * 0.2);
   return { virality, hook: hookScore, retention, clarity };

@@ -28,3 +28,13 @@ export const CTA_GOALS = [
 export type CtaGoal = (typeof CTA_GOALS)[number]["id"];
 
 export const LANGUAGES: [string, string][] = [["fr", "Français"], ["en", "Anglais"], ["es", "Espagnol"], ["de", "Allemand"], ["pt", "Portugais"], ["it", "Italien"], ["nl", "Néerlandais"], ["ja", "Japonais"]];
+
+/**
+ * The video length every new video starts at. Real exports showed viewers
+ * staying 5 to 10 seconds on 30 to 45 second videos: almost nobody saw the
+ * end, so the platform stopped showing them. A 20-second video keeps the same
+ * idea, said without the padding, and gets watched to the end.
+ */
+export const DEFAULT_DURATION_SEC = 20;
+/** The lengths offered as quick choices, shortest first. */
+export const DURATION_CHOICES = [15, 20, 30, 45, 60] as const;

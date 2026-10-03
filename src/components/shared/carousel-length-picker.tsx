@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 const OPTIONS: { id: CarouselLength; label: string }[] = [
   { id: "single", label: "1 image" },
   { id: "short", label: "4 slides" },
-  { id: "full", label: "8 slides" },
+  { id: "full", label: "6 slides" },
 ];
 
 /**

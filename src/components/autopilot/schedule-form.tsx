@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { DEFAULT_DURATION_SEC } from "@/lib/scripts/options";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CalendarClock, ListOrdered, PenLine, Pencil, Sparkles, Video } from "lucide-react";
@@ -33,7 +34,7 @@ interface Props {
 const NO_SPACE = "";
 const MIN_BRIEF = 15;
 
-const DURATIONS = [30, 45, 60, 90];
+const DURATIONS = [20, 30, 45, 60, 90];
 const INTERVALS: [number, string][] = [
   [6, "Toutes les 6 h"],
   [12, "Toutes les 12 h"],
@@ -55,7 +56,7 @@ export function ScheduleForm({ templates, initialTemplateId, customVoiceName, qu
   const [topicsText, setTopicsText] = useState("");
   const [when, setWhen] = useState("");
   const [interval, setIntervalHours] = useState(24);
-  const [duration, setDuration] = useState(template?.input.targetDurationSec ?? 45);
+  const [duration, setDuration] = useState(template?.input.targetDurationSec ?? DEFAULT_DURATION_SEC);
   const [tone, setTone] = useState<Tone>(template?.input.tone ?? "energetic");
   const [saving, setSaving] = useState(false);
   // Who writes the topics: the user, or the AI from the space's theme.

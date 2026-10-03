@@ -94,8 +94,12 @@ export function needsAiVisual(slide: CarouselSlide, style: VisualStyle): boolean
 /** How many slides a carousel is written at: a single punchy image, a short 4-slide post, or a full carousel. */
 export const CAROUSEL_LENGTHS: readonly CarouselLength[] = ["single", "short", "full"];
 export type CarouselLength = "single" | "short" | "full";
-/** Content slides per length — the cover and the closing slide come on top. */
-export const CONTENT_SLIDES: Record<Exclude<CarouselLength, "single">, number> = { short: 2, full: 7 };
+/**
+ * Content slides per length — the cover and the closing slide come on top.
+ * The full carousel is 6 slides: a real 8-slide post was seen 3.4 slides deep
+ * on average, so most readers never reached its end or its call to action.
+ */
+export const CONTENT_SLIDES: Record<Exclude<CarouselLength, "single">, number> = { short: 2, full: 4 };
 
 /** At least one slide: a single-image post is the cover alone. */
 export const carouselSlidesSchema = z.array(carouselSlideSchema).min(1).max(12);

@@ -11,9 +11,9 @@ import { CarouselLengthPicker } from "@/components/shared/carousel-length-picker
 import type { CarouselLength } from "@/lib/carousel/schema";
 import { formatDestination, type ContentFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { AUTO_NICHE, CTA_GOALS, HOOK_STYLES, LANGUAGES, NICHES, type CtaGoal, type HookStyle } from "@/lib/scripts/options";
+import { AUTO_NICHE, CTA_GOALS, DEFAULT_DURATION_SEC, HOOK_STYLES, LANGUAGES, NICHES, type CtaGoal, type HookStyle } from "@/lib/scripts/options";
 
-const DURATIONS = [30, 45, 60];
+const DURATIONS = [20, 30, 45];
 
 interface Props {
   aiConfigured: boolean;
@@ -35,10 +35,10 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
   const [topic, setTopic] = useState("");
   const [withUrl, setWithUrl] = useState(false);
   const [url, setUrl] = useState("");
-  const [duration, setDuration] = useState(45);
+  const [duration, setDuration] = useState(DEFAULT_DURATION_SEC);
   const [tone, setTone] = useState<Tone>("energetic");
   const [format, setFormat] = useState<ContentFormat>("video");
-  const [carouselLength, setCarouselLength] = useState<CarouselLength>("short");
+  const [carouselLength, setCarouselLength] = useState<CarouselLength>("full");
   const [moreOpen, setMoreOpen] = useState(false);
   const [niche, setNiche] = useState(AUTO_NICHE);
   const [hookStyle, setHookStyle] = useState<HookStyle>("auto");

@@ -30,6 +30,7 @@ Counterparts to check every time:
 | Prompt composition, art direction, framing | `lib/carousel/art-direction.ts` (layout `bleed`/`band`) | same file (layout `frame`, purpose `video`) |
 | Generation + check + correction | `lib/carousel/ai-visuals.ts` → `lib/ai/checked-image.ts` | `lib/pipeline/ai-visuals.ts` → `lib/ai/checked-image.ts` |
 | Admin image model test | carousel editor (`ImageModelPicker`) | studio visuals panel (`ImageModelPicker`) |
+| Structure for retention (short hook, payoff early, one-word question) and default length | `carousel-generator.ts` SYSTEM_PROMPT + `script-generator.ts` CAROUSEL_SCRIPT_RULES; 6 slides (`CONTENT_SLIDES` in `lib/carousel/schema.ts`) | `script-generator.ts` SCRIPT_SYSTEM_PROMPT + critic; 20 s (`DEFAULT_DURATION_SEC` in `lib/scripts/options.ts`) |
 | Writing rules (no invented claims or promises) | `carousel-generator.ts` SYSTEM_PROMPT | `script-generator.ts` SCRIPT_SYSTEM_PROMPT + critic |
 | Fil conducteur / series bible UI | carousel editor "Fil conducteur" | `components/studio/visuals-panel.tsx` "Fil conducteur" |
 | Storage, cleanup, image reading | `lib/storage.ts`, `lib/storage-cleanup.ts`, `lib/ai/images.ts` (shared) | same |

@@ -48,7 +48,7 @@ interface Props {
 }
 
 const CONTENT_LANGUAGES = ["fr", "en", "es", "de", "it", "pt"];
-const DURATIONS = [30, 45, 60, 90];
+const DURATIONS = [20, 30, 45, 60, 90];
 const RES_RANK: Record<Resolution, number> = { "720p": 0, "1080p": 1, "4K": 2 };
 const POSITIONS: { value: CaptionStyle["position"]; label: string }[] = [
   { value: "top", label: "Haut" },

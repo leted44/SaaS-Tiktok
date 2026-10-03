@@ -20,7 +20,7 @@ import type { CarouselLength } from "@/lib/carousel/schema";
 import { formatDestination, type ContentFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { TONES, TONE_LABELS, type Tone } from "@/lib/autopilot/template-shared";
-import { AUTO_NICHE, CTA_GOALS, HOOK_STYLES, LANGUAGES, NICHES, type CtaGoal, type HookStyle } from "@/lib/scripts/options";
+import { AUTO_NICHE, CTA_GOALS, DEFAULT_DURATION_SEC, HOOK_STYLES, LANGUAGES, NICHES, type CtaGoal, type HookStyle } from "@/lib/scripts/options";
 
 const TONE_OPTIONS = TONES.map((id) => ({ id, label: TONE_LABELS[id] }));
 const STEPS = ["Analyse du sujet", "Rédaction des hooks", "Structuration des scènes", "Calcul du score de viralité"];
@@ -48,12 +48,12 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
   const [tone, setTone] = useState<Tone>("energetic");
   const [hookStyle, setHookStyle] = useState<HookStyle>("auto");
   const [language, setLanguage] = useState("fr");
-  const [duration, setDuration] = useState(45);
+  const [duration, setDuration] = useState(DEFAULT_DURATION_SEC);
   const [cta, setCta] = useState<CtaGoal>("follow");
   const [audience, setAudience] = useState("");
   const [spaceId, setSpaceId] = useState(NO_SPACE);
   const [format, setFormat] = useState<ContentFormat>(initialFormat ?? "video");
-  const [carouselLength, setCarouselLength] = useState<CarouselLength>("short");
+  const [carouselLength, setCarouselLength] = useState<CarouselLength>("full");
   /** Only a new carousel-only project gets a script shaped for slides; "Les deux" and an existing project keep the video script. */
   const carouselScript = !projectId && format === "carousel";
   const [loading, setLoading] = useState(false);

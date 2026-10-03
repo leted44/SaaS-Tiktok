@@ -30,10 +30,10 @@ function coverFields(layout: VisualLayout) {
     coverKicker: z.string().describe("A 1 to 3 word category label for the topic, e.g. 'Psychologie', 'Nutrition', 'Business'. 32 characters maximum."),
     coverTitle: z
       .string()
-      .describe("The cover headline: the single strongest promise or counter-intuitive claim of the idea, written to make someone swipe. 70 characters maximum — short headlines stop the scroll. No question unless it is irresistible."),
+      .describe("The cover headline: the single strongest promise or counter-intuitive claim of the idea, written to make someone swipe. Aim for 8 words or fewer, 12 at most, 70 characters maximum — short headlines stop the scroll. No question unless it is irresistible."),
     coverEmphasis: z.string().describe(EMPHASIS),
     coverSubtitle: z.string().describe("One short line under the headline that makes the swipe feel worth it, e.g. 'Voici comment.' or the key tension. 110 characters maximum."),
-    coverImagePrompt: z.string().describe(`${imageBrief(layout)} This is the cover: the most striking image of the series, making the promise of the headline visible at a glance.`),
+    coverImagePrompt: z.string().describe(`${imageBrief(layout)} This is the cover: the most striking image of the series, making the promise of the headline visible at a glance — the subject at its most telling moment (the action at its peak, the finished result, the contrast), never an empty setting or a plain establishing shot.`),
     coverImageQuery: z
       .string()
       .describe("2 to 4 ENGLISH words describing one concrete, photographable scene for a stock-photo search behind the cover — a person, a place or an object, never an abstract idea. Example: 'woman journaling morning light'."),
@@ -61,7 +61,10 @@ function singleImageFields(coverLayout: VisualLayout) {
  */
 function carouselFields(contentLimits: { title: number; body: number }, length: "short" | "full", coverLayout: VisualLayout, contentLayout: VisualLayout) {
   const bandPhoto = contentLimits.body <= IMAGE_SLIDE_LIMITS.body;
-  const slideCount = length === "short" ? "Exactly 2 content slides — the single strongest supporting point and the payoff, nothing else." : "Between 5 and 7 content slides. Each slide carries exactly one idea, and together they build: tension, then mechanism, then what to do.";
+  const slideCount =
+    length === "short"
+      ? "Exactly 2 content slides: the payoff the cover promises, then what to do, ending on a question answerable in one word or a number."
+      : "Exactly 4 content slides, one idea each: (1) the payoff the cover promises, stated plainly; (2) why it works; (3) what to do; (4) the last point, whose body ends on a question answerable in one word or a number.";
   return z.object({
     visualMotif: z.string().describe(MOTIF),
     ...coverFields(coverLayout),
@@ -83,7 +86,7 @@ function carouselFields(contentLimits: { title: number; body: number }, length: 
     ctaAction: z
       .string()
       .describe(
-        "The explicit engagement ask, adapted from the script's call to action: invite a comment (ideally with one keyword to type), a share with someone who needs it, or a follow for what comes next. Direct and specific, never 'link in bio'. 90 characters maximum.",
+        "The explicit engagement ask, adapted from the script's call to action: invite a comment with the one-word answer to the question the last content slide asked, a share with someone who needs it, or a follow for what comes next. Direct and specific, never 'link in bio'. 90 characters maximum.",
       ),
   });
 }
@@ -96,7 +99,8 @@ Rules you always apply:
 - The cover decides everything. Its headline must stop the scroll on its own, with no image to help it.
 - Every content slide title is a full statement that teaches something even if the body is skipped. Never a label, never a teaser.
 - Bodies are concrete: a mechanism, a number, an example, a precise action. No filler, no motivational fluff.
-- Build a progression across slides: the tension or false belief, then why it happens, then what to do.
+- Payoff first: the first content slide gives the answer the cover promises, stated plainly. Most readers stop after 3 or 4 slides, so an answer kept for the end is never read. Then prove it, explain why, say what to do.
+- The last content slide ends on a short question the reader can answer in one word or a number (e.g. «Toi, c'est 1 ou 2 ?»): it is the last slide most readers still see, and a one-word answer is the comment people actually write.
 - The last slide ends on one explicit ask — comment a keyword, share, or follow — adapted from the script's own call to action. It is the moment the reader decides what to do next: never waste it.
 - No emoji anywhere — the slide fonts cannot draw them. No hashtags. No numbering in titles — the design numbers the slides.
 - Keep the script's language, its tone, and its way of addressing the reader (tu or vous).
@@ -138,7 +142,7 @@ const LENGTH_BRIEF: Record<CarouselLength, string> = {
   single:
     "Format: ONE single image post — no swipe, no other slide. The cover alone must deliver the whole idea: the headline is the impactful message itself (a striking fact, a counter-intuitive truth, a clear rule), and the subtitle gives the proof or the one action that makes it useful.",
   short: "Format: a short 4-slide carousel — the cover, exactly 2 content slides, and the closing slide. Keep only the strongest point and its payoff.",
-  full: "Format: a full carousel — the cover, 5 to 7 content slides, and the closing slide.",
+  full: "Format: a 6-slide carousel — the cover, exactly 4 content slides, and the closing slide.",
 };
 
 export interface GeneratedCarousel {

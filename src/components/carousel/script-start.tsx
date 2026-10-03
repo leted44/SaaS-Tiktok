@@ -12,6 +12,7 @@ import { AUTO_NICHE, CTA_GOALS, HOOK_STYLES, NICHES, type CtaGoal, type HookStyl
 import { TONES, TONE_LABELS, type Tone } from "@/lib/autopilot/template-shared";
 import { CarouselLengthPicker } from "@/components/shared/carousel-length-picker";
 import type { CarouselLength } from "@/lib/carousel/schema";
+import { DEFAULT_DURATION_SEC } from "@/lib/scripts/options";
 
 const SELECT = "h-10 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm text-foreground outline-none transition focus:border-white/25";
 
@@ -30,7 +31,7 @@ export function ScriptStart({ projectId, topic: initialTopic, niche: initialNich
   const [tone, setTone] = useState<Tone>("energetic");
   const [hookStyle, setHookStyle] = useState<HookStyle>("auto");
   const [cta, setCta] = useState<CtaGoal>("follow");
-  const [length, setLength] = useState<CarouselLength>("short");
+  const [length, setLength] = useState<CarouselLength>("full");
   const [loading, setLoading] = useState(false);
 
   const enough = credits >= cost;
@@ -47,7 +48,7 @@ export function ScriptStart({ projectId, topic: initialTopic, niche: initialNich
         hookStyle,
         callToActionGoal: cta,
         language,
-        targetDurationSec: 45,
+        targetDurationSec: DEFAULT_DURATION_SEC,
         carouselLength: length,
       });
       if (!res.ok) {

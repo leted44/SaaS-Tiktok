@@ -262,7 +262,7 @@ model Project {
   spaceId           String?
   status            ProjectStatus @default(DRAFT)
   aspectRatio       AspectRatio   @default(VERTICAL)
-  targetDurationSec Int           @default(45)
+  targetDurationSec Int           @default(20)
   language          String        @default("en")
 
   voiceId      String?
@@ -672,7 +672,7 @@ model AutopilotItem {
   workspaceId       String
   topic             String           @db.Text
   tone              String           @default("energetic")
-  targetDurationSec Int              @default(45)
+  targetDurationSec Int              @default(20)
   language          String           @default("fr")
   deliverAt         DateTime
   status            AutopilotStatus  @default(SCHEDULED)
@@ -740,7 +740,7 @@ model VideoTemplate {
   // What each video says, unless the schedule overrides it
   language          String      @default("fr")
   tone              String      @default("energetic")
-  targetDurationSec Int         @default(45)
+  targetDurationSec Int         @default(20)
   // Who says it
   voiceId           String
   voiceStability    Float       @default(0.5)

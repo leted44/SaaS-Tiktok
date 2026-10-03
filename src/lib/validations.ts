@@ -1,3 +1,4 @@
+import { DEFAULT_DURATION_SEC } from "@/lib/scripts/options";
 import { z } from "zod";
 
 // ───────────────────────── Captions ─────────────────────────
@@ -129,7 +130,7 @@ export const generateScriptSchema = z.object({
   niche: z.string().max(80).default("general"),
   sourceUrl: z.string().url().optional().or(z.literal("")),
   tone: z.enum(["energetic", "educational", "storytelling", "controversial", "calm", "humorous"]).default("energetic"),
-  targetDurationSec: z.number().int().min(15).max(180).default(45),
+  targetDurationSec: z.number().int().min(15).max(180).default(DEFAULT_DURATION_SEC),
   language: z.string().min(2).max(8).default("fr"),
   audience: z.string().max(200).optional(),
   callToActionGoal: z.enum(["follow", "comment", "share", "link", "none"]).default("follow"),
@@ -165,7 +166,7 @@ export const createProjectSchema = z.object({
   niche: z.string().max(80).optional(),
   spaceId: z.string().nullable().optional(),
   aspectRatio: z.enum(["VERTICAL", "SQUARE", "HORIZONTAL"]).default("VERTICAL"),
-  targetDurationSec: z.number().int().min(15).max(180).default(45),
+  targetDurationSec: z.number().int().min(15).max(180).default(DEFAULT_DURATION_SEC),
 });
 
 export const voiceoverRequestSchema = z.object({

@@ -1,5 +1,6 @@
 "use server";
 
+import { DEFAULT_DURATION_SEC } from "@/lib/scripts/options";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
@@ -108,7 +109,7 @@ export async function createProjectAndRedirect(formData: FormData) {
     topic: String(formData.get("topic") ?? ""),
     niche: String(formData.get("niche") ?? ""),
     aspectRatio: (formData.get("aspectRatio") as "VERTICAL") ?? "VERTICAL",
-    targetDurationSec: Number(formData.get("targetDurationSec") ?? 45),
+    targetDurationSec: Number(formData.get("targetDurationSec") ?? DEFAULT_DURATION_SEC),
   });
   if (!result.ok) throw new Error(result.error);
   redirect(`/studio/${result.data.id}`);

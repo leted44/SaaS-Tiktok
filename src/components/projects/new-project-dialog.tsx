@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import { DEFAULT_DURATION_SEC, DURATION_CHOICES } from "@/lib/scripts/options";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,7 @@ export function NewProjectDialog({ spaces = [] }: { spaces?: SpaceOption[] }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [aspect, setAspect] = useState("VERTICAL");
-  const [duration, setDuration] = useState("45");
+  const [duration, setDuration] = useState(String(DEFAULT_DURATION_SEC));
   const [spaceId, setSpaceId] = useState(NO_SPACE);
   const [format, setFormat] = useState<ContentFormat>("video");
 
@@ -84,7 +85,7 @@ export function NewProjectDialog({ spaces = [] }: { spaces?: SpaceOption[] }) {
                   <Select value={duration} onValueChange={setDuration}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {["15", "30", "45", "60", "90"].map((d) => <SelectItem key={d} value={d}>{d}s</SelectItem>)}
+                      {DURATION_CHOICES.map(String).map((d) => <SelectItem key={d} value={d}>{d}s</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>

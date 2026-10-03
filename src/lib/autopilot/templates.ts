@@ -1,3 +1,4 @@
+import { DEFAULT_DURATION_SEC } from "@/lib/scripts/options";
 import type { Project, User, VideoTemplate, Workspace } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { captionStyleSchema, backgroundStyleSchema, visualLayersSchema, parseJson, type BackgroundStyle } from "@/lib/validations";
@@ -41,7 +42,7 @@ export function defaultTemplateInput(workspace: Workspace, plan: PlanDefinition,
     isDefault: true,
     language: workspace.defaultLanguage,
     tone: "energetic",
-    targetDurationSec: 45,
+    targetDurationSec: DEFAULT_DURATION_SEC,
     voiceId: defaultVoiceFor(workspace.defaultLanguage, workspace.defaultVoiceId, plan),
     voiceStability: 0.5,
     voiceSpeed: 1,

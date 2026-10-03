@@ -98,11 +98,11 @@ const ACCENTS = [
 /** The cover choice that leaves the headline to the carousel AI. */
 const AI_COVER = "__ai__";
 /** AI images each length usually needs: one per slide but the closing one. */
-const TYPICAL_IMAGES: Record<CarouselLength, number> = { single: 1, short: 3, full: 7 };
+const TYPICAL_IMAGES: Record<CarouselLength, number> = { single: 1, short: 3, full: 5 };
 const LENGTHS: { value: CarouselLength; title: string; hint: string }[] = [
   { value: "single", title: "1 image", hint: "Un post unique avec un message fort. Le moins cher." },
   { value: "short", title: "4 slides", hint: "Couverture, 2 idées clés et une fin qui fait agir." },
-  { value: "full", title: "8 slides", hint: "Le carrousel complet, qui déroule toute l'idée." },
+  { value: "full", title: "6 slides", hint: "La réponse dès la 2e slide, puis la preuve et quoi faire." },
 ];
 /** The length an existing carousel was made at, so rewriting its text keeps it. */
 function lengthOf(slides: CarouselState["slides"]): CarouselLength {
