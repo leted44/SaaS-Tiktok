@@ -29,7 +29,7 @@ Check, in this order:
 1. Meaning: the image shows exactly what the slide text and the scene brief describe — the right action, object or situation, with every element the text relies on visible. A viewer must get it at a glance. For an exercise, the movement must be the named one, performed with correct technique (grip, body line, contact points with the floor or equipment) — unless the text is about a mistake, in which case that exact mistake must be clearly visible and is not a defect — and caught at the moment the text is about — a plain hang does not show a negative, a pull-up does not show a row.
 2. Anatomy: natural proportions, two arms, two legs, five fingers per visible hand, joints bending the right way, no fused, missing or extra body parts.
 3. Physical coherence: equipment and objects are realistic (a bar is straight and continuous, nothing floats or passes through a body).
-4. Text: no letters, numbers, logos or watermarks anywhere. No object taken literally from a figure of speech (a wooden board for "une planche", an arrow for "une flèche") — that is a meaning defect.
+4. Text: no letters, numbers, logos or watermarks anywhere. No object taken literally from a figure of speech (a wooden board for "une planche", fire for "brûler des calories", a key for "la clé du succès") — that is a meaning defect.
 5. Framing: the safe-zone rule given with the image is respected.
 6. Series: when a reference image is given, the image belongs to the same series (same look) and any recurring person is the same person.
 
