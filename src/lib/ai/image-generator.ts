@@ -35,7 +35,7 @@ const REFERENCE_NOTE =
   "The attached image is the first image of the same series. Keep its art direction exactly — lighting, colour grade, lens, depth of field, texture and mood — so both images unmistakably belong together. If the new scene features the same recurring person or character, keep them identical: same face, hair, skin tone, build and outfit. The action, pose, camera angle and framing come only from the new description below, not from the attached image.";
 
 export class AiImageError extends Error {
-  constructor(message: string, public code: "NOT_CONFIGURED" | "REFUSED" | "UPSTREAM" | "RATE_LIMITED") {
+  constructor(message: string, public code: "NOT_CONFIGURED" | "REFUSED" | "UPSTREAM" | "RATE_LIMITED" | "UNAVAILABLE") {
     super(message);
   }
 }
@@ -84,7 +84,14 @@ async function attempt({ prompt, aspectRatio, reference, edit, timeoutMs = 60_00
   }
 
   if (res.status === 429) throw new AiImageError("Le service d'images est saturé. Réessaie dans une minute.", "RATE_LIMITED");
-  if (!res.ok) throw new AiImageError(`La génération d'image a échoué (${res.status}).`, "UPSTREAM");
+  // Billing or key trouble on the app's own Google account (402: payment
+  // required, 401/403: key refused) — only the owner can fix it, so the cause
+  // goes to the logs and the creator is told plainly; never retried.
+  if (res.status === 401 || res.status === 402 || res.status === 403) {
+    console.error(`[gemini] ${res.status} on ${MODELS[model]} — check billing and the API key of the Google AI account behind GEMINI_API_KEY: ${(await res.text()).slice(0, 400)}`);
+    throw new AiImageError("La génération d'images est momentanément indisponible. Réessaie un peu plus tard : tes crédits ont été remboursés.", "UNAVAILABLE");
+  }
+  if (!res.ok) throw new AiImageError(`La génération d'image a échoué (${res.status}). Réessaie dans un instant : tes crédits ont été remboursés.`, "UPSTREAM");
 
   const json = (await res.json()) as GeminiResponse;
   const candidate = json.candidates?.[0];
