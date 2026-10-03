@@ -11,7 +11,7 @@ import { toast } from "sonner";
  * Previews are deliberately available for premium voices too: hearing a locked
  * voice is what makes someone upgrade to it.
  */
-export function useVoicePreview(text: string, speed = 1) {
+export function useVoicePreview(text: string, speed = 1, voiceModel?: "standard" | "expressive") {
   const [playing, setPlaying] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -35,7 +35,7 @@ export function useVoicePreview(text: string, speed = 1) {
       if (playing === voiceId) return stop();
       audioRef.current?.pause();
 
-      const key = `${voiceId}:${speed}:${text}`;
+      const key = `${voiceId}:${speed}:${voiceModel ?? "auto"}:${text}`;
       let url = cache.current.get(key);
       if (!url) {
         setLoadingId(voiceId);
@@ -43,7 +43,8 @@ export function useVoicePreview(text: string, speed = 1) {
           const res = await fetch("/api/voice/preview", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ voiceId, text, speed }),
+            // Heard with the model the voice-over will be read with, so the preview never promises another voice.
+            body: JSON.stringify({ voiceId, text, speed, voiceModel }),
           });
           if (!res.ok) {
             const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -66,7 +67,7 @@ export function useVoicePreview(text: string, speed = 1) {
       await audio.play().catch(() => undefined);
       setPlaying(voiceId);
     },
-    [playing, speed, stop, text],
+    [playing, speed, stop, text, voiceModel],
   );
 
   return { playing, loadingId, toggle, stop };

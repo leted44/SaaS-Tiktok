@@ -17,7 +17,7 @@ import { useVoicePreview } from "@/lib/tts/use-voice-preview";
 import { VoiceCloneCard } from "@/components/studio/voice-clone";
 import { MusicSection, musicSummary } from "@/components/studio/music-section";
 import { cn, formatDuration, relativeTime } from "@/lib/utils";
-import { VoiceModelPicker, useAdminVoiceModel } from "@/components/studio/voice-model-picker";
+import { VoiceModelPicker, useVoiceModel } from "@/components/studio/voice-model-picker";
 import type { BeatGrid } from "@/lib/audio/beats";
 
 interface Props {
@@ -38,7 +38,7 @@ interface Props {
   /** Sample line read by the preview — the project's own hook when it has one. */
   previewText: string;
   premiumAllowed: boolean;
-  /** The admin sees the voice model test (standard vs Eleven v3); everyone else always gets the standard model. */
+  /** The admin is also told which model read the voice-over. */
   admin: boolean;
   ttsConfigured: boolean;
   estimatedDurationSec: number;
@@ -60,11 +60,13 @@ export function AudioPanel(p: Props) {
   const [stability, setStability] = useState(0.5);
   const [speed, setSpeed] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [voiceModel, setVoiceModel] = useAdminVoiceModel(p.admin);
-  const expressive = p.admin && voiceModel === "expressive";
+  const [voiceModel, setVoiceModel] = useVoiceModel();
+  const expressive = voiceModel === "expressive";
+  // The expressive model always reads at its natural pace; only the standard one takes the speed setting.
+  const effectiveSpeed = expressive ? 1 : speed;
   // The preview endpoint caps the sample at 300 characters.
-  const preview = useVoicePreview(p.previewText.trim().slice(0, 280) || VOICE_PREVIEW_TEXT, speed);
-  const estCost = Math.max(p.costPer30s, Math.ceil((p.estimatedDurationSec / speed) / 30) * p.costPer30s);
+  const preview = useVoicePreview(p.previewText.trim().slice(0, 280) || VOICE_PREVIEW_TEXT, effectiveSpeed, voiceModel);
+  const estCost = Math.max(p.costPer30s, Math.ceil((p.estimatedDurationSec / effectiveSpeed) / 30) * p.costPer30s);
   const stale = p.voiceover && p.voiceover.voiceId !== p.voiceId;
   const selectedVoice = p.voices.find((v) => v.id === p.voiceId) ?? null;
   const musicLabel = musicSummary(p);
@@ -73,11 +75,11 @@ export function AudioPanel(p: Props) {
     if (!p.scriptId) return toast.error("Générez d'abord un script.");
     if (!p.voiceId) return toast.error("Choisissez une voix.");
     setLoading(true);
-    const res = await generateVoiceoverAction({ projectId: p.projectId, scriptId: p.scriptId, voiceId: p.voiceId, stability, similarity: 0.75, speed, voiceModel: p.admin ? voiceModel : undefined });
+    const res = await generateVoiceoverAction({ projectId: p.projectId, scriptId: p.scriptId, voiceId: p.voiceId, stability, similarity: 0.75, speed: effectiveSpeed, voiceModel });
     setLoading(false);
     if (!res.ok) return toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Obtenir des crédits", onClick: () => router.push("/billing") } : undefined });
     toast.success(`Voix off prête (${formatDuration(res.data.durationMs)}) · ${res.data.creditsCharged} crédits`, {
-      description: res.data.provider === "offline" ? "Mode hors ligne : piste silencieuse avec timing estimé." : p.admin && res.data.model ? `Modèle : ${res.data.model === "eleven_v3" ? "Eleven v3 (expressif)" : res.data.model}` : undefined,
+      description: res.data.provider === "offline" ? "Mode hors ligne : piste silencieuse avec timing estimé." : p.admin && res.data.model ? `Modèle : ${res.data.model === "eleven_v3" ? "Eleven v3 (expressive)" : res.data.model}` : undefined,
     });
     router.refresh();
   }
@@ -132,7 +134,7 @@ export function AudioPanel(p: Props) {
         ) : (
           <p className="text-xs text-muted-foreground">Pas encore de voix off. Les sous-titres utilisent un timing estimé pour l'instant.</p>
         )}
-        {p.admin && <VoiceModelPicker value={voiceModel} onChange={setVoiceModel} />}
+        <VoiceModelPicker value={voiceModel} onChange={setVoiceModel} />
         <Button className="mt-3 w-full" variant="gradient" onClick={generate} loading={loading} disabled={!p.scriptId}>
           <Wand2 /> {p.voiceover ? "Régénérer la voix off" : "Générer la voix off"} · {estCost} cr
         </Button>
@@ -140,14 +142,14 @@ export function AudioPanel(p: Props) {
         {p.credits < estCost && <p className="mt-2 text-[11px] text-red-300">Crédits insuffisants ({p.credits}). <Link href="/billing" className="underline">Recharger</Link>.</p>}
       </div>
 
-      <Section title="Réglages de la voix" icon={SlidersHorizontal} summary={`${Math.round(stability * 100)}% · ${speed.toFixed(2)}×`}>
+      <Section title="Réglages de la voix" icon={SlidersHorizontal} summary={`${Math.round(stability * 100)}% · ${effectiveSpeed.toFixed(2)}×`}>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2"><div className="flex justify-between"><Label>Stabilité</Label><span className="text-xs">{Math.round(stability * 100)}%</span></div><Slider value={[stability]} min={0} max={1} step={0.05} onValueChange={([v]) => setStability(v)} /></div>
           <div className="space-y-2"><div className="flex justify-between"><Label>Vitesse</Label><span className="text-xs">{speed.toFixed(2)}×</span></div><Slider value={[speed]} min={0.7} max={1.3} step={0.05} onValueChange={([v]) => setSpeed(v)} disabled={expressive} /></div>
         </div>
         {expressive && (
           <p className="mt-3 text-[11px] leading-relaxed text-amber-100/80">
-            Eleven v3 : la stabilité n'a que 3 niveaux — sous 34 % créatif (le plus vivant, parfois imprévisible), jusqu'à 66 % naturel, au-delà robuste. La vitesse n'est pas prise en charge par ce modèle.
+            Voix expressive : la stabilité a 3 niveaux — sous 34 % créative (la plus vivante, parfois imprévisible), jusqu'à 66 % naturelle, au-delà posée. Pour régler la vitesse, choisis la voix Standard.
           </p>
         )}
       </Section>

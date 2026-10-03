@@ -23,6 +23,15 @@ export interface TTSOptions {
  */
 export type VoiceModel = "standard" | "expressive";
 const V3_MODEL = "eleven_v3";
+
+/**
+ * The model a voice-over is read with when none was chosen: Eleven v3, the
+ * one the owner picked by ear — except at a custom speed, which only the
+ * standard model honours (an autopilot template set to 1.1× keeps its pace).
+ */
+export function defaultVoiceModel(speed = 1): VoiceModel {
+  return Math.abs(speed - 1) < 0.001 ? "expressive" : "standard";
+}
 const V3_MAX_CHARS = 5000;
 
 /** v3's three stability points, from the studio's 0-1 slider. */

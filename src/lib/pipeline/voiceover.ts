@@ -7,6 +7,7 @@ import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, effectivePlanDef, voiceoverCost } from "@/lib/plans";
 import { putObject, storageKey } from "@/lib/storage";
 import { estimateSpeechMs } from "@/lib/utils";
+import { defaultVoiceModel } from "@/lib/tts/elevenlabs";
 import type { z } from "zod";
 
 export interface VoiceoverSummary {
@@ -48,8 +49,8 @@ export async function createVoiceover(user: User, data: z.output<typeof voiceove
         stability: data.stability,
         similarity: data.similarity,
         speed: data.speed,
-        // The expressive model is under test from the admin account only; everyone else keeps the standard one.
-        model: isAdmin(user.role) && data.voiceModel === "expressive" ? "expressive" : "standard",
+        // Eleven v3 by default; the standard model when chosen, or when a custom speed needs it.
+        model: data.voiceModel ?? defaultVoiceModel(data.speed),
       },
     });
     if (result.model) console.log(`[voiceover] ${voiceover.id} read by ${result.model}`);
