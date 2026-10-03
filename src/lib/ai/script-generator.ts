@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 import { env } from "@/lib/env";
 import type { GenerateScriptInput } from "@/lib/validations";
 import { normalizeSocialCopy, socialCopyFields } from "@/lib/ai/caption-generator";
+import { anthropicErrorMessage } from "@/lib/ai/anthropic-errors";
 import { countWords } from "@/lib/utils";
 
 /**
@@ -181,7 +182,7 @@ async function callForScript(anthropic: Anthropic, model: string, system: string
     });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) throw new ScriptGenerationError("L'IA est occupée en ce moment. Réessayez dans quelques secondes.", "UPSTREAM");
-    if (err instanceof Anthropic.APIError) throw new ScriptGenerationError(err.status ? `La requête IA a échoué (${err.status}) : ${err.message}` : `L'IA est injoignable pour le moment (${err.message}).`, "UPSTREAM");
+    if (err instanceof Anthropic.APIError) throw new ScriptGenerationError(anthropicErrorMessage(err), "UPSTREAM");
     throw err;
   }
 

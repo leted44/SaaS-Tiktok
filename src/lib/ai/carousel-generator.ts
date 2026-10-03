@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 import { nanoid } from "nanoid";
 import { env } from "@/lib/env";
 import { CONTENT_SLIDES, IMAGE_PROMPT_MAX, IMAGE_SLIDE_LIMITS, SLIDE_LIMITS, VISUAL_MOTIF_MAX, imageLayout, stripEmoji, type CarouselLength, type CarouselSlide, type CarouselTemplate } from "@/lib/carousel/schema";
+import { anthropicErrorMessage } from "@/lib/ai/anthropic-errors";
 import { ART_DIRECTIONS, type VisualLayout, type VisualStyle } from "@/lib/carousel/art-direction";
 
 const EMPHASIS = "The 1 to 3 consecutive words of the title that carry its punch — the surprising number, the key noun, the twist — copied EXACTLY as they appear in the title. They are set in the accent colour.";
@@ -221,7 +222,7 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
     });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) throw new CarouselGenerationError("L'IA est occupée en ce moment. Réessayez dans quelques secondes.", "UPSTREAM");
-    if (err instanceof Anthropic.APIError) throw new CarouselGenerationError(err.status ? `La requête IA a échoué (${err.status}) : ${err.message}` : `L'IA est injoignable pour le moment (${err.message}).`, "UPSTREAM");
+    if (err instanceof Anthropic.APIError) throw new CarouselGenerationError(anthropicErrorMessage(err), "UPSTREAM");
     throw err;
   }
 

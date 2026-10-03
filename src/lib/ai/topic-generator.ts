@@ -3,6 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod/v4";
 import { env } from "@/lib/env";
 import { ScriptGenerationError } from "@/lib/ai/script-generator";
+import { anthropicErrorMessage } from "@/lib/ai/anthropic-errors";
 import { TONE_LABELS, type Tone } from "@/lib/autopilot/template-shared";
 
 const topicFields = z
@@ -70,7 +71,7 @@ export async function inventTopic(input: TopicInput): Promise<string> {
     });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) throw new ScriptGenerationError("L'IA est occupée en ce moment. Réessayez dans quelques secondes.", "UPSTREAM");
-    if (err instanceof Anthropic.APIError) throw new ScriptGenerationError(err.status ? `La requête IA a échoué (${err.status}) : ${err.message}` : `L'IA est injoignable pour le moment (${err.message}).`, "UPSTREAM");
+    if (err instanceof Anthropic.APIError) throw new ScriptGenerationError(anthropicErrorMessage(err), "UPSTREAM");
     throw err;
   }
 

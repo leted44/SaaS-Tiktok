@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod/v4";
 import { env } from "@/lib/env";
+import { anthropicErrorMessage } from "@/lib/ai/anthropic-errors";
 import type { SocialCopy } from "@/lib/social/captions";
 
 /**
@@ -93,7 +94,7 @@ export async function generateSocialCopy(input: CaptionInput): Promise<SocialCop
     });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) throw new CaptionGenerationError("L'IA est occupée en ce moment. Réessayez dans quelques secondes.", "UPSTREAM");
-    if (err instanceof Anthropic.APIError) throw new CaptionGenerationError(err.status ? `La requête IA a échoué (${err.status}) : ${err.message}` : `L'IA est injoignable pour le moment (${err.message}).`, "UPSTREAM");
+    if (err instanceof Anthropic.APIError) throw new CaptionGenerationError(anthropicErrorMessage(err), "UPSTREAM");
     throw err;
   }
 
