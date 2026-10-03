@@ -7,6 +7,28 @@ export interface TTSOptions {
   similarity?: number;
   speed?: number;
   language?: string;
+  /** "expressive" = Eleven v3 (admin test); anything else = the configured standard model. */
+  model?: VoiceModel;
+}
+
+/**
+ * The two ElevenLabs models a voice-over can be read with.
+ *
+ * - standard: Multilingual v2 (or ELEVENLABS_MODEL_ID) — steady, clear
+ *   narration, honours every setting (speed, style, similarity).
+ * - expressive: Eleven v3 (GA since February 2026) — the most natural,
+ *   human-sounding delivery, but it only takes stability, and only at three
+ *   points (0 creative, 0.5 natural, 1 robust); it ignores speed, rejects
+ *   style and speaker boost, and caps a request at 5,000 characters.
+ */
+export type VoiceModel = "standard" | "expressive";
+const V3_MODEL = "eleven_v3";
+const V3_MAX_CHARS = 5000;
+
+/** v3's three stability points, from the studio's 0-1 slider. */
+function v3Stability(value: number): 0 | 0.5 | 1 {
+  if (value < 0.34) return 0;
+  return value < 0.67 ? 0.5 : 1;
 }
 
 export interface TTSResult {
@@ -15,6 +37,8 @@ export interface TTSResult {
   durationMs: number;
   wordTimings: WordTiming[];
   provider: "elevenlabs" | "offline";
+  /** The model that actually read the text. */
+  model?: string;
 }
 
 interface ElevenLabsTimestampResponse {
@@ -36,21 +60,27 @@ export class TTSError extends Error {
 export async function synthesizeElevenLabs(text: string, providerVoiceId: string, sceneBoundaries: number[], opts: TTSOptions = {}): Promise<TTSResult> {
   if (!env.elevenLabsApiKey) throw new TTSError("La voix off n'est pas configurée (clé ELEVENLABS_API_KEY manquante).", "NOT_CONFIGURED");
 
+  // A script past v3's limit is read by the standard model rather than refused.
+  const expressive = opts.model === "expressive" && text.length <= V3_MAX_CHARS;
+  const modelId = expressive ? V3_MODEL : env.elevenLabsModelId;
+  const body = expressive
+    ? { text, model_id: V3_MODEL, voice_settings: { stability: v3Stability(opts.stability ?? 0.5) } }
+    : {
+        text,
+        model_id: modelId,
+        voice_settings: {
+          stability: opts.stability ?? 0.5,
+          similarity_boost: opts.similarity ?? 0.75,
+          style: 0.2,
+          use_speaker_boost: true,
+          speed: opts.speed ?? 1,
+        },
+        ...(opts.language && modelId.includes("turbo") ? { language_code: opts.language } : {}),
+      };
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${providerVoiceId}/with-timestamps?output_format=mp3_44100_128`, {
     method: "POST",
     headers: { "xi-api-key": env.elevenLabsApiKey, "content-type": "application/json" },
-    body: JSON.stringify({
-      text,
-      model_id: env.elevenLabsModelId,
-      voice_settings: {
-        stability: opts.stability ?? 0.5,
-        similarity_boost: opts.similarity ?? 0.75,
-        style: 0.2,
-        use_speaker_boost: true,
-        speed: opts.speed ?? 1,
-      },
-      ...(opts.language && env.elevenLabsModelId.includes("turbo") ? { language_code: opts.language } : {}),
-    }),
+    body: JSON.stringify(body),
   });
 
   if (res.status === 401 || res.status === 402) throw new TTSError(`ElevenLabs a rejeté la requête (${res.status}) : ${(await res.text()).slice(0, 300)}`, "QUOTA");
@@ -70,7 +100,7 @@ export async function synthesizeElevenLabs(text: string, providerVoiceId: string
     durationMs = wordTimings.length ? wordTimings[wordTimings.length - 1].endMs + 300 : 1000;
   }
 
-  return { audio, mimeType: "audio/mpeg", durationMs, wordTimings, provider: "elevenlabs" };
+  return { audio, mimeType: "audio/mpeg", durationMs, wordTimings, provider: "elevenlabs", model: modelId };
 }
 
 /**

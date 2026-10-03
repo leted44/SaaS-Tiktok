@@ -296,6 +296,7 @@ export function Studio(props: StudioProps) {
                     tracks={tracks}
                     previewText={activeScript?.hook ?? ""}
                     premiumAllowed={planLimits.premiumVoices}
+                    admin={user.admin}
                     ttsConfigured={integrations.tts}
                     estimatedDurationSec={activeScript?.estimatedDurationSec ?? project.targetDurationSec}
                     costPer30s={planLimits.costs.voicePer30s}

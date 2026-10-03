@@ -15,6 +15,8 @@ export interface VoiceoverSummary {
   durationMs: number;
   provider: string;
   creditsCharged: number;
+  /** The ElevenLabs model that read it, when known. */
+  model?: string;
 }
 
 /**
@@ -42,7 +44,15 @@ export async function createVoiceover(user: User, data: z.output<typeof voiceove
   });
 
   try {
-    const result = await synthesizeSpeech({ segments, voiceId: voice.id, providerVoiceId: voice.providerVoiceId, options: { stability: data.stability, similarity: data.similarity, speed: data.speed } });
+    const result = await synthesizeSpeech({ segments, voiceId: voice.id, providerVoiceId: voice.providerVoiceId, options: {
+        stability: data.stability,
+        similarity: data.similarity,
+        speed: data.speed,
+        // The expressive model is under test from the admin account only; everyone else keeps the standard one.
+        model: isAdmin(user.role) && data.voiceModel === "expressive" ? "expressive" : "standard",
+      },
+    });
+    if (result.model) console.log(`[voiceover] ${voiceover.id} read by ${result.model}`);
     const ext = result.mimeType === "audio/wav" ? "wav" : "mp3";
     const stored = await putObject(storageKey(user.id, "audio", `${voiceover.id}.${ext}`), result.audio, result.mimeType);
     await prisma.voiceover.update({
@@ -50,7 +60,7 @@ export async function createVoiceover(user: User, data: z.output<typeof voiceove
       data: { status: "READY", audioUrl: stored.url, durationMs: result.durationMs, wordTimings: result.wordTimings, provider: result.provider },
     });
     await prisma.project.update({ where: { id: data.projectId }, data: { status: "VOICED", voiceId: voice.id } });
-    return { voiceoverId: voiceover.id, audioUrl: stored.url, durationMs: result.durationMs, provider: result.provider, creditsCharged: cost };
+    return { voiceoverId: voiceover.id, audioUrl: stored.url, durationMs: result.durationMs, provider: result.provider, creditsCharged: cost, model: result.model };
   } catch (err) {
     await prisma.voiceover.update({ where: { id: voiceover.id }, data: { status: "FAILED", error: err instanceof Error ? err.message : String(err) } });
     if (cost > 0) await refundCredits(user.id, cost, "Remboursement — la voix off a échoué", voiceover.id);

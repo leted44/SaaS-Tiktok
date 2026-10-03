@@ -175,6 +175,8 @@ export const voiceoverRequestSchema = z.object({
   stability: z.number().min(0).max(1).default(0.5),
   similarity: z.number().min(0).max(1).default(0.75),
   speed: z.number().min(0.7).max(1.3).default(1),
+  /** Eleven v3 test — honoured for the admin only. */
+  voiceModel: z.enum(["standard", "expressive"]).optional(),
 });
 
 export const renderRequestSchema = z.object({
