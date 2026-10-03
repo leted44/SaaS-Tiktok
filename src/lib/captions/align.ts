@@ -113,9 +113,12 @@ export interface CaptionPage {
 
 /**
  * Words that lean on the word after them — articles, prepositions,
- * possessives, conjunctions, subject pronouns. A caption page that ends on one
+ * possessives, conjunctions, subject pronouns — in every language the app
+ * writes in that separates words with spaces. A caption page that ends on one
  * («dans l'axe de» / «tes pieds.») cuts a phrase in two and reads badly, so
- * the page closes before it and it opens the next one.
+ * the page closes before it and it opens the next one. One shared list: a
+ * word that leans in one language and not in another only moves a page break
+ * by one word.
  */
 const LEANING = new Set(
   (
@@ -123,7 +126,12 @@ const LEANING = new Set(
     "ce cet cette ces mon ma mes ton ta tes son sa ses notre nos votre vos leur leurs " +
     "je j tu il elle on nous vous ils elles me m te t se s ne n y en " +
     "dans sur sous avec sans pour par vers chez entre contre comme si quand très tout tous toute toutes " +
-    "the a an of to in on at for with and or but your my his her its our their this that these those"
+    "the a an of to in on at for with and or but your my his her its our their this that these those " +
+    "el los las una unos unas del al y o pero con sin por para en tu tus su sus mi mis nuestro nuestra " +
+    "der die das den dem des ein eine einen einem einer und oder aber mit ohne für von zu im am auf dein deine mein meine sein seine ihr ihre " +
+    "o os um uma uns umas do da dos das no na nos nas e ou mas com sem por para pelo pela teu tua teus tuas seu sua " +
+    "il lo gli i uno della dello dei degli nel nella con senza per tra fra tuo tua tuoi tue suo sua " +
+    "het een van voor met zonder en of maar naar op aan je jouw mijn zijn haar ons onze hun"
   ).split(" "),
 );
 
