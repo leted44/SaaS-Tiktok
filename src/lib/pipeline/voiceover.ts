@@ -8,6 +8,7 @@ import { isAdmin, effectivePlanDef, voiceoverCost } from "@/lib/plans";
 import { putObject, storageKey } from "@/lib/storage";
 import { estimateSpeechMs } from "@/lib/utils";
 import { defaultVoiceModel } from "@/lib/tts/elevenlabs";
+import { masterVoiceMp3 } from "@/lib/tts/master";
 import type { z } from "zod";
 
 export interface VoiceoverSummary {
@@ -54,8 +55,15 @@ export async function createVoiceover(user: User, data: z.output<typeof voiceove
       },
     });
     if (result.model) console.log(`[voiceover] ${voiceover.id} read by ${result.model}`);
-    const ext = result.mimeType === "audio/wav" ? "wav" : "mp3";
-    const stored = await putObject(storageKey(user.id, "audio", `${voiceover.id}.${ext}`), result.audio, result.mimeType);
+    // Broadcast level for a synthesized voice: brought up to the loudness of the
+    // videos around it in a feed, with no peak clipping. Best-effort — the
+    // original is kept if it cannot be decoded.
+    const mastered = result.provider === "elevenlabs" && result.mimeType === "audio/mpeg" ? await masterVoiceMp3(result.audio) : null;
+    if (mastered) console.log(`[voiceover] ${voiceover.id} mastered: speech ${mastered.speechDb.toFixed(1)} dBFS, gain ${mastered.gainDb >= 0 ? "+" : ""}${mastered.gainDb.toFixed(1)} dB`);
+    const audio = mastered?.audio ?? result.audio;
+    const mimeType = mastered?.mimeType ?? result.mimeType;
+    const ext = mimeType === "audio/wav" ? "wav" : "mp3";
+    const stored = await putObject(storageKey(user.id, "audio", `${voiceover.id}.${ext}`), audio, mimeType);
     await prisma.voiceover.update({
       where: { id: voiceover.id },
       data: { status: "READY", audioUrl: stored.url, durationMs: result.durationMs, wordTimings: result.wordTimings, provider: result.provider },

@@ -52,6 +52,7 @@
     "fflate": "^0.8.3",
     "framer-motion": "^12.43.0",
     "lucide-react": "^0.577.0",
+    "mpg123-decoder": "^1.0.3",
     "nanoid": "^5.1.6",
     "next": "^15.5.25",
     "next-auth": "5.0.0-beta.32",

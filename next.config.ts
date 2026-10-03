@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Kept out of the bundle but still traced into every serverless function
   // that imports them, which is what copies them into the deployment.
-  serverExternalPackages: ["@remotion/bundler", "@remotion/renderer", "@remotion/cli", "@remotion/lambda", "@remotion/lambda-client", "esbuild"],
+  serverExternalPackages: ["@remotion/bundler", "@remotion/renderer", "@remotion/cli", "@remotion/lambda", "@remotion/lambda-client", "esbuild", "mpg123-decoder"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**" },
