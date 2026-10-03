@@ -112,37 +112,74 @@ export interface CaptionPage {
 }
 
 /**
- * Group words into pages of N words per line × M lines, breaking early at
- * sentence ends and long pauses so captions read naturally.
+ * Words that lean on the word after them — articles, prepositions,
+ * possessives, conjunctions, subject pronouns. A caption page that ends on one
+ * («dans l'axe de» / «tes pieds.») cuts a phrase in two and reads badly, so
+ * the page closes before it and it opens the next one.
+ */
+const LEANING = new Set(
+  (
+    "le la les un une des du de d au aux à et ou ni mais donc car or que qu qui dont où " +
+    "ce cet cette ces mon ma mes ton ta tes son sa ses notre nos votre vos leur leurs " +
+    "je j tu il elle on nous vous ils elles me m te t se s ne n y en " +
+    "dans sur sous avec sans pour par vers chez entre contre comme si quand très tout tous toute toutes " +
+    "the a an of to in on at for with and or but your my his her its our their this that these those"
+  ).split(" "),
+);
+
+const bare = (word: string) => word.toLowerCase().replace(/[^\p{L}\p{N}']/gu, "").replace(/'$/, "");
+const SENTENCE_END = /[.!?…]$/;
+const CLAUSE_END = /[,;:]$/;
+
+/**
+ * Where a full page should end: after its last comma, colon or semicolon when
+ * that keeps at least half the page, otherwise before any words that lean on
+ * the next page's words — never fewer than two words.
+ */
+function breakPoint(page: WordTiming[]): number {
+  for (let k = page.length - 1; k >= Math.ceil(page.length / 2); k--) if (CLAUSE_END.test(page[k - 1].word)) return k;
+  let k = page.length;
+  while (k > 2 && LEANING.has(bare(page[k - 1].word))) k--;
+  return k;
+}
+
+/**
+ * Group words into pages of N words per line × M lines. A page closes at a
+ * sentence end, a long pause or a scene change; a page that fills up first
+ * closes at the phrase boundary that reads best, and the words after it open
+ * the next page.
  */
 export function paginateWords(words: WordTiming[], wordsPerLine: number, maxLines: number): CaptionPage[] {
+  const perLine = Math.max(1, wordsPerLine);
+  const capacity = perLine * Math.max(1, maxLines);
   const pages: CaptionPage[] = [];
-  let line: WordTiming[] = [];
-  let lines: CaptionLine[] = [];
 
-  const closeLine = () => {
-    if (!line.length) return;
-    lines.push({ words: line, startMs: line[0].startMs, endMs: line[line.length - 1].endMs });
-    line = [];
-  };
-  const closePage = () => {
-    closeLine();
-    if (!lines.length) return;
+  const push = (pageWords: WordTiming[]) => {
+    if (!pageWords.length) return;
+    const lines: CaptionLine[] = [];
+    for (let i = 0; i < pageWords.length; i += perLine) {
+      const line = pageWords.slice(i, i + perLine);
+      lines.push({ words: line, startMs: line[0].startMs, endMs: line[line.length - 1].endMs });
+    }
     pages.push({ lines, startMs: lines[0].startMs, endMs: lines[lines.length - 1].endMs });
-    lines = [];
   };
 
+  let page: WordTiming[] = [];
   for (let i = 0; i < words.length; i++) {
     const w = words[i];
-    line.push(w);
+    page.push(w);
     const next = words[i + 1];
-    const sentenceEnd = /[.!?]$/.test(w.word);
-    const longPause = next ? next.startMs - w.endMs > 450 : false;
-    const sceneChange = next ? next.sceneIndex !== w.sceneIndex : false;
-    if (line.length >= wordsPerLine || sentenceEnd || longPause || sceneChange) closeLine();
-    if (lines.length >= maxLines || ((sentenceEnd || longPause || sceneChange) && lines.length)) closePage();
+    const hardBreak = !next || SENTENCE_END.test(w.word) || next.startMs - w.endMs > 450 || next.sceneIndex !== w.sceneIndex;
+    if (hardBreak) {
+      push(page);
+      page = [];
+    } else if (page.length >= capacity) {
+      const k = breakPoint(page);
+      push(page.slice(0, k));
+      page = page.slice(k);
+    }
   }
-  closePage();
+  push(page);
 
   // Extend each page to the start of the next so there is no flicker between pages.
   for (let i = 0; i < pages.length - 1; i++) pages[i].endMs = Math.max(pages[i].endMs, pages[i + 1].startMs);

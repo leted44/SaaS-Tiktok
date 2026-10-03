@@ -22,10 +22,13 @@ export const ShortVideo: React.FC<ShortVideoProps> = (props) => {
   const { width, durationInFrames, fps } = useVideoConfig();
   const frame = useCurrentFrame();
   const scale = width / 1080;
-  const fadeOut = interpolate(frame, [durationInFrames - fps * 0.4, durationInFrames], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // A short video replays in a loop in the feed: the picture holds to its last
+  // frame, so the loop restarts on an image instead of a fade to black that
+  // reads as "the end". Only the music fades, so it does not stop dead.
+  const musicFade = interpolate(frame, [durationInFrames - fps * 0.6, durationInFrames], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "#000", opacity: fadeOut }}>
+    <AbsoluteFill style={{ backgroundColor: "#000" }}>
       <Background style={props.backgroundStyle} />
       <VisualLayers layers={props.visualLayers} beatGrid={props.beatGrid} />
       <OnScreenText scenes={props.scenes} accent={props.brand.accentColor} fontFamily={props.brand.fontFamily} scale={scale} captionPosition={props.captionStyle.position} />
@@ -33,7 +36,7 @@ export const ShortVideo: React.FC<ShortVideoProps> = (props) => {
       <ProgressBar color={props.brand.primaryColor} scale={scale} />
       {props.watermark && <Watermark watermark={props.watermark} scale={scale} />}
       {props.voiceoverUrl && <Audio src={props.voiceoverUrl} />}
-      {props.musicUrl && <Audio src={props.musicUrl} volume={props.musicVolume} trimBefore={Math.round((props.musicStartMs / 1000) * fps)} loop />}
+      {props.musicUrl && <Audio src={props.musicUrl} volume={props.musicVolume * musicFade} trimBefore={Math.round((props.musicStartMs / 1000) * fps)} loop />}
     </AbsoluteFill>
   );
 };
