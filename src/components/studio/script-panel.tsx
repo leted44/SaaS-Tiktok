@@ -97,6 +97,7 @@ export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene,
       <div className={cn("space-y-1.5 rounded-lg p-2 -m-2 transition", selectedScene === 0 && "bg-primary/10")} onClick={() => onSelectScene(0)}>
         <Label className="text-brand-300">Hook · 3 premières secondes</Label>
         <Textarea value={draft.hook} onChange={(e) => setDraft({ ...draft, hook: e.target.value })} rows={2} className="font-medium" />
+        {active?.hookVisual && <p className="line-clamp-2 text-[11px] italic text-muted-foreground" title={active.hookVisual}>{active.hookVisual}</p>}
         {active.alternativeHooks.length > 0 && (
           <AlternativeHooks hooks={active.alternativeHooks} onPick={(h) => setDraft({ ...draft, hook: h })} />
         )}

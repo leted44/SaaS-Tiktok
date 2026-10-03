@@ -184,6 +184,8 @@ export async function saveScriptEdits(scriptId: string, input: unknown): Promise
         version: (latest?.version ?? 0) + 1,
         title: edits.title,
         hook: edits.hook,
+        // Editing the words keeps the hook's own image brief.
+        hookVisual: original.hookVisual,
         scenes,
         callToAction: edits.callToAction,
         fullText,

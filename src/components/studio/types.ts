@@ -34,6 +34,8 @@ export interface StudioScript {
   version: number;
   title: string;
   hook: string;
+  /** The AI image brief of the hook, when the script has its own. */
+  hookVisual: string | null;
   alternativeHooks: string[];
   scenes: Scene[];
   callToAction: string;

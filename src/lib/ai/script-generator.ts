@@ -20,6 +20,11 @@ const SCENE_VISUAL_BRIEF =
 export const scriptOutputSchema = z.object({
   title: z.string().describe("Short, punchy internal title for the video (max 8 words)"),
   hook: z.string().describe("The first 1-2 sentences spoken. Must stop the scroll in under 3 seconds."),
+  hookVisualDescription: z
+    .string()
+    .describe(
+      `${SCENE_VISUAL_BRIEF} This is the image of the HOOK, the first frame a scroller sees: the most striking image of the video, built to stop the thumb on its own, and a different shot from the first scene's (other angle or shot size) so the opening never holds one image for two scenes.`,
+    ),
   alternativeHooks: z.array(z.string()).describe("3 alternative hooks with different angles"),
   scenes: z
     .array(

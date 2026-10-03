@@ -27,8 +27,12 @@ export function sceneQueries(compositionSceneCount: number, script: Pick<Script,
 }
 
 /** The AI-written scene description for each scene of the composition — the substance of an AI visual's prompt. */
-export function sceneVisualDescriptions(compositionSceneCount: number, script: Pick<Script, "scenes">): string[] {
-  return sceneField(compositionSceneCount, script, (s) => s?.visualDescription ?? "");
+export function sceneVisualDescriptions(compositionSceneCount: number, script: Pick<Script, "scenes" | "hookVisual">): string[] {
+  const descriptions = sceneField(compositionSceneCount, script, (s) => s?.visualDescription ?? "");
+  // The hook has its own brief since scripts carry one: the first image, not a copy of scene 1's.
+  const hook = script.hookVisual?.trim();
+  if (hook && descriptions.length > 1) descriptions[0] = hook;
+  return descriptions;
 }
 
 /** One stock pick per scene, never the same clip twice, from candidates listed per scene. */

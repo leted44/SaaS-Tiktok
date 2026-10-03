@@ -183,6 +183,7 @@ export async function splitIntoSeriesAction(scriptId: string, parts: number): Pr
             version: 1,
             title,
             hook: episode.script.hook,
+            hookVisual: episode.script.hookVisualDescription?.trim() || null,
             alternativeHooks: episode.script.alternativeHooks,
             scenes: episode.script.scenes.map((s) => ({ id: nanoid(8), ...s })),
             callToAction: episode.script.callToAction,

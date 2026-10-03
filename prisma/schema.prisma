@@ -370,6 +370,8 @@ model Script {
 
   title                String
   hook                 String   @db.Text
+  /// The AI image brief of the hook — the video's first image, the one that has to stop the scroll. Null on older scripts: the hook then borrows scene 1's.
+  hookVisual           String?  @db.Text
   scenes               Json // Array<{ id, text, visualDescription, brollQuery, durationSec, emphasis[] }>
   callToAction         String   @db.Text
   fullText             String   @db.Text

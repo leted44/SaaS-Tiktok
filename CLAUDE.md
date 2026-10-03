@@ -26,6 +26,7 @@ Counterparts to check every time:
 | Concern | Carousel | Video |
 | --- | --- | --- |
 | Image briefs written by the AI | `lib/ai/carousel-generator.ts` (`imageBrief`, `MOTIF`) | `lib/ai/script-generator.ts` (`SCENE_VISUAL_BRIEF`, `visualMotif`) |
+| Opening image (scroll-stopper) | cover brief `coverImagePrompt` (`carousel-generator.ts`) | hook brief `hookVisualDescription` → `Script.hookVisual` (`script-generator.ts`, `pipeline/visuals.ts`) |
 | Prompt composition, art direction, framing | `lib/carousel/art-direction.ts` (layout `bleed`/`band`) | same file (layout `frame`, purpose `video`) |
 | Generation + check + correction | `lib/carousel/ai-visuals.ts` → `lib/ai/checked-image.ts` | `lib/pipeline/ai-visuals.ts` → `lib/ai/checked-image.ts` |
 | Admin image model test | carousel editor (`ImageModelPicker`) | studio visuals panel (`ImageModelPicker`) |
