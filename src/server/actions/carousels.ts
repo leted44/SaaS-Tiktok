@@ -7,7 +7,7 @@ import { parseJson, scenesSchema } from "@/lib/validations";
 import { generateCarousel } from "@/lib/ai/carousel-generator";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
-import { carouselSlidesSchema, carouselStateFromRow, carouselStateSchema, stripEmoji, limitsFor, needsAiVisual, tooLongForImage, CAROUSEL_TEMPLATES, type CarouselLength, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
+import { carouselSlidesSchema, carouselStateFromRow, carouselStateSchema, stripEmoji, needsAiVisual, tooLongForImage, CAROUSEL_TEMPLATES, type CarouselLength, type CarouselState, type CarouselTemplate, SLIDE_LIMITS } from "@/lib/carousel/schema";
 import { copyStockImage, isOwnImage, storeGeneratedImage } from "@/lib/ai/images";
 import { withAutoPhotos } from "@/lib/carousel/auto-photos";
 import { aiSource, DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from "@/lib/carousel/art-direction";
@@ -105,7 +105,12 @@ export async function saveCarouselAction(projectId: string, input: unknown): Pro
         // Only a copy in our own storage may be rendered — see lib/ai/images. Recognised by
         // its path too, so a change of storage domain never wipes the images on autosave.
         const image = s.kind !== "cta" && s.image && isOwnImage(s.image.url, user.id) ? s.image : null;
-        const limit = limitsFor({ kind: s.kind, image }, state.template);
+        // The hard cap is the room the slide kind ever has, never the current template's:
+        // a band photo leaves less room than a full-bleed one, and capping to it cut real
+        // titles mid-word ("qu'avec du r") the moment a carousel was switched from Immersive
+        // to Impact — for good, since switching back could not bring the words back. The
+        // editor flags text that is too long for the chosen template instead.
+        const limit = SLIDE_LIMITS[s.kind];
         return {
           ...s,
           image,

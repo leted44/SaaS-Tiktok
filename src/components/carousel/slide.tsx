@@ -77,6 +77,12 @@ const COMMENT = ["M7.9 20A9 9 0 1 0 4 16.1L2 22Z"];
 
 /** Photo band height on a content slide, per format — a third of the slide, give or take. */
 const BAND_HEIGHT: Record<CarouselFormat, number> = { portrait: 470, story: 760, square: 330 };
+const slidePadding = (format: CarouselFormat) => (format === "square" ? 80 : 92);
+
+/** The photo box of a content slide in a band template, in pixels — the renderer crops the photo to it. */
+export function bandBox(format: CarouselFormat): { width: number; height: number } {
+  return { width: FORMAT_SIZE[format].width - slidePadding(format) * 2, height: BAND_HEIGHT[format] };
+}
 
 /**
  * Over a photo, the template's own colours stop applying: whatever the photo
@@ -147,7 +153,7 @@ export function headlineWords(title: string, emphasis: string): { text: string; 
 
 export function CarouselSlideView({ slide, index, total, step, format, tokens, handle, imageUrl, closingImageUrl }: Props) {
   const { width, height } = FORMAT_SIZE[format];
-  const padding = format === "square" ? 80 : 92;
+  const padding = slidePadding(format);
   /**
    * TikTok draws its own UI over a posted photo — caption, username, the
    * like/comment/share column, the swipe-position dots — inside roughly the

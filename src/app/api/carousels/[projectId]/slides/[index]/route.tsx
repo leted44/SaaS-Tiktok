@@ -2,11 +2,12 @@ import { ImageResponse } from "next/og";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { CarouselSlideView } from "@/components/carousel/slide";
+import { bandBox, CarouselSlideView } from "@/components/carousel/slide";
+import { cropForBand } from "@/lib/carousel/band-crop";
 import { resolveTemplate } from "@/lib/carousel/templates";
 import { loadCarouselFonts } from "@/lib/carousel/fonts";
 import { slideImageSrc } from "@/lib/ai/images";
-import { carouselStateFromRow, slideFileName, FORMAT_SIZE } from "@/lib/carousel/schema";
+import { carouselStateFromRow, imageLayout, slideFileName, FORMAT_SIZE } from "@/lib/carousel/schema";
 
 // Reads the bundled font files from disk.
 export const runtime = "nodejs";
@@ -45,8 +46,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
   const fonts = await loadCarouselFonts();
   const coverImageUrl = state.slides.find((s) => s.kind === "cover")?.image?.url;
   // Read from storage, not fetched from the public URL: see slideImageSrc.
+  const slide = state.slides[i];
+  const inBand = slide.kind === "content" && imageLayout(slide.kind, state.template) === "band";
   const [imageSrc, closingSrc] = await Promise.all([
-    slideImageSrc(state.slides[i].image?.url, session.user.id),
+    slideImageSrc(slide.image?.url, session.user.id).then((src) => (inBand ? cropForBand(src, bandBox(state.format)) : src)),
     state.slides[i].kind === "cta" ? slideImageSrc(coverImageUrl, session.user.id) : Promise.resolve(null),
   ]);
 

@@ -888,7 +888,7 @@ function triggerDownload(blob: Blob, name: string) {
 }
 
 function Counter({ value, max }: { value: string; max: number }) {
-  return <span className={cn("text-[10px] tabular-nums", value.length >= max * 0.9 ? "text-amber-300" : "text-muted-foreground")}>{value.length}/{max}</span>;
+  return <span className={cn("text-[10px] tabular-nums", value.length > max ? "font-semibold text-red-300" : value.length >= max * 0.9 ? "text-amber-300" : "text-muted-foreground")}>{value.length}/{max}</span>;
 }
 
 /** One slide. Limits come from what the layout can hold — tight for a band photo, the full room for a full-bleed one — so a slide within them never overflows. */
@@ -914,6 +914,8 @@ function SlideEditor({ imageModel, anchorId, projectId, slide, template, label, 
   const limit = limitsFor(slide, template);
   // A band photo takes part of a content slide, so it only fits once the text is short enough — a full-bleed one never blocks on this.
   const tooLongForPhoto = !slide.image && tooLongForImage(slide, template);
+  // Text written for a full-bleed template keeps every word after a switch to a band one; it just has to be shortened to fit beside the photo.
+  const overflowsBand = Boolean(slide.image) && tooLongForImage(slide, template);
   const emphasisMissing = Boolean(slide.emphasis.trim()) && !slide.title.toLowerCase().includes(slide.emphasis.trim().toLowerCase());
 
   return (
@@ -946,6 +948,11 @@ function SlideEditor({ imageModel, anchorId, projectId, slide, template, label, 
           <div className="flex items-center justify-between"><Label className="text-[11px]">Texte</Label><Counter value={slide.body} max={limit.body} /></div>
           <Textarea value={slide.body} maxLength={limit.body} rows={slide.kind === "cta" ? 2 : 3} onChange={(e) => onChange({ body: e.target.value })} />
         </div>
+        {overflowsBand && (
+          <p className="rounded-lg border border-red-300/20 bg-red-300/5 p-2 text-[11px] text-red-200">
+            Trop long pour ce modèle : la photo prend une partie de la slide. Raccourcis le titre à {IMAGE_SLIDE_LIMITS.title} et le texte à {IMAGE_SLIDE_LIMITS.body} caractères, ou repasse en Immersif où tout tient.
+          </p>
+        )}
         {slide.kind === "cta" && (
           <div className="space-y-1">
             <div className="flex items-center justify-between"><Label className="text-[11px] text-brand-300">Appel à l'action</Label><Counter value={slide.action} max={limit.action} /></div>
