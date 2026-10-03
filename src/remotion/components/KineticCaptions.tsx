@@ -32,15 +32,17 @@ export const KineticCaptions: React.FC<Props> = ({ words, style, scale = 1 }) =>
   if (!page) return null;
 
   const pageStartFrame = Math.round((page.startMs / 1000) * fps);
+  // The page on screen when the video opens skips its entrance: the first frame is the feed's first impression.
+  const opensVideo = pageStartFrame <= 1;
   // +1 so the very first frame of a page is never fully transparent when paused on a scene boundary.
-  const enter = spring({ frame: frame - pageStartFrame + 1, fps, config: { damping: 14, stiffness: 180, mass: 0.6 } });
+  const enter = opensVideo ? 1 : spring({ frame: frame - pageStartFrame + 1, fps, config: { damping: 14, stiffness: 180, mass: 0.6 } });
   const entrance =
     style.animation === "pop"
       ? { transform: `scale(${interpolate(enter, [0, 1], [0.8, 1])})`, opacity: enter }
       : style.animation === "slide"
         ? { transform: `translateY(${interpolate(enter, [0, 1], [30, 0])}px)`, opacity: enter }
         : style.animation === "fade"
-          ? { opacity: interpolate(frame - pageStartFrame, [0, 6], [0, 1], { extrapolateRight: "clamp" }) }
+          ? { opacity: opensVideo ? 1 : interpolate(frame - pageStartFrame, [0, 6], [0, 1], { extrapolateRight: "clamp" }) }
           : {};
 
   const fontSize = style.fontSize * scale;

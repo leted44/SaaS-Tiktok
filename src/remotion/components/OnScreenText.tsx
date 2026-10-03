@@ -12,10 +12,11 @@ import { ensureFont } from "../fonts";
  */
 const CARD_TOP: Record<CaptionStyle["position"], number> = { top: 720, center: 240, bottom: 240 };
 
-const Card: React.FC<{ text: string; accent: string; fontFamily: string; scale: number; durationInFrames: number; top: number }> = ({ text, accent, fontFamily, scale, durationInFrames, top }) => {
+const Card: React.FC<{ text: string; accent: string; fontFamily: string; scale: number; durationInFrames: number; top: number; opensVideo: boolean }> = ({ text, accent, fontFamily, scale, durationInFrames, top, opensVideo }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const enter = spring({ frame, fps, config: { damping: 16, stiffness: 140 } });
+  // The card on screen when the video opens is fully there on its first frame — that frame is the feed's first impression.
+  const enter = opensVideo ? 1 : spring({ frame, fps, config: { damping: 16, stiffness: 140 } });
   const exit = interpolate(frame, [durationInFrames - 8, durationInFrames], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
     <AbsoluteFill style={{ alignItems: "center", justifyContent: "flex-start", paddingTop: top * scale }}>
@@ -56,7 +57,7 @@ export const OnScreenText: React.FC<{ scenes: ShortVideoProps["scenes"]; accent:
           const duration = Math.max(fps, Math.min(Math.round(((s.endMs - s.startMs) / 1000) * fps), fps * 3));
           return (
             <Sequence key={s.index} from={from} durationInFrames={duration} layout="none">
-              <Card text={s.onScreenText!} accent={accent} fontFamily={fontFamily} scale={scale} durationInFrames={duration} top={top} />
+              <Card text={s.onScreenText!} accent={accent} fontFamily={fontFamily} scale={scale} durationInFrames={duration} top={top} opensVideo={from === 0} />
             </Sequence>
           );
         })}
