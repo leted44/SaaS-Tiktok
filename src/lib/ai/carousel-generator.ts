@@ -17,6 +17,7 @@ const EMPHASIS = "The 1 to 3 consecutive words of the title that carry its punch
  * movement. The art direction (light, colour, lens, grain) is added after.
  */
 const FRAMING: Record<VisualLayout, string> = {
+  cover: "every element the cover relies on is visible and uncut in the upper 40% of a vertical frame — the headline and its subtitle cover the lower part",
   bleed: "every element the slide relies on is visible and uncut in the upper 55% of a vertical frame — text covers the lower part",
   band: "every element the slide relies on is fully inside a wide horizontal frame",
   frame: "every element the scene relies on is fully visible and uncut",

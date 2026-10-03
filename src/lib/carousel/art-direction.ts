@@ -67,9 +67,15 @@ export const ART_DIRECTIONS: Record<VisualStyle, ArtDirection> = {
  * above the text. An image composed for the wrong one gets its subject cropped
  * or buried under the headline.
  */
-export type VisualLayout = "bleed" | "band" | "frame";
+export type VisualLayout = "cover" | "bleed" | "band" | "frame";
 
 const COMPOSITION: Record<VisualLayout, string> = {
+  // The cover carries more text than any slide — its label, a headline of up
+  // to four lines and a subtitle — which reaches up to about 35% from the top
+  // in the story format. With the 55% rule of the other slides, a real cover
+  // had its key object (the bowl of rice) buried under its own headline.
+  cover:
+    "Composition: vertical frame. The subject and the key action sit in the upper 40% of the frame, entirely visible and uncut — choose a shot size and camera angle wide enough to fit every element the scene mentions inside that area, the key object raised up rather than held low. The lower 60% continues the same background in darker, simpler tones, with nothing important in it, because the cover headline and its subtitle are printed over it.",
   // The headline is printed over the lower part of a full-bleed slide, so the
   // action has to live above it. The shot size is left to the scene: forcing
   // a close-up (as this once did) cropped out exactly what a slide was about —

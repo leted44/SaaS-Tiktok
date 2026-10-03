@@ -18,6 +18,7 @@ import type { VisualLayout } from "@/lib/carousel/art-direction";
  */
 
 const SAFE_ZONE: Record<VisualLayout, string> = {
+  cover: "This is a cover: its headline and subtitle are printed over the lower 60% of this image, so the subject and the key object must be fully visible in the upper 40%. A key object (food, equipment) sitting lower than that is a framing defect.",
   bleed: "Text is printed over the lower 45% of this image: the subject and the key action must be fully visible in the upper 55%.",
   band: "The image is shown as a wide band: the subject must be fully inside the frame, away from the edges.",
   frame: "The image fills a video frame: the subject must be fully visible and uncut.",

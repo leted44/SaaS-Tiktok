@@ -117,7 +117,7 @@ export function fullBleedTemplate(template: CarouselTemplate): boolean {
  * slides are full-bleed in the Immersive template and a band elsewhere.
  */
 export function imageLayout(kind: CarouselSlide["kind"], template: CarouselTemplate): VisualLayout {
-  return kind === "cover" || fullBleedTemplate(template) ? "bleed" : "band";
+  return kind === "cover" ? "cover" : fullBleedTemplate(template) ? "bleed" : "band";
 }
 
 export const CAROUSEL_FORMATS = ["portrait", "story", "square"] as const;
@@ -137,7 +137,7 @@ export const FORMAT_SIZE: Record<CarouselFormat, { width: number; height: number
  * image model supports.
  */
 export function imageAspect(layout: VisualLayout, format: CarouselFormat): "1:1" | "4:5" | "9:16" | "16:9" | "5:4" | "21:9" {
-  if (layout === "bleed") return FORMAT_SIZE[format].label as "1:1" | "4:5" | "9:16";
+  if (layout === "cover" || layout === "bleed") return FORMAT_SIZE[format].label as "1:1" | "4:5" | "9:16";
   return format === "story" ? "5:4" : format === "square" ? "21:9" : "16:9";
 }
 
