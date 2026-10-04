@@ -1,4 +1,5 @@
 import type { AutopilotItem, AutopilotStatus, Prisma, User } from "@prisma/client";
+import { activeLessons, lessonsBrief } from "@/lib/results/lessons";
 import { prisma } from "@/lib/prisma";
 import { generateScriptSchema, voiceoverRequestSchema } from "@/lib/validations";
 import { InsufficientCreditsError } from "@/lib/credits";
@@ -263,7 +264,8 @@ async function scriptStep(item: AutopilotItem, user: User): Promise<StepResult> 
   // retry keeps the same topic instead of inventing another.
   let topic = item.topic.trim();
   if (!topic && item.topicBrief) {
-    topic = await inventTopic({ brief: item.topicBrief, language: applied.language, tone: item.tone, covered: await coveredTopics(item) });
+    const lessons = lessonsBrief(await activeLessons(item.userId, item.spaceId, "video").catch(() => []));
+    topic = await inventTopic({ brief: item.topicBrief, language: applied.language, tone: item.tone, covered: await coveredTopics(item), lessons });
     const { count } = await prisma.autopilotItem.updateMany({ where: stillHere, data: { topic } });
     if (!count) return "wait";
   }

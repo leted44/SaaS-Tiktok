@@ -27,6 +27,7 @@ import { resolveTemplate } from "@/lib/carousel/templates";
 import { FormatSwitcher } from "@/components/studio/format-switcher";
 import type { SocialCopy } from "@/lib/social/captions";
 import { MarkPostedDialog } from "@/components/projects/mark-posted-dialog";
+import { ResultsButton } from "@/components/results/results-dialog";
 import { unmarkProjectPosted } from "@/server/actions/projects";
 import { POST_PLATFORM_LABELS, type PostPlatform } from "@/lib/projects/progress";
 import { cn } from "@/lib/utils";
@@ -620,6 +621,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
             <CheckCircle2 /> Marquer publié
           </Button>
         )}
+        {posted && <ResultsButton projectId={projectId} title={projectTitle} format="carousel" platforms={posted.platforms} className="sm:col-span-2" />}
       </div>
       {marking && <MarkPostedDialog projectId={projectId} title={projectTitle} open={marking} onOpenChange={setMarking} />}
 

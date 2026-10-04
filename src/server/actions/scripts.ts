@@ -1,5 +1,6 @@
 "use server";
 
+import { activeLessons, lessonsBrief } from "@/lib/results/lessons";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -133,6 +134,7 @@ export async function splitIntoSeriesAction(scriptId: string, parts: number): Pr
           targetDurationSec: source.targetDurationSec,
           toneOfVoice: source.workspace.toneOfVoice,
           targetAudience: source.workspace.targetAudience,
+          lessons: lessonsBrief(await activeLessons(user.id, source.spaceId, "video").catch(() => [])),
         },
         parts,
       );

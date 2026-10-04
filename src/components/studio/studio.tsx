@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { MarkPostedDialog } from "@/components/projects/mark-posted-dialog";
+import { ResultsButton } from "@/components/results/results-dialog";
 import { PreviewPlayer } from "@/components/studio/preview-player";
 import { Timeline } from "@/components/studio/timeline";
 import { ScriptPanel } from "@/components/studio/script-panel";
@@ -186,6 +187,7 @@ export function Studio(props: StudioProps) {
           ) : (
             <Button variant="secondary" size="sm" onClick={() => setMarking(true)}><CheckCircle2 /> Marquer publiée</Button>
           )}
+          {project.postedAt && <ResultsButton projectId={project.id} title={title} format="video" platforms={project.postedPlatforms} />}
           {planLimits.autopilot && (
             <Button variant="secondary" size="sm" loading={templating} onClick={saveAsTemplate} title="Enregistrer la voix, les sous-titres, la musique, le fond et le format de cette vidéo comme modèle du pilote automatique">
               {!templating && <Wand2 />} <span className="sm:hidden">Modèle</span><span className="hidden sm:inline">Enregistrer comme modèle</span>

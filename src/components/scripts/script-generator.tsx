@@ -82,7 +82,7 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
         toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Obtenir des crédits", onClick: () => router.push("/billing") } : undefined });
         return;
       }
-      toast.success(`Script v${res.data.version} prêt — viralité ${res.data.viralityScore}/100`, { description: `${res.data.creditsLeft} crédits restants` });
+      toast.success(`Script v${res.data.version} prêt — viralité ${res.data.viralityScore}/100`, { description: `${res.data.lessonsApplied ? `Écrit avec ${res.data.lessonsApplied} leçon${res.data.lessonsApplied > 1 ? "s" : ""} de ton compte · ` : ""}${res.data.creditsLeft} crédits restants` });
       router.push(projectId ? `/studio/${res.data.projectId}` : formatDestination(format, res.data.projectId));
     } catch {
       // A dead network call or a killed server function never reaches `res.ok` —

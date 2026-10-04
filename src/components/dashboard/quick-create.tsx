@@ -86,7 +86,7 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
         toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Obtenir des crédits", onClick: () => router.push("/billing") } : undefined });
         return;
       }
-      toast.success(`Script prêt — viralité ${res.data.viralityScore}/100`, { description: format === "carousel" ? "Direction l'éditeur de carrousel." : "Direction le studio pour la voix, les visuels et l'export." });
+      toast.success(`Script prêt — viralité ${res.data.viralityScore}/100`, { description: `${res.data.lessonsApplied ? `Écrit avec ${res.data.lessonsApplied} leçon${res.data.lessonsApplied > 1 ? "s" : ""} de ton compte. ` : ""}${format === "carousel" ? "Direction l'éditeur de carrousel." : "Direction le studio pour la voix, les visuels et l'export."}` });
       router.push(formatDestination(format, res.data.projectId));
     } catch {
       toast.error("La génération a échoué (délai dépassé ou connexion perdue). Réessayez.");

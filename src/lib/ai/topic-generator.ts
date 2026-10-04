@@ -39,6 +39,8 @@ export interface TopicInput {
   tone: string;
   /** Angles already covered, most recent first. */
   covered: string[];
+  /** What this account's own published results taught (lib/results/lessons), or null. */
+  lessons?: string | null;
 }
 
 /**
@@ -58,7 +60,10 @@ export async function inventTopic(input: TopicInput): Promise<string> {
     input.brief.trim(),
     "",
     covered.length ? `Angles already covered (do not repeat them):\n${covered.map((t) => `- ${t}`).join("\n")}` : "No video made yet for this account.",
-  ].join("\n");
+    input.lessons ? `\n${input.lessons}\nFavour topics in line with what these lessons show works for this audience.` : null,
+  ]
+    .filter((line) => line !== null)
+    .join("\n");
 
   let response;
   try {

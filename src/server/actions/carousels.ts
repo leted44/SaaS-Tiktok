@@ -14,6 +14,7 @@ import { aiSource, DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from 
 import { DEFAULT_IMAGE_MODEL } from "@/lib/ai/image-models";
 import { asImageModelChoice, coverReference, generateSeries, generateSlideImage, SERIES_BUDGET_MS } from "@/lib/carousel/ai-visuals";
 import { integrations } from "@/lib/env";
+import { activeLessons, lessonsBrief } from "@/lib/results/lessons";
 import { guard, type ActionResult } from "@/server/action-result";
 
 export interface CarouselSnapshot extends CarouselState {
@@ -59,6 +60,7 @@ export async function generateCarouselAction(
     const cost = isAdmin(user.role) ? 0 : CREDIT_COSTS.CAROUSEL;
     const creditsLeft = cost > 0 ? await chargeCredits(user.id, cost, "SCRIPT_GENERATION", "Génération du carrousel") : user.credits;
 
+    const lessons = await activeLessons(user.id, project.spaceId, "carousel").catch(() => []);
     let generated;
     try {
       generated = await generateCarousel({
@@ -70,6 +72,7 @@ export async function generateCarouselAction(
         niche: project.niche,
         toneOfVoice: project.workspace.toneOfVoice,
         targetAudience: project.workspace.targetAudience,
+        lessons: lessonsBrief(lessons),
         visualStyle,
         template,
         length: asLength(options.length),

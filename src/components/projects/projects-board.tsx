@@ -3,13 +3,14 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CheckCircle2, Circle, Clock, Flame, FolderCog, GalleryHorizontalEnd, MoreHorizontal, Search, Send, Trash2, Undo2, Wrench } from "lucide-react";
+import { ArrowRight, BarChart3, CheckCircle2, Circle, Clock, Flame, FolderCog, GalleryHorizontalEnd, MoreHorizontal, Search, Send, Trash2, Undo2, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Poster } from "@/components/dashboard/poster";
 import { WorkflowBar } from "@/components/dashboard/workflow";
 import { MarkPostedDialog } from "@/components/projects/mark-posted-dialog";
+import { ResultsDialog } from "@/components/results/results-dialog";
 import { SpaceManagerDialog } from "@/components/projects/space-manager-dialog";
 import { deleteProject, unmarkProjectPosted } from "@/server/actions/projects";
 import { setProjectSpaceAction } from "@/server/actions/spaces";
@@ -136,6 +137,7 @@ export function ProjectsBoard({ projects, initialView, spaces, voices }: { proje
 function ProjectRow({ project: p, showStage, spaces }: { project: ProjectCardData; showStage: boolean; spaces: SpaceOption[] }) {
   const router = useRouter();
   const [marking, setMarking] = useState(false);
+  const [resultsOpen, setResultsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const studio = `/studio/${p.id}`;
 
@@ -206,6 +208,7 @@ function ProjectRow({ project: p, showStage, spaces }: { project: ProjectCardDat
                 </DropdownMenuSub>
               )}
               <DropdownMenuSeparator />
+              {p.posted && <DropdownMenuItem onSelect={() => setResultsOpen(true)}><BarChart3 /> Résultats</DropdownMenuItem>}
               {p.posted?.manual ? (
                 <DropdownMenuItem onSelect={unmark}><Undo2 /> Retirer « publiée »</DropdownMenuItem>
               ) : !p.posted ? (
@@ -258,6 +261,7 @@ function ProjectRow({ project: p, showStage, spaces }: { project: ProjectCardDat
       </div>
 
       {marking && <MarkPostedDialog projectId={p.id} title={p.title} open={marking} onOpenChange={setMarking} />}
+      {resultsOpen && p.posted && <ResultsDialog projectId={p.id} title={p.title} format={p.format} platforms={p.posted.platforms} open={resultsOpen} onOpenChange={setResultsOpen} />}
     </li>
   );
 }

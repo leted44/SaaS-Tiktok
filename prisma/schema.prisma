@@ -149,6 +149,8 @@ model User {
   pushSubscriptions  PushSubscription[]
   videoTemplates     VideoTemplate[]
   spaces             Space[]
+  postResults        PostResult[]
+  accountLessons     AccountLesson[]
 
   @@index([stripeCustomerId])
 }
@@ -305,6 +307,9 @@ model Project {
   // through a connected account, so the app can't know otherwise.
   postedAt        DateTime?
   postedPlatforms String[]  @default([])
+  // When the "add your results" reminder went out for this post — once, 48 h
+  // after it was marked posted.
+  resultsReminderAt DateTime?
 
   // A multi-part series. Each episode is its own project, because the editor
   // state a video needs (visual layers, captions, music) lives here and is not
@@ -326,6 +331,7 @@ model Project {
   publishJobs   PublishJob[]
   carousel      Carousel?
   autopilot     AutopilotItem?
+  results       PostResult[]
 
   @@index([workspaceId])
   @@index([userId, updatedAt])
@@ -358,6 +364,8 @@ model Space {
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   projects       Project[]
   autopilotItems AutopilotItem[]
+  postResults    PostResult[]
+  lessons        AccountLesson[]
 
   @@index([userId])
 }
@@ -777,4 +785,82 @@ model WorkerHeartbeat {
   tickAt     DateTime
   durationMs Int      @default(0)
   error      String?  @db.Text
+}
+
+// What one post did once published, read from the creator's own statistics
+// screenshots (or typed in). The platforms' APIs leave out exactly what
+// matters most — how long people watched, where they left, how many slides
+// they saw, saves — and the screenshots carry all of it, with no platform
+// approval needed. One row per post and platform.
+model PostResult {
+  id            String   @id @default(cuid())
+  userId        String
+  projectId     String
+  // The space the post belonged to when its results came in: lessons are
+  // learnt per space, each one an account with its own audience.
+  spaceId       String?
+  // "video" | "carousel"
+  format        String
+  // A POST_PLATFORMS key (tiktok, instagram, youtube, facebook, autre)
+  platform      String
+  views         Int?
+  likes         Int?
+  comments      Int?
+  shares        Int?
+  saves         Int?
+  newFollowers  Int?
+  profileVisits Int?
+  // Video: average watch time (seconds, and % of the video), % who watched it
+  // all, the second most viewers left at, its length, and Instagram's skip
+  // rate (% who swiped away in the first seconds).
+  avgWatchSec   Float?
+  avgWatchPct   Float?
+  skipRatePct   Float?
+  completionPct Float?
+  dropOffSec    Float?
+  durationSec   Float?
+  // Carousel: slides seen on average, out of how many.
+  slidesSeen    Float?
+  slidesTotal   Int?
+  // What this post says next to the account's own average, in plain French.
+  diagnosis     String?  @db.Text
+  // "screenshot" | "manual"
+  source        String   @default("screenshot")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  space   Space?  @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, platform])
+  @@index([userId, spaceId])
+}
+
+// What an account's own results teach, rewritten each time new results come
+// in and fed to every script and carousel written for that account. A lesson
+// needs at least three comparable posts behind it: one lucky post is not a
+// rule. The creator can edit one (it is then kept as written) or delete it
+// (it is then never proposed again).
+model AccountLesson {
+  id         String   @id @default(cuid())
+  userId     String
+  // null: the posts that belong to no space
+  spaceId    String?
+  // "video" | "carousel" | null for both
+  format     String?
+  text       String   @db.Text
+  evidence   String   @db.Text
+  // "faible" | "moyenne" | "élevée"
+  confidence String   @default("moyenne")
+  postCount  Int      @default(0)
+  pinned     Boolean  @default(false)
+  dismissed  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space Space? @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@index([userId, spaceId])
 }

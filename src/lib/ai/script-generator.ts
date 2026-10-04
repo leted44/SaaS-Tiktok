@@ -150,7 +150,14 @@ Score honestly against this bar, not against an average video: a script that doe
 
 Output the complete corrected script in the exact same structure — every field, fully rewritten wherever it fell short, left as is only where it was already excellent.`;
 
-function buildUserPrompt(input: GenerateScriptInput, brand?: { toneOfVoice?: string | null; targetAudience?: string | null }): string {
+/** The account's voice and audience, and what its own published results taught (see lib/results/lessons). */
+export interface BrandContext {
+  toneOfVoice?: string | null;
+  targetAudience?: string | null;
+  lessons?: string | null;
+}
+
+function buildUserPrompt(input: GenerateScriptInput, brand?: BrandContext): string {
   const targetWords = Math.round(input.targetDurationSec * 2.6);
   return [
     `Topic / brief: ${input.topic}`,
@@ -163,12 +170,13 @@ function buildUserPrompt(input: GenerateScriptInput, brand?: { toneOfVoice?: str
     input.audience ? `Audience: ${input.audience}` : brand?.targetAudience ? `Audience: ${brand.targetAudience}` : null,
     brand?.toneOfVoice ? `Brand voice guidelines: ${brand.toneOfVoice}` : null,
     `Call-to-action goal: ${input.callToActionGoal === "none" ? "no explicit CTA, end on the payoff" : input.callToActionGoal}`,
+    brand?.lessons ? `\n${brand.lessons}` : null,
   ]
     .filter(Boolean)
     .join("\n");
 }
 
-function buildCriticUserPrompt(input: GenerateScriptInput, draft: GeneratedScript, brand?: { toneOfVoice?: string | null; targetAudience?: string | null }): string {
+function buildCriticUserPrompt(input: GenerateScriptInput, draft: GeneratedScript, brand?: BrandContext): string {
   return [buildUserPrompt(input, brand), "", "--- DRAFT TO REVIEW AND REWRITE ---", JSON.stringify(draft, null, 2)].join("\n");
 }
 
@@ -219,7 +227,7 @@ async function callForScript(anthropic: Anthropic, model: string, system: string
  */
 export async function generateScript(
   input: GenerateScriptInput,
-  brand?: { toneOfVoice?: string | null; targetAudience?: string | null },
+  brand?: BrandContext,
 ): Promise<ScriptGenerationResult> {
   const anthropic = getClient();
   const model = env.anthropicModel;

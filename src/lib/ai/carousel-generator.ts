@@ -127,6 +127,8 @@ export interface CarouselInput {
   niche?: string | null;
   toneOfVoice?: string | null;
   targetAudience?: string | null;
+  /** What this account's own published results taught (lib/results/lessons), or null. */
+  lessons?: string | null;
   /** The look the images will be generated in — the briefs are written to suit it (an illustration can show characters a photo shouldn't). */
   visualStyle: VisualStyle;
   /** Decides how much room a content slide's text gets: full-bleed (Immersive) leaves it untouched, a band leaves a third of the height to a photo. */
@@ -198,6 +200,7 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
     input.niche && input.niche !== "general" ? `Niche: ${input.niche}` : null,
     input.toneOfVoice ? `Brand voice guidelines: ${input.toneOfVoice}` : null,
     input.targetAudience ? `Audience: ${input.targetAudience}` : null,
+    input.lessons ? `\n${input.lessons}` : null,
     "",
     "Video script to turn into a carousel:",
     `Title: ${input.title}`,

@@ -5,6 +5,7 @@ import { generateScript } from "@/lib/ai/script-generator";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
 import type { GenerateScriptInput } from "@/lib/validations";
+import { activeLessons, lessonsBrief } from "@/lib/results/lessons";
 
 export interface GeneratedScriptSummary {
   projectId: string;
@@ -12,6 +13,8 @@ export interface GeneratedScriptSummary {
   version: number;
   viralityScore: number;
   creditsLeft: number;
+  /** How many of the account's own lessons the script was written with. */
+  lessonsApplied: number;
 }
 
 /**
@@ -27,9 +30,13 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
     ? user.credits
     : await chargeCredits(user.id, CREDIT_COSTS.SCRIPT_GENERATION, "SCRIPT_GENERATION", `Script : ${data.topic.slice(0, 60)}`);
 
+  // The account the script is for: the space picked, or the one of the project it is written into.
+  const targetSpaceId = data.spaceId ?? (data.projectId ? ((await prisma.project.findFirst({ where: { id: data.projectId, userId: user.id }, select: { spaceId: true } }))?.spaceId ?? null) : null);
+  const lessons = await activeLessons(user.id, targetSpaceId, data.carouselLength ? "carousel" : "video").catch(() => []);
+
   let result;
   try {
-    result = await generateScript(data, { toneOfVoice: workspace.toneOfVoice, targetAudience: workspace.targetAudience });
+    result = await generateScript(data, { toneOfVoice: workspace.toneOfVoice, targetAudience: workspace.targetAudience, lessons: lessonsBrief(lessons) });
   } catch (err) {
     if (!admin) await refundCredits(user.id, CREDIT_COSTS.SCRIPT_GENERATION, "Remboursement — la génération du script a échoué");
     throw err;
@@ -100,5 +107,5 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
     },
   });
 
-  return { projectId, scriptId: script.id, version: script.version, viralityScore: script.viralityScore, creditsLeft };
+  return { projectId, scriptId: script.id, version: script.version, viralityScore: script.viralityScore, creditsLeft, lessonsApplied: lessons.length };
 }

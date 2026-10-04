@@ -78,6 +78,8 @@ export interface SeriesSource {
   targetDurationSec: number;
   toneOfVoice?: string | null;
   targetAudience?: string | null;
+  /** What this account's own published results taught (lib/results/lessons), or null. */
+  lessons?: string | null;
 }
 
 export async function generateSeries(source: SeriesSource, parts: number): Promise<SeriesGenerationResult> {
@@ -99,6 +101,7 @@ export async function generateSeries(source: SeriesSource, parts: number): Promi
     `Target duration per episode: ${source.targetDurationSec}s (≈ ${targetWords} spoken words each, hook and CTA included)`,
     source.targetAudience ? `Audience: ${source.targetAudience}` : null,
     source.toneOfVoice ? `Brand voice guidelines: ${source.toneOfVoice}` : null,
+    source.lessons ? `\n${source.lessons}` : null,
   ]
     .filter(Boolean)
     .join("\n");
