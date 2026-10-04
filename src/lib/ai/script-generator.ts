@@ -6,6 +6,7 @@ import type { GenerateScriptInput } from "@/lib/validations";
 import { normalizeSocialCopy, socialCopyFields } from "@/lib/ai/caption-generator";
 import { anthropicErrorMessage } from "@/lib/ai/anthropic-errors";
 import { countWords } from "@/lib/utils";
+import { ANNOUNCED_COUNT, NO_INVENTED_EXPERIENCE } from "@/lib/ai/writing-rules";
 
 /**
  * The brief an AI image of a scene is drawn from — the same formula as the
@@ -85,7 +86,9 @@ Principles you always apply:
 - brollQuery is the one exception: always English, and always a literal thing a camera can film (a person doing something, an object, a place). "man opening empty wallet" works; "financial anxiety" returns nothing usable.
 - socialCopy is read silently in a feed, not spoken. It gives a reason to watch, save or comment, and never repeats the hook word for word. TikTok rewards short and blunt; Instagram rewards a first line that earns the "more" tap. Its hashtags are returned in their own lists and never written inside the caption text.
 - This is automated content a real audience will take as fact, with no human fact-checking it before it posts. Never invent a statistic, study, percentage or specific mechanism to sound authoritative. When you are not certain a specific figure or claim is true, use the true qualitative version instead of a fake-precise number — a real mechanism is more interesting than a fabricated-sounding one anyway. A punchier line is never worth a false claim.
-- Never promise a result the brief does not support — a result in a fixed number of days or weeks, a guaranteed outcome, a health benefit. Bold hooks are welcome; a promise a viewer can easily prove false costs the account its credibility.`;
+- Never promise a result the brief does not support — a result in a fixed number of days or weeks, a guaranteed outcome, a health benefit. Bold hooks are welcome; a promise a viewer can easily prove false costs the account its credibility.
+${NO_INVENTED_EXPERIENCE}
+${ANNOUNCED_COUNT}`;
 
 /**
  * A script for a photo carousel is read, not heard, and its shape is set by
@@ -101,6 +104,7 @@ THIS SCRIPT IS FOR A PHOTO CAROUSEL, NOT A VIDEO. It is read slide by slide in a
 - Each scene is ONE SLIDE: one complete, punchy statement that teaches something even if read alone, then one concrete proof — a mechanism, a real example, a precise action. 1 to 2 short sentences, written for the eye. No transitions ("Mais attends", "Et ce n'est pas tout", "Voici pourquoi"), no filler, no rhetorical build-up.
 - The FIRST scene delivers the payoff: the answer the cover promises, stated plainly, so a reader who stops there still got it. Most readers stop after 3 or 4 slides: never keep the answer for the end. The following scenes prove it, explain why, and say what to do.
 - The LAST scene ends with a short question the reader can answer in one word or a number (e.g. «Toi, c'est 1 ou 2 ?»): it is the last slide most readers still see.
+- A cover headline (hook or alternativeHook) that announces a number of items announces exactly the number of content slides the format asks for — «5 preuves» on a carousel with 4 content slides is a broken promise. When in doubt, leave the number out.
 - Scenes escalate: never two slides saying the same thing. Write EXACTLY the number of scenes the format asks for — no padding to fill slides, no idea squeezed out.
 - The callToAction is the closing slide's ask: one explicit action, direct and specific — when it asks for a comment, it asks for the one-word answer to the last scene's question; otherwise share with someone, or follow for the next one.
 - durationSec is the reading time of the slide in seconds; visualDescription and brollQuery describe the image of that slide.`;
@@ -119,6 +123,7 @@ export const CAROUSEL_CRITIC_RULES = `
 THIS SCRIPT IS FOR A PHOTO CAROUSEL, read slide by slide in a feed. Judge it as a scroller swiping, with the same demanding bar — these criteria replace the ones above about speech and pacing:
 - The hook is the cover headline (80 characters maximum): would it stop YOUR thumb with no image, no voice? If not, rewrite it. The 3 alternativeHooks are alternative covers the creator will choose from: each must be strong enough to be the one, with a genuinely different angle — rewrite any weak or redundant one.
 - Every scene is a slide that must teach something read alone, with one concrete proof. Cut or rewrite any slide that is vague, repeats another, or only sets up the next one.
+- Any cover headline (hook or alternativeHook) announcing a number of items that differs from the number of content slides: rewrite it.
 - The cover headline aims for 8 words or fewer (12 at most). The first scene gives the payoff the cover promises — a carousel that keeps its answer for the end loses most readers before it. The last scene ends on a question answerable in one word or a number.
 - Keep EXACTLY the number of scenes the format asks for.
 - Scores: retention is the predicted swipe-through to the last slide.`;
@@ -143,6 +148,8 @@ Reject and fix, specifically:
 - Any symbol, abbreviation or shorthand in the narration (×, %, "1re", "exos", "kg"…): a synthetic voice reads it literally, so write it the way it is said.
 - Any invented, exaggerated, or suspiciously-precise claim — a statistic, a mechanism, "studies show". This is automated content a real audience will trust as fact with nobody checking it before it posts: replace anything you cannot personally stand behind with the true, still-interesting version, or cut it. A fabricated number is a defect, never a stylistic choice.
 - Any promise the brief does not support — a result in a fixed number of days or weeks, a guaranteed outcome. Keep the boldness, drop the invented guarantee.
+- Any invented episode of the creator's own life — a personal anecdote, an earning, a result, a client's story the brief does not state («on me payait en crèmes», «j'ai perdu 10 kilos»). You do not know this creator: rewrite it as a direct "you" statement or a situation the viewer recognises. This applies to the hook, the alternativeHooks and the caption as much as to the scenes.
+- A hook announcing a number of items («3 erreurs») that the script does not deliver exactly.
 - A CTA that begs, or that doesn't follow naturally from the payoff just delivered. A comment ask is a question answerable in one word or a number.
 - Dead pacing: nothing changing on screen or in delivery for more than ~7 seconds straight.
 

@@ -3,6 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod/v4";
 import { env } from "@/lib/env";
 import { anthropicErrorMessage } from "@/lib/ai/anthropic-errors";
+import { NO_INVENTED_EXPERIENCE } from "@/lib/ai/writing-rules";
 import type { SocialCopy } from "@/lib/social/captions";
 
 /**
@@ -38,7 +39,8 @@ Rules you always apply:
 - TikTok is blunt and native. Instagram rewards added value: develop the idea a little further there.
 - Hashtags never appear inside the caption text. They are returned in their own lists.
 - Instagram hashtags: exactly 5, tightly relevant — never more, quality over volume.
-- Write in the requested language, and keep hashtags in that language plus a couple of global ones.`;
+- Write in the requested language, and keep hashtags in that language plus a couple of global ones.
+${NO_INVENTED_EXPERIENCE}`;
 
 export interface CaptionInput {
   title: string;

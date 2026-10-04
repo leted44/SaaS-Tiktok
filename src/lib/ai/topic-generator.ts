@@ -22,7 +22,8 @@ Rules you always apply:
 - Stay strictly inside the account's theme as the owner describes it. Never drift to a neighbouring niche.
 - Be specific: "3 phrases to say to yourself before a hard meeting" beats "confidence". One idea, one video.
 - Never repeat or lightly reword an angle the account has already covered — the list is given to you. Pick a genuinely different sub-topic, format or promise.
-- Vary the format across videos: a list, a myth debunked, a mistake to avoid, a before/after, a question to the viewer, a short story.
+- Vary the format across videos: a list, a myth debunked, a mistake to avoid, a before/after, a question to the viewer, a short story about a situation the viewer recognises.
+- Never an angle that rests on the owner's own story, earnings or results unless the theme states them: you do not know their life.
 - Write in the requested language.`;
 
 let client: Anthropic | null = null;
