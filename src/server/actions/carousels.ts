@@ -44,7 +44,7 @@ export async function generateCarouselAction(
     const user = await requireDbUser();
     const project = await prisma.project.findFirstOrThrow({
       where: { id: projectId, userId: user.id },
-      include: { workspace: true, scripts: { orderBy: { version: "desc" } }, carousel: true },
+      include: { workspace: true, space: { select: { brief: true } }, scripts: { orderBy: { version: "desc" } }, carousel: true },
     });
     const script = project.scripts.find((s) => s.id === project.activeScriptId) ?? project.scripts[0];
     if (!script) throw new Error("Générez d'abord un script pour ce projet : le carrousel est écrit à partir de lui.");
@@ -73,6 +73,7 @@ export async function generateCarouselAction(
         toneOfVoice: project.workspace.toneOfVoice,
         targetAudience: project.workspace.targetAudience,
         lessons: lessonsBrief(lessons),
+        concept: project.space?.brief,
         visualStyle,
         template,
         length: asLength(options.length),

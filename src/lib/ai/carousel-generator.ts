@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 import { env } from "@/lib/env";
 import { CONTENT_SLIDES, IMAGE_PROMPT_MAX, IMAGE_SLIDE_LIMITS, SLIDE_LIMITS, VISUAL_MOTIF_MAX, imageLayout, stripEmoji, type CarouselLength, type CarouselSlide, type CarouselTemplate } from "@/lib/carousel/schema";
 import { anthropicErrorMessage } from "@/lib/ai/anthropic-errors";
-import { NO_INVENTED_EXPERIENCE } from "@/lib/ai/writing-rules";
+import { NO_INVENTED_EXPERIENCE, accountConceptLine } from "@/lib/ai/writing-rules";
 import { ART_DIRECTIONS, type VisualLayout, type VisualStyle } from "@/lib/carousel/art-direction";
 
 const EMPHASIS = "The 1 to 3 consecutive words of the title that carry its punch — the surprising number, the key noun, the twist — copied EXACTLY as they appear in the title. They are set in the accent colour.";
@@ -132,6 +132,8 @@ export interface CarouselInput {
   targetAudience?: string | null;
   /** What this account's own published results taught (lib/results/lessons), or null. */
   lessons?: string | null;
+  /** The space's "Thématique": the account's subject and, often, its recurring visual world. */
+  concept?: string | null;
   /** The look the images will be generated in — the briefs are written to suit it (an illustration can show characters a photo shouldn't). */
   visualStyle: VisualStyle;
   /** Decides how much room a content slide's text gets: full-bleed (Immersive) leaves it untouched, a band leaves a third of the height to a photo. */
@@ -200,6 +202,7 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
   const userPrompt = [
     `Language: ${input.language}`,
     `Art direction of the images: ${art.label} — ${art.prompt}`,
+    accountConceptLine(input.concept),
     input.niche && input.niche !== "general" ? `Niche: ${input.niche}` : null,
     input.toneOfVoice ? `Brand voice guidelines: ${input.toneOfVoice}` : null,
     input.targetAudience ? `Audience: ${input.targetAudience}` : null,

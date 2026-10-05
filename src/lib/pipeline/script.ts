@@ -32,11 +32,14 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
 
   // The account the script is for: the space picked, or the one of the project it is written into.
   const targetSpaceId = data.spaceId ?? (data.projectId ? ((await prisma.project.findFirst({ where: { id: data.projectId, userId: user.id }, select: { spaceId: true } }))?.spaceId ?? null) : null);
-  const lessons = await activeLessons(user.id, targetSpaceId, data.carouselLength ? "carousel" : "video").catch(() => []);
+  const [lessons, targetSpace] = await Promise.all([
+    activeLessons(user.id, targetSpaceId, data.carouselLength ? "carousel" : "video").catch(() => []),
+    targetSpaceId ? prisma.space.findFirst({ where: { id: targetSpaceId, userId: user.id }, select: { brief: true } }) : null,
+  ]);
 
   let result;
   try {
-    result = await generateScript(data, { toneOfVoice: workspace.toneOfVoice, targetAudience: workspace.targetAudience, lessons: lessonsBrief(lessons) });
+    result = await generateScript(data, { toneOfVoice: workspace.toneOfVoice, targetAudience: workspace.targetAudience, lessons: lessonsBrief(lessons), concept: targetSpace?.brief });
   } catch (err) {
     if (!admin) await refundCredits(user.id, CREDIT_COSTS.SCRIPT_GENERATION, "Remboursement — la génération du script a échoué");
     throw err;

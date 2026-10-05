@@ -100,7 +100,7 @@ export async function splitIntoSeriesAction(scriptId: string, parts: number): Pr
 
     const script = await prisma.script.findFirstOrThrow({
       where: { id: scriptId, userId: user.id },
-      include: { project: { include: { workspace: true } } },
+      include: { project: { include: { workspace: true, space: { select: { brief: true } } } } },
     });
     const source = script.project;
 
@@ -135,6 +135,7 @@ export async function splitIntoSeriesAction(scriptId: string, parts: number): Pr
           toneOfVoice: source.workspace.toneOfVoice,
           targetAudience: source.workspace.targetAudience,
           lessons: lessonsBrief(await activeLessons(user.id, source.spaceId, "video").catch(() => [])),
+          concept: source.space?.brief,
         },
         parts,
       );

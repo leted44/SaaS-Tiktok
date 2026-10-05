@@ -12,6 +12,7 @@ import {
 } from "@/lib/ai/script-generator";
 import { anthropicErrorMessage } from "@/lib/ai/anthropic-errors";
 import { countWords } from "@/lib/utils";
+import { accountConceptLine } from "@/lib/ai/writing-rules";
 
 export const MIN_SERIES_PARTS = 2;
 export const MAX_SERIES_PARTS = 4;
@@ -80,6 +81,8 @@ export interface SeriesSource {
   targetAudience?: string | null;
   /** What this account's own published results taught (lib/results/lessons), or null. */
   lessons?: string | null;
+  /** The space's "Thématique": the account's subject and, often, its recurring visual world. */
+  concept?: string | null;
 }
 
 export async function generateSeries(source: SeriesSource, parts: number): Promise<SeriesGenerationResult> {
@@ -95,6 +98,7 @@ export async function generateSeries(source: SeriesSource, parts: number): Promi
     ...source.sceneTexts.map((t, i) => `Scene ${i + 1}: ${t}`),
     `Call to action: ${source.callToAction}`,
     "",
+    accountConceptLine(source.concept),
     source.topic ? `Original brief: ${source.topic}` : null,
     `Niche: ${source.niche ?? "general"}`,
     `Language: ${source.language}`,

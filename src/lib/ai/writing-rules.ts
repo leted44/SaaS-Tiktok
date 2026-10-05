@@ -9,3 +9,17 @@ export const NO_INVENTED_EXPERIENCE = `- Never invent the creator's own life. Yo
 
 /** A hook that announces a count is a promise the reader checks. */
 export const ANNOUNCED_COUNT = `- A hook or headline that announces a number of items («5 preuves», «3 erreurs») delivers exactly that many, each one clearly there.`;
+
+/**
+ * The space's "Thématique", in the creator's own words: what the account is
+ * about and, often, the look of its series («organes en 3D avec un visage»).
+ * Without it the writer invented its own world for each post — a woman in a
+ * kitchen for an account whose whole concept is cartoon organs — and every
+ * image brief followed that invention.
+ */
+export function accountConceptLine(concept: string | null | undefined): string | null {
+  const text = concept?.trim();
+  return text
+    ? `Account concept, set by the creator for every post of this account: «${text}». The post fits this concept; when it describes a recurring cast, characters or visual world, the series bible (visualMotif) and every image brief are built on it rather than on a cast of your own.`
+    : null;
+}
