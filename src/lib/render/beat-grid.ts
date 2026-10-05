@@ -118,6 +118,22 @@ export interface TimedRange {
 }
 
 /**
+ * Fit every scene's visual to the scene as the voice now times it.
+ *
+ * A visual is stored with the times its scene had when it was made. Made
+ * before the voice-over — or kept through a new voice, speed or script edit —
+ * those times were an estimate, and the image would change mid-sentence. Its
+ * scene index is what it belongs to, so its times are re-read from the scene
+ * on every preview and render. Visuals not tied to a scene are left alone.
+ */
+export function alignLayersToScenes<L extends TimedRange & { sceneIndex?: number }>(layers: L[], scenes: TimedRange[]): L[] {
+  return layers.map((l) => {
+    const scene = l.sceneIndex === undefined ? undefined : scenes[l.sceneIndex];
+    return scene ? { ...l, startMs: scene.startMs, endMs: scene.endMs } : l;
+  });
+}
+
+/**
  * Apply the grid to a whole edit: scenes and the visuals cut to them.
  *
  * One implementation, two callers — the studio runs it on every keystroke so

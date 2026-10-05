@@ -26,7 +26,7 @@ import { getTrack } from "@/lib/music/library";
 import type { EditorState, StudioProps } from "@/components/studio/types";
 import type { ShortVideoProps } from "@/lib/render/props";
 import { DEFAULT_PREVIEW_PROPS } from "@/lib/render/props";
-import { applyBeatSync, timelineOffsetMs } from "@/lib/render/beat-grid";
+import { alignLayersToScenes, applyBeatSync, timelineOffsetMs } from "@/lib/render/beat-grid";
 import { cn } from "@/lib/utils";
 
 export function Studio(props: StudioProps) {
@@ -94,7 +94,8 @@ export function Studio(props: StudioProps) {
     const track = getTrack(state.musicTrackId);
     const musicUrl = state.musicUrl || track?.url || null;
     const grid = musicUrl && state.beatSync && state.musicBpm ? { bpm: state.musicBpm, offsetMs: timelineOffsetMs(state.musicBeatOffsetMs ?? 0, state.musicStartMs, state.musicBpm) } : null;
-    const synced = applyBeatSync(base.scenes, state.visualLayers, grid, base.durationMs);
+    // Each scene's visual follows its scene as the current voice times it, then the cuts go on the beat.
+    const synced = applyBeatSync(base.scenes, alignLayersToScenes(state.visualLayers, base.scenes), grid, base.durationMs);
     return {
       ...base,
       captionStyle: state.captionStyle,

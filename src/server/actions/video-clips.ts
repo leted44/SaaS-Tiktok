@@ -34,17 +34,21 @@ export async function animateSceneClipAction(projectId: string, layerId: string,
     if (!layer || layer.type !== "image" || !layer.src) throw new Error("Cette scène n'a pas d'image à animer.");
 
     let description = "";
+    // The clip covers its scene as the voice times it now, not the times stored when the image was made.
+    let spanMs = layer.endMs - layer.startMs;
     if (layer.sceneIndex !== undefined && project.activeScriptId) {
       const script = await prisma.script.findFirst({ where: { id: project.activeScriptId, projectId } });
       if (script) {
         const voiceover = await prisma.voiceover.findFirst({ where: { projectId, scriptId: script.id, status: "READY" }, orderBy: { createdAt: "desc" } });
         const props = buildShortVideoProps({ project, script, voiceover, workspace: project.workspace, resolution: "1080p", watermark: false, snapCuts: false });
         description = sceneVisualDescriptions(props.scenes.length, script)[layer.sceneIndex]?.trim() ?? "";
+        const aligned = props.visualLayers.find((l) => l.id === layer.id);
+        if (aligned) spanMs = aligned.endMs - aligned.startMs;
       }
     }
     const prompt = `${description || "Scène de vidéo courte, style réaliste."} Mouvement subtil, naturel et réaliste — pas de tremblement de caméra, pas de mouvement de caméra brusque, aucun texte ni logo ne doit apparaître.`;
 
-    const duration = klingDurationFor(layer.endMs - layer.startMs);
+    const duration = klingDurationFor(spanMs);
     const cost = isAdmin(user.role) ? 0 : videoClipCost(tier, duration);
     const creditsLeft = cost > 0 ? await chargeCredits(user.id, cost, "SCRIPT_GENERATION", `Animation de scène (Kling ${tier}, ${duration}s)`) : user.credits;
 

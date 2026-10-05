@@ -5,7 +5,7 @@ import { getTrack } from "@/lib/music/library";
 import { estimateWordTimings } from "@/lib/captions/align";
 import { absoluteUrl } from "@/lib/storage";
 import { ASPECT_DIMENSIONS, type ShortVideoProps } from "@/lib/render/props";
-import { applyBeatSync, timelineOffsetMs, type BeatGridSpec } from "@/lib/render/beat-grid";
+import { alignLayersToScenes, applyBeatSync, timelineOffsetMs, type BeatGridSpec } from "@/lib/render/beat-grid";
 import { z } from "zod";
 
 interface BuildArgs {
@@ -78,7 +78,7 @@ export function buildShortVideoProps({ project, script, voiceover, workspace, re
 
   const captionStyle = parseJson(captionStyleSchema, project.captionStyle, presetStyle(workspace.captionPreset, workspace.captionPosition));
   const rawLayers = parseJson(visualLayersSchema, project.visualLayers, []).map((l) => ({ ...l, src: l.src && absolute ? absoluteUrl(l.src) : l.src }));
-  const synced = applyBeatSync(sceneRanges, rawLayers, snapCuts ? beatGrid : null, durationMs);
+  const synced = applyBeatSync(sceneRanges, alignLayersToScenes(rawLayers, sceneRanges), snapCuts ? beatGrid : null, durationMs);
   const visualLayers = synced.layers;
   const backgroundStyle = parseJson(backgroundStyleSchema, project.backgroundStyle, { type: "gradient", colors: [workspace.primaryColor, "#0B0714"], vignette: true, grain: true });
 
