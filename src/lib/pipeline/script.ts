@@ -92,6 +92,7 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
       model: result.model,
       inputTokens: result.inputTokens,
       outputTokens: result.outputTokens,
+      reviewReport: result.review,
     },
   });
 

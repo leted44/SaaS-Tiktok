@@ -18,6 +18,8 @@ import { ScriptCard, type CarouselScript } from "@/components/carousel/script-ca
 import { ScriptStart } from "@/components/carousel/script-start";
 import type { ImageModelChoice } from "@/lib/ai/image-models";
 import { ImageModelPicker, useAdminImageModel } from "@/components/shared/image-model-picker";
+import { ReviewCard } from "@/components/shared/review-card";
+import type { ReviewReport, ReviewTally } from "@/lib/ai/review-report";
 import { generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
 import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, IMAGE_PROMPT_MAX, VISUAL_MOTIF_MAX, SLIDE_LIMITS, fullBleedTemplate, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
@@ -51,6 +53,8 @@ interface Props {
   posted: { platforms: string[] } | null;
   /** The admin account sees the image model test. */
   admin: boolean;
+  /** What the critic pass did to the script — admin only. */
+  review: { report: ReviewReport; tally: ReviewTally | null } | null;
   /** What the script of a project without one is written from. */
   scriptStart: { topic: string; niche: string | null; language: string; cost: number };
 }
@@ -111,7 +115,7 @@ function lengthOf(slides: CarouselState["slides"]): CarouselLength {
   return slides.filter((s) => s.kind === "content").length <= CONTENT_SLIDES.short ? "short" : "full";
 }
 
-export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured, posted, admin, scriptStart }: Props) {
+export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured, posted, admin, review, scriptStart }: Props) {
   const [marking, setMarking] = useState(false);
   const [unmarking, setUnmarking] = useState(false);
   async function unmarkPosted() {
@@ -482,6 +486,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
           </div>
 
           {script && <ScriptCard key={script.id} script={script} label="Script — relis-le et corrige-le avant de générer" />}
+          {review && <ReviewCard report={review.report} tally={review.tally} />}
 
           <div className="space-y-2">
             <Label>Format du post</Label>
@@ -846,6 +851,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
 
         <Section title="Script et réécriture" icon={RefreshCw} summary="Modifier le script, réécrire">
           {script && <div className="mb-3"><ScriptCard key={script.id} script={script} label="Script du projet" hint="Tu as modifié le script ? Réécris le carrousel ci-dessous pour que les slides le suivent. Pour retoucher une seule slide, ouvre « Textes des slides »." /></div>}
+          {review && <div className="mb-3"><ReviewCard report={review.report} tally={review.tally} /></div>}
           <p className="text-xs text-muted-foreground">
             Repart du script actuel du projet et réécrit tous les textes.{" "}
             {aiImagesConfigured && state.visualStyle ? `Les visuels IA sont recréés dans le même style (${aiImageCost} crédits par image).` : "De nouvelles photos sont cherchées pour chaque slide."} Le modèle, le format et la signature sont conservés.

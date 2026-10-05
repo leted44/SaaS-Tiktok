@@ -399,6 +399,8 @@ model Script {
   model        String?
   inputTokens  Int?
   outputTokens Int?
+  /// What the critic pass changed against the draft and what it cost (lib/ai/review-report). Null on older scripts.
+  reviewReport Json?
 
   createdAt DateTime @default(now())
 

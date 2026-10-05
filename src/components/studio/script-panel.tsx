@@ -14,7 +14,8 @@ import { ScoreRing } from "@/components/shared/score-ring";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { saveScriptEdits, setActiveScript } from "@/server/actions/projects";
 import { SeriesDialog } from "@/components/studio/series-dialog";
-import type { StudioScript } from "@/components/studio/types";
+import type { ReviewTally, StudioScript } from "@/components/studio/types";
+import { ReviewCard } from "@/components/shared/review-card";
 import { countWords, cn } from "@/lib/utils";
 import { nanoid } from "nanoid";
 
@@ -29,9 +30,10 @@ interface Props {
   aiConfigured: boolean;
   /** Credit price of one generated script — zero for accounts that aren't charged. */
   scriptCost: number;
+  reviewTally: ReviewTally | null;
 }
 
-export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene, onSelectScene, aiConfigured, scriptCost }: Props) {
+export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene, onSelectScene, aiConfigured, scriptCost, reviewTally }: Props) {
   const router = useRouter();
   const active = scripts.find((s) => s.id === activeScriptId) ?? scripts[0] ?? null;
   const [draft, setDraft] = useState(active);
@@ -91,6 +93,7 @@ export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene,
       </div>
 
       <ScoreCard script={active} stale={dirty} />
+      {active.review && <ReviewCard report={active.review} tally={reviewTally} />}
 
       <div className="space-y-1.5"><Label>Titre</Label><Input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></div>
 

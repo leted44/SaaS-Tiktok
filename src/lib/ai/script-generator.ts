@@ -7,6 +7,7 @@ import { normalizeSocialCopy, socialCopyFields } from "@/lib/ai/caption-generato
 import { anthropicErrorMessage } from "@/lib/ai/anthropic-errors";
 import { countWords } from "@/lib/utils";
 import { ANNOUNCED_COUNT, NO_INVENTED_EXPERIENCE } from "@/lib/ai/writing-rules";
+import { buildReviewReport, type ReviewReport } from "@/lib/ai/review-report";
 
 /**
  * The brief an AI image of a scene is drawn from — the same formula as the
@@ -66,6 +67,8 @@ export interface ScriptGenerationResult {
   model: string;
   inputTokens: number;
   outputTokens: number;
+  /** What the critic pass changed, and whether it was worth its cost. */
+  review: ReviewReport;
 }
 
 export const SCRIPT_SYSTEM_PROMPT = `You are VidiSprint's short-form video strategist. You write scripts for TikTok, Instagram Reels and YouTube Shorts that maximize watch-time and shares.
@@ -245,6 +248,16 @@ export async function generateScript(
   const revised = await callForScript(anthropic, model, carousel ? SCRIPT_CRITIC_SYSTEM_PROMPT + CAROUSEL_CRITIC_RULES : SCRIPT_CRITIC_SYSTEM_PROMPT, buildCriticUserPrompt(input, draft.parsed, brand), "high");
 
   const normalized = normalizeScript(revised.parsed, input.carouselLength);
+  const review = buildReviewReport({
+    draft: normalizeScript(draft.parsed, input.carouselLength),
+    final: normalized,
+    topic: input.topic,
+    carousel,
+    contentSlides: input.carouselLength ? CAROUSEL_MAX_SCENES[input.carouselLength] : undefined,
+    targetDurationSec: input.targetDurationSec,
+    draftCost: { model: draft.response.model, usage: draft.response.usage },
+    reviewCost: { model: revised.response.model, usage: revised.response.usage },
+  });
   const fullText = assembleFullText(normalized);
   const wordCount = countWords(fullText);
 
@@ -256,6 +269,7 @@ export async function generateScript(
     model: revised.response.model,
     inputTokens: draft.response.usage.input_tokens + revised.response.usage.input_tokens,
     outputTokens: draft.response.usage.output_tokens + revised.response.usage.output_tokens,
+    review,
   };
 }
 

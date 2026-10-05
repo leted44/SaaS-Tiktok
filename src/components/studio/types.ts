@@ -1,6 +1,9 @@
 import type { CaptionStyle, VisualLayer, VisualPoolItem, BackgroundStyle, Scene } from "@/lib/validations";
 import type { ShortVideoProps } from "@/lib/render/props";
 import type { SocialCopy } from "@/lib/social/captions";
+import type { ReviewReport, ReviewTally } from "@/lib/ai/review-report";
+
+export type { ReviewTally };
 
 export interface StudioProject {
   id: string;
@@ -49,6 +52,8 @@ export interface StudioScript {
   estimatedDurationSec: number;
   wordCount: number;
   createdAt: string;
+  /** What the critic pass changed — admin only, null otherwise and on older scripts. */
+  review: ReviewReport | null;
 }
 
 export interface StudioVoiceover {
@@ -92,6 +97,8 @@ export interface StudioProps {
   project: StudioProject;
   scripts: StudioScript[];
   activeScriptId: string | null;
+  /** The critic pass's record on the latest video scripts — admin only. */
+  reviewTally: ReviewTally | null;
   voiceover: StudioVoiceover | null;
   renders: StudioRender[];
   previewProps: ShortVideoProps | null;

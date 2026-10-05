@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getProjectForStudio, getCustomVoice } from "@/server/queries";
+import { getProjectForStudio, getCustomVoice, getReviewTally, readReviewReport } from "@/server/queries";
 import { prisma } from "@/lib/prisma";
 import { buildShortVideoProps } from "@/lib/render/build-props";
 import { Studio } from "@/components/studio/studio";
@@ -29,7 +29,11 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
   const { project, user, activeScript, activeVoiceover } = data;
   const plan = effectivePlanDef(user);
   const admin = isAdmin(user.role);
-  const [customVoice, carousel] = await Promise.all([getCustomVoice(user.id), prisma.carousel.findUnique({ where: { projectId: project.id }, select: { id: true } })]);
+  const [customVoice, carousel, reviewTally] = await Promise.all([
+    getCustomVoice(user.id),
+    prisma.carousel.findUnique({ where: { projectId: project.id }, select: { id: true } }),
+    admin ? getReviewTally(user.id, "video") : null,
+  ]);
   // Same rule as the project cards: a carousel, and nothing video-specific made yet.
   const carouselOnly = Boolean(carousel) && !activeVoiceover && project.renderJobs.length === 0 && parseJson(visualLayersSchema, project.visualLayers, []).length === 0;
 
@@ -85,7 +89,9 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         estimatedDurationSec: s.estimatedDurationSec,
         wordCount: s.wordCount,
         createdAt: s.createdAt.toISOString(),
+        review: admin ? readReviewReport(s.reviewReport) : null,
       }))}
+      reviewTally={reviewTally}
       activeScriptId={activeScript?.id ?? null}
       voiceover={activeVoiceover ? { id: activeVoiceover.id, audioUrl: activeVoiceover.audioUrl, durationMs: activeVoiceover.durationMs, voiceId: activeVoiceover.voiceId, provider: activeVoiceover.provider, createdAt: activeVoiceover.createdAt.toISOString() } : null}
       renders={project.renderJobs.map((r) => ({ id: r.id, status: r.status, progress: r.progress, step: r.step, outputUrl: r.outputUrl, thumbnailUrl: r.thumbnailUrl, error: r.error, createdAt: r.createdAt.toISOString(), width: r.width, height: r.height, creditsCharged: r.creditsCharged, timings: parseJson(renderTimingsSchema.nullable(), r.logs, null) }))}

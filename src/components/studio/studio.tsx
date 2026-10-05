@@ -30,7 +30,7 @@ import { applyBeatSync, timelineOffsetMs } from "@/lib/render/beat-grid";
 import { cn } from "@/lib/utils";
 
 export function Studio(props: StudioProps) {
-  const { carouselOnly, project, scripts, activeScriptId, voiceover, renders, previewProps, user, planLimits, voices, customVoice, tracks, integrations } = props;
+  const { carouselOnly, project, scripts, activeScriptId, reviewTally, voiceover, renders, previewProps, user, planLimits, voices, customVoice, tracks, integrations } = props;
   const router = useRouter();
   const playerRef = useRef<PlayerRef>(null);
   const [tab, setTab] = useState("script");
@@ -247,7 +247,7 @@ export function Studio(props: StudioProps) {
             <div className="min-h-0 min-w-0 flex-1 xl:overflow-y-auto">
               <div className="min-w-0 p-4">
                 <TabsContent value="script" className="mt-0">
-                  <ScriptPanel projectId={project.id} scripts={scripts} activeScriptId={activeScriptId} selectedScene={selectedScene} onSelectScene={(i) => { setSelectedScene(i); if (i !== null && liveProps.scenes[i]) playerRef.current?.seekTo(Math.round((liveProps.scenes[i].startMs / 1000) * liveProps.fps)); }} aiConfigured={integrations.ai} scriptCost={planLimits.costs.script} />
+                  <ScriptPanel projectId={project.id} scripts={scripts} activeScriptId={activeScriptId} selectedScene={selectedScene} onSelectScene={(i) => { setSelectedScene(i); if (i !== null && liveProps.scenes[i]) playerRef.current?.seekTo(Math.round((liveProps.scenes[i].startMs / 1000) * liveProps.fps)); }} aiConfigured={integrations.ai} scriptCost={planLimits.costs.script} reviewTally={reviewTally} />
                 </TabsContent>
                 <TabsContent value="captions" className="mt-0">
                   <CaptionsPanel style={state.captionStyle} onChange={(s) => patch("captionStyle", s)} />

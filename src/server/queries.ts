@@ -1,8 +1,10 @@
 import { cache } from "react";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { PLANS } from "@/lib/plans";
 import { getUsageSummary } from "@/lib/credits";
+import { reviewReportSchema, reviewTally, type ReviewReport, type ReviewTally } from "@/lib/ai/review-report";
 
 export const getCurrentUser = cache(async () => {
   const session = await requireUser();
@@ -69,6 +71,23 @@ export async function getProjectForCarousel(projectId: string) {
   if (!project) return null;
   const activeScript = project.scripts.find((s) => s.id === project.activeScriptId) ?? project.scripts[0] ?? null;
   return { project, user, activeScript };
+}
+
+/** The stored critic report of a script, or null on scripts written before it existed. */
+export function readReviewReport(value: unknown): ReviewReport | null {
+  const parsed = reviewReportSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+/** How the critic pass did on the account's 10 latest scripts of one format. */
+export async function getReviewTally(userId: string, format: "video" | "carousel"): Promise<ReviewTally> {
+  const rows = await prisma.script.findMany({
+    where: { userId, carouselLength: format === "carousel" ? { not: null } : null, NOT: { reviewReport: { equals: Prisma.AnyNull } } },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+    select: { reviewReport: true },
+  });
+  return reviewTally(rows.map((r) => readReviewReport(r.reviewReport)).filter((r): r is ReviewReport => r !== null));
 }
 
 export async function getExportsData() {
