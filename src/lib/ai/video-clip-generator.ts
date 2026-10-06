@@ -29,7 +29,7 @@ const ENDPOINT: Record<VideoClipTier, string> = {
   pro: "fal-ai/kling-video/v2.5-turbo/pro/image-to-video",
 };
 
-const QUEUE_BASE = "https://queue.fal.run";
+const QUEUE_BASE = env.falQueueUrl;
 
 /**
  * Where a submitted job is followed. fal submits to the full endpoint path

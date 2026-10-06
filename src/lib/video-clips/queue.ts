@@ -43,6 +43,25 @@ export async function claimVideoClipJobById(jobId: string, workerId: string) {
   return prisma.videoClipJob.findUnique({ where: { id: jobId } });
 }
 
+/**
+ * The right to send this job to fal, for one poller only. The studio polls
+ * every 3 s without waiting for the previous poll, and the cron tick can land
+ * at the same moment: two pollers both seeing "not sent yet" both sent it, and
+ * fal billed two clips. The winner writes a "pending:<ms>" marker in place of
+ * the request id before sending; everyone else sees it and just waits.
+ */
+export async function reserveSubmission(jobId: string): Promise<boolean> {
+  const reserved = await prisma.videoClipJob.updateMany({ where: { id: jobId, falRequestId: null }, data: { falRequestId: `${PENDING}${Date.now()}`, lockedAt: new Date() } });
+  return reserved.count === 1;
+}
+
+/** Give the right back — the submission failed, or its holder died before recording the request id. */
+export async function releaseSubmission(jobId: string) {
+  await prisma.videoClipJob.updateMany({ where: { id: jobId, falRequestId: { startsWith: PENDING } }, data: { falRequestId: null } });
+}
+
+export const PENDING = "pending:";
+
 export async function saveFalRequestId(jobId: string, falRequestId: string) {
   await prisma.videoClipJob.update({ where: { id: jobId }, data: { falRequestId, lockedAt: new Date() } });
 }

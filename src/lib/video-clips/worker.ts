@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { VideoClipJob } from "@prisma/client";
-import { claimNextVideoClipJob, claimVideoClipJobById, completeVideoClipJob, failVideoClipJob, saveFalRequestId } from "@/lib/video-clips/queue";
+import { claimNextVideoClipJob, claimVideoClipJobById, completeVideoClipJob, failVideoClipJob, PENDING, releaseSubmission, reserveSubmission, saveFalRequestId } from "@/lib/video-clips/queue";
 import { submitImageToVideo, checkVideoStatus, VideoClipError, type VideoClipTier } from "@/lib/ai/video-clip-generator";
 import { refundCredits } from "@/lib/credits";
 import { putObject, storageKey } from "@/lib/storage";
@@ -51,8 +51,22 @@ async function runVideoClipJob(job: VideoClipJob): Promise<VideoClipOutcome> {
   const tier = job.tier as VideoClipTier;
   try {
     if (!job.falRequestId) {
-      const { requestId } = await submitImageToVideo(job.imageUrl, job.prompt, tier, job.duration as "5" | "10");
+      // One sender only (see reserveSubmission): a second poller just waits for the first.
+      if (!(await reserveSubmission(job.id))) return { jobId: job.id, status: "in_progress" };
+      let requestId: string;
+      try {
+        ({ requestId } = await submitImageToVideo(job.imageUrl, job.prompt, tier, job.duration as "5" | "10"));
+      } catch (err) {
+        await releaseSubmission(job.id);
+        throw err;
+      }
       await saveFalRequestId(job.id, requestId);
+      return { jobId: job.id, status: "in_progress" };
+    }
+    if (job.falRequestId.startsWith(PENDING)) {
+      // Another poller is sending it. Two minutes without a request id means it died
+      // before recording one: free the job for the next poll.
+      if (Date.now() - Number(job.falRequestId.slice(PENDING.length)) > 120_000) await releaseSubmission(job.id);
       return { jobId: job.id, status: "in_progress" };
     }
 
