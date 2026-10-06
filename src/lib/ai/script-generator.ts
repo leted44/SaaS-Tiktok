@@ -7,7 +7,7 @@ import { normalizeSocialCopy, socialCopyFields } from "@/lib/ai/caption-generato
 import { anthropicErrorMessage } from "@/lib/ai/anthropic-errors";
 import { countWords } from "@/lib/utils";
 import { ANNOUNCED_COUNT, NO_INVENTED_EXPERIENCE, accountConceptLine, characterSheetLine } from "@/lib/ai/writing-rules";
-import { buildReviewReport, draftProblems, skippedReviewReport, type ReviewReport } from "@/lib/ai/review-report";
+import { buildReviewReport, disabledReviewReport, draftProblems, skippedReviewReport, type ReviewReport } from "@/lib/ai/review-report";
 
 /**
  * The brief an AI image of a scene is drawn from — the same formula as the
@@ -242,6 +242,9 @@ async function callForScript(anthropic: Anthropic, model: string, system: string
   return { parsed, response };
 }
 
+/** The critic pass (below) — kept in the code, off: see generateScript. */
+const CRITIC_ENABLED = false;
+
 /**
  * Two passes, not one: a single call asked to both write and honestly grade
  * its own work reliably lands on "competent" — there is nothing in that flow
@@ -249,6 +252,8 @@ async function callForScript(anthropic: Anthropic, model: string, system: string
  * a 74. The critic pass is a fresh voice, primed to reject rather than
  * defend, whose only job is to hand back something that deserves a high
  * score instead of grading the one draft it was given.
+ *
+ * Today one pass only: the owner switched the critic off (CRITIC_ENABLED).
  */
 export async function generateScript(
   input: GenerateScriptInput,
@@ -267,6 +272,12 @@ export async function generateScript(
   // the owner's call, on cost: on drafts that broke nothing it only reworded
   // them, for about 60 % of the script's price, and once made one too long.
   const problems = draftProblems(draftScript, rules);
+  // Switched off altogether since (the owner's call): a second paid pass for a
+  // rewrite that was rarely worth it. The draft is kept as written; the rules
+  // it breaks are still listed on the admin's card, at no cost.
+  if (!CRITIC_ENABLED) {
+    return finish(draftScript, draft.response.model, [draft.response.usage], disabledReviewReport({ ...rules, draft: draftScript, draftCost: { model: draft.response.model, usage: draft.response.usage }, problems }));
+  }
   if (!problems.length) {
     return finish(draftScript, draft.response.model, [draft.response.usage], skippedReviewReport({ ...rules, draft: draftScript, draftCost: { model: draft.response.model, usage: draft.response.usage } }));
   }

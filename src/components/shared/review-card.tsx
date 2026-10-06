@@ -26,6 +26,11 @@ const VERDICTS: Record<ReviewVerdict, { label: string; tone: string; explain: (r
     tone: "border-white/10 bg-white/[0.04] text-muted-foreground",
     explain: (r) => `La 1re version respectait déjà les règles, et la relecture n'a changé que ${r.changedPct} % du texte.`,
   },
+  off: {
+    label: "Désactivée",
+    tone: "border-white/10 bg-white/[0.04] text-muted-foreground",
+    explain: (r) => (r.triggers.length ? "Pas de relecture : le script est gardé tel qu'il a été écrit. Ces règles ne sont pas respectées — à corriger à la main, ou régénère le script :" : "Pas de relecture : le script respecte toutes les règles vérifiables."),
+  },
   skipped: {
     label: "Non lancée",
     tone: "border-sky-400/30 bg-sky-400/10 text-sky-200",
@@ -52,10 +57,10 @@ export function ReviewCard({ report, tally }: { report: ReviewReport; tally: Rev
         <ScanSearch className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="font-semibold">Relecture</span>
         <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-semibold", verdict.tone)}>{verdict.label}</span>
-        <span className="ml-auto text-[11px] text-muted-foreground">{report.verdict === "skipped" ? `script ${usd(report.draftCostUsd)}` : `coût ${usd(report.reviewCostUsd)} · 1re version ${usd(report.draftCostUsd)}`}</span>
+        <span className="ml-auto text-[11px] text-muted-foreground">{report.verdict === "skipped" || report.verdict === "off" ? `script ${usd(report.draftCostUsd)}` : `coût ${usd(report.reviewCostUsd)} · 1re version ${usd(report.draftCostUsd)}`}</span>
       </div>
       <p className="mt-2 leading-relaxed text-muted-foreground">{verdict.explain(report)}</p>
-      {report.triggers.length > 0 && <p className="mt-1.5 text-[11px] text-muted-foreground">Lancée parce que : {report.triggers.join(" · ")}</p>}
+      {report.triggers.length > 0 && <p className={cn("mt-1.5 text-[11px]", report.verdict === "off" ? "text-amber-200" : "text-muted-foreground")}>{report.verdict === "off" ? "À vérifier" : "Lancée parce que"} : {report.triggers.join(" · ")}</p>}
 
       {(report.fixes.length > 0 || report.regressions.length > 0 || report.notes.length > 0) && (
         <ul className="mt-2 space-y-1">
@@ -67,12 +72,12 @@ export function ReviewCard({ report, tally }: { report: ReviewReport; tally: Rev
 
       {tally && tally.total > 1 && (
         <p className="mt-2 text-[11px] text-muted-foreground">
-          Sur tes {tally.total} derniers scripts {report.format === "carousel" ? "carrousel" : "vidéo"} : non lancée {tally.skipped}, utile {tally.useful}, style {tally.style}, pas nécessaire {tally.minor}
+          Sur tes {tally.total} derniers scripts {report.format === "carousel" ? "carrousel" : "vidéo"} : {tally.off ? `désactivée ${tally.off}, ` : ""}non lancée {tally.skipped}, utile {tally.useful}, style {tally.style}, pas nécessaire {tally.minor}
           {tally.regressed ? `, contre-productive ${tally.regressed}` : ""} — relectures {usd(tally.reviewCostUsd)} au total{tally.savedUsd > 0 ? `, environ ${usd(tally.savedUsd)} économisés` : ""}.
         </p>
       )}
 
-      {report.verdict !== "skipped" && (
+      {report.verdict !== "skipped" && report.verdict !== "off" && (
         <>
       <button
         type="button"

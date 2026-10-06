@@ -13,7 +13,7 @@ import { countWords } from "@/lib/utils";
  * through the same two passes.
  */
 
-export const REVIEW_VERDICTS = ["useful", "regressed", "style", "minor", "skipped"] as const;
+export const REVIEW_VERDICTS = ["useful", "regressed", "style", "minor", "skipped", "off"] as const;
 export type ReviewVerdict = (typeof REVIEW_VERDICTS)[number];
 
 export const reviewReportSchema = z.object({
@@ -31,7 +31,7 @@ export const reviewReportSchema = z.object({
   draftCostUsd: z.number().nullable(),
   reviewCostUsd: z.number().nullable(),
   draft: z.object({ hook: z.string(), scenes: z.array(z.string()), callToAction: z.string() }),
-  /** The draft's broken rules that made the critic run; empty when it was skipped. */
+  /** The draft's broken rules that made the critic run; with the critic off, the ones left for the owner to check. */
   triggers: z.array(z.string()).default([]),
   /** The critic broke a rule without fixing any, so the draft was kept instead. */
   keptDraft: z.boolean().default(false),
@@ -230,6 +230,30 @@ export function skippedReviewReport(args: RuleArgs & { draft: Version; draftCost
   };
 }
 
+/**
+ * The critic is switched off (the owner's call: its cost was rarely worth it):
+ * only the draft, and what a code check finds in it — no extra AI call, so
+ * the rules a draft breaks are still shown, for the owner to fix or redo.
+ */
+export function disabledReviewReport(args: RuleArgs & { draft: Version; draftCost: { model: string; usage: Usage }; problems: string[] }): ReviewReport {
+  const figures = unsourcedFigures(args.draft, args.topic);
+  return {
+    format: args.carousel ? "carousel" : "video",
+    verdict: "off",
+    fixes: [],
+    regressions: [],
+    notes: figures.length ? [`Chiffre(s) absent(s) de ton sujet — à vérifier avant de publier : ${figures.join(", ")}`] : [],
+    changedPct: 0,
+    hookChanged: false,
+    draftCostUsd: callCostUsd(args.draftCost.model, args.draftCost.usage),
+    reviewCostUsd: null,
+    draft: { hook: args.draft.hook, scenes: args.draft.scenes.map((s) => s.text), callToAction: args.draft.callToAction },
+    triggers: args.problems,
+    keptDraft: false,
+    savedUsd: null,
+  };
+}
+
 export function buildReviewReport(args: RuleArgs & {
   draft: Version;
   final: Version;
@@ -286,6 +310,6 @@ export function reviewTally(reports: ReviewReport[]) {
   const count = (v: ReviewVerdict) => reports.filter((r) => r.verdict === v).length;
   const reviewCostUsd = reports.reduce((sum, r) => sum + (r.reviewCostUsd ?? 0), 0);
   const savedUsd = reports.reduce((sum, r) => sum + (r.savedUsd ?? 0), 0);
-  return { total: reports.length, useful: count("useful"), regressed: count("regressed"), style: count("style"), minor: count("minor"), skipped: count("skipped"), reviewCostUsd, savedUsd };
+  return { total: reports.length, useful: count("useful"), regressed: count("regressed"), style: count("style"), minor: count("minor"), skipped: count("skipped"), off: count("off"), reviewCostUsd, savedUsd };
 }
 export type ReviewTally = ReturnType<typeof reviewTally>;
