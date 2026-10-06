@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Image as ImageIcon, Film, Trash2, Layers, Palette, Loader2, Sparkles, Search, Ban, LibraryBig, X, ChevronDown, Wand2, RefreshCw, Coins } from "lucide-react";
+import { Upload, Image as ImageIcon, Film, Trash2, Layers, Palette, Loader2, Sparkles, Search, Ban, LibraryBig, X, ChevronDown, Wand2, RefreshCw, Coins, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ import { BackgroundControls, backgroundLabel } from "@/components/studio/backgro
 import { StylePicker } from "@/components/shared/style-picker";
 import { composeImagePrompt, isAiSource, type VisualStyle } from "@/lib/carousel/art-direction";
 import { geminiPrompt } from "@/lib/ai/gemini-prompt";
+import { ctaCopyOf, ctaSceneIndex } from "@/lib/pipeline/cta-image";
 import { CopyForGemini } from "@/components/shared/copy-for-gemini";
 import { generateProjectVisualsAiAction } from "@/server/actions/video-visuals";
 import { animateSceneClipAction, cancelVideoClipJobAction } from "@/server/actions/video-clips";
@@ -363,6 +364,18 @@ export function VisualsPanel({
 
   const style = (visualStyle || defaultVisualStyle) as VisualStyle;
   const emptyScenes = scenes.map((_, i) => i).filter((i) => !layers.some((l) => l.sceneIndex === i));
+  /** The call to action keeps the last scene's image on screen instead of its own (lib/pipeline/cta-image): it is never drawn in a batch. */
+  const cta = ctaSceneIndex(scenes.length);
+  const drawable = emptyScenes.filter((i) => i !== cta);
+  const drawableCount = scenes.length - (cta === null ? 0 : 1);
+
+  /** The CTA tile's "Même image que…": the last scene's still on a layer of its own, with the CTA's own timing. */
+  function sameImageForCta() {
+    const copy = ctaCopyOf(layers, scenes);
+    if (!copy || cta === null) return;
+    onLayersChange([...layers.filter((l) => l.sceneIndex !== cta), copy]);
+    toast.success(`CTA : même image que ${sceneName(cta - 1)}`);
+  }
 
   /**
    * AI visuals for the scenes still missing one, or every scene when `mode`
@@ -379,12 +392,14 @@ export function VisualsPanel({
       if (!(await ensureSaved())) return;
       const res = await generateProjectVisualsAiAction(projectId, mode, admin ? imageModel : undefined);
       if (!res.ok) return toast.error(res.error);
-      const { generated, failed, layers: newLayers, visualStyle: usedStyle, captionStyle: newCaptionStyle } = res.data;
+      const { generated, failed, layers: newLayers, visualStyle: usedStyle, captionStyle: newCaptionStyle, ctaFilled } = res.data;
       onLayersChange(newLayers);
       onVisualStyleChange(usedStyle);
       if (newCaptionStyle) onCaptionStyleChange(newCaptionStyle);
+      if (!generated && !ctaFilled) return void toast.info("Toutes les scènes ont déjà une image.");
       toast.success(
-        `${generated} visuel${generated > 1 ? "s" : ""} créé${generated > 1 ? "s" : ""}` +
+        (generated ? `${generated} visuel${generated > 1 ? "s" : ""} créé${generated > 1 ? "s" : ""}` : "Le CTA reprend l'image de la dernière scène") +
+          (generated && ctaFilled ? " · le CTA reprend l'image de la dernière scène" : "") +
           (failed ? ` · ${failed} échec${failed > 1 ? "s" : ""}, crédits remboursés` : "") +
           (newCaptionStyle ? " · sous-titres accordés au style" : ""),
       );
@@ -556,9 +571,14 @@ export function VisualsPanel({
                       <Wand2 className="h-3 w-3" /> Animer{animateCost > 0 && <> · {animateCost}</>}
                     </Button>
                   )}
+                  {!layer && i === cta && ctaCopyOf(layers, scenes) && (
+                    <Button size="sm" variant="secondary" className="mt-1 h-auto min-h-7 w-full gap-1 whitespace-normal px-1 py-1 text-[11px] leading-tight" onClick={sameImageForCta}>
+                      <Copy className="h-3 w-3 shrink-0" /> Même image que {sceneName(i - 1)}
+                    </Button>
+                  )}
                   {!layer && gemini.briefs[i]?.trim() && (
                     <div className="mt-1 space-y-1">
-                      {aiImagesConfigured && (
+                      {aiImagesConfigured && i !== cta && (
                         <Button size="sm" variant="secondary" className="h-7 w-full gap-1 px-1 text-[11px]" loading={sceneBusy === i} disabled={generatingAi || credits < aiImageCost} onClick={() => generateOneScene(i)}>
                           <Wand2 className="h-3 w-3" /> Créer{aiImageCost > 0 && <> · {aiImageCost}</>}
                         </Button>
@@ -567,7 +587,7 @@ export function VisualsPanel({
                       <CopyForGemini className="w-full" cast={gemini.cast} prompt={geminiPrompt(composeImagePrompt({ scene: gemini.briefs[i], motif: visualMotif, style, layout: "frame", purpose: "video" }), { aspect: gemini.aspect, cast: gemini.cast })} />
                     </div>
                   )}
-                  {layer && !animating && aiImagesConfigured && gemini.briefs[i]?.trim() && (
+                  {layer && !animating && aiImagesConfigured && i !== cta && gemini.briefs[i]?.trim() && (
                     <Button size="sm" variant="ghost" className="mt-1 h-6 w-full gap-1 px-1 text-[11px] text-muted-foreground" disabled={generatingAi || credits < aiImageCost} onClick={() => generateOneScene(i)}>
                       <RefreshCw className="h-3 w-3" /> Refaire{aiImageCost > 0 && <> · {aiImageCost}</>}
                     </Button>
@@ -587,7 +607,7 @@ export function VisualsPanel({
       )}
 
       {aiImagesConfigured && (
-        <Section title="Images IA" icon={Wand2} summary={emptyScenes.length ? `${emptyScenes.length} à créer` : "Toutes créées"} defaultOpen={emptyScenes.length > 0}>
+        <Section title="Images IA" icon={Wand2} summary={drawable.length ? `${drawable.length} à créer` : "Toutes créées"} defaultOpen={drawable.length > 0}>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Direction artistique</Label>
@@ -595,25 +615,25 @@ export function VisualsPanel({
             </div>
             <CharacterReference projectId={projectId} initial={characterReference} generate={{ description: visualMotif, cost: aiImageCost, enabled: aiImagesConfigured }} />
 
-            {emptyScenes.length > 0 ? (
-              <Button variant="gradient" className="w-full" onClick={() => generateAiVisuals("missing")} loading={generatingAi} disabled={!hasScript || autoFilling || credits < emptyScenes.length * aiImageCost}>
-                <Wand2 /> Créer {emptyScenes.length} image{emptyScenes.length > 1 ? "s" : ""} IA {aiImageCost > 0 && <><Coins className="h-3.5 w-3.5" /> {emptyScenes.length * aiImageCost}</>}
+            {drawable.length > 0 ? (
+              <Button variant="gradient" className="w-full" onClick={() => generateAiVisuals("missing")} loading={generatingAi} disabled={!hasScript || autoFilling || credits < drawable.length * aiImageCost}>
+                <Wand2 /> Créer {drawable.length} image{drawable.length > 1 ? "s" : ""} IA {aiImageCost > 0 && <><Coins className="h-3.5 w-3.5" /> {drawable.length * aiImageCost}</>}
               </Button>
             ) : (
               <Button
                 variant="secondary"
                 className="w-full"
-                onClick={() => window.confirm(`Recréer les ${scenes.length} images de la vidéo ?${aiImageCost > 0 ? ` ${scenes.length * aiImageCost} crédits.` : ""}`) && generateAiVisuals("all")}
+                onClick={() => window.confirm(`Recréer les ${drawableCount} images de la vidéo ?${aiImageCost > 0 ? ` ${drawableCount * aiImageCost} crédits.` : ""}${cta === null ? "" : " Le CTA reprendra l'image de la dernière scène."}`) && generateAiVisuals("all")}
                 loading={generatingAi}
-                disabled={!hasScript || autoFilling || !scenes.length || credits < scenes.length * aiImageCost}
+                disabled={!hasScript || autoFilling || !scenes.length || credits < drawableCount * aiImageCost}
               >
-                <RefreshCw /> Tout recréer {aiImageCost > 0 && <><Coins className="h-3.5 w-3.5" /> {scenes.length * aiImageCost}</>}
+                <RefreshCw /> Tout recréer {aiImageCost > 0 && <><Coins className="h-3.5 w-3.5" /> {drawableCount * aiImageCost}</>}
               </Button>
             )}
             <p className="text-[11px] text-muted-foreground">
-              {emptyScenes.length > 0
-                ? "Seules les scènes vides sont créées : celles qui ont déjà une image ne sont jamais touchées."
-                : "Pour changer une seule image : retire-la avec le ×, puis crée à nouveau."}
+              {drawable.length > 0
+                ? "Seules les scènes vides sont créées : celles qui ont déjà une image ne sont jamais touchées. Le CTA garde l'image de la dernière scène, sans image en plus."
+                : "Pour changer une seule image : « Refaire » sur sa case. Le CTA garde l'image de la dernière scène."}
             </p>
 
             <details className="group rounded-lg border border-white/[0.06] p-2.5">

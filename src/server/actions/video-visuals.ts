@@ -8,6 +8,7 @@ import { sceneVisualDescriptions } from "@/lib/pipeline/visuals";
 import { projectCast } from "@/lib/characters";
 import { spaceVisualStyle } from "@/lib/space-style";
 import { existingSceneReference, generateSceneVisuals, neighbourReference, videoAspect, type SceneTarget } from "@/lib/pipeline/ai-visuals";
+import { ctaCopyOf, ctaSceneIndex } from "@/lib/pipeline/cta-image";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
 import { DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from "@/lib/carousel/art-direction";
@@ -37,7 +38,7 @@ export async function generateProjectVisualsAiAction(
   imageModel?: string,
   /** Draw this scene alone — replacing its current image — and leave every other scene untouched. */
   onlyScene?: number,
-): Promise<ActionResult<{ layers: VisualLayer[]; visualStyle: string; generated: number; failed: number; creditsLeft: number; captionStyle: CaptionStyle | null }>> {
+): Promise<ActionResult<{ layers: VisualLayer[]; visualStyle: string; generated: number; failed: number; creditsLeft: number; captionStyle: CaptionStyle | null; ctaFilled: boolean }>> {
   const started = Date.now();
   return guard(async () => {
     const user = await requireDbUser();
@@ -61,13 +62,25 @@ export async function generateProjectVisualsAiAction(
     const hasLayer = new Set(currentLayers.map((l) => l.sceneIndex).filter((i) => i !== undefined));
 
     if (onlyScene !== undefined && (!Number.isInteger(onlyScene) || onlyScene < 0 || onlyScene >= props.scenes.length)) throw new Error("Cette scène n'existe pas.");
+    // The CTA is never drawn in a batch: it reuses the last scene's image (lib/pipeline/cta-image).
+    const cta = ctaSceneIndex(props.scenes.length);
     const targets: SceneTarget[] = props.scenes
       .map((scene, index) => ({ index, startMs: scene.startMs, endMs: scene.endMs, description: descriptions[index]?.trim() ?? "", intent: scene.text }))
-      .filter((t) => t.description && (onlyScene !== undefined ? t.index === onlyScene : mode === "all" || !hasLayer.has(t.index)));
+      .filter((t) => t.description && (onlyScene !== undefined ? t.index === onlyScene : t.index !== cta && (mode === "all" || !hasLayer.has(t.index))));
     if (onlyScene !== undefined && !targets.length) throw new Error("Cette scène n'a pas de description d'image. Ajoute une image à la main, ou régénère le script.");
 
+    /** The CTA's copy of the last scene's image, in a batch: when it has none yet, or on "all". */
+    const withCta = (layers: VisualLayer[]): { layers: VisualLayer[]; filled: boolean } => {
+      if (onlyScene !== undefined || cta === null || (mode !== "all" && layers.some((l) => l.sceneIndex === cta))) return { layers, filled: false };
+      const copy = ctaCopyOf(layers, props.scenes);
+      return copy ? { layers: [...layers.filter((l) => l.sceneIndex !== cta), copy], filled: true } : { layers, filled: false };
+    };
+
     if (!targets.length) {
-      return { layers: currentLayers, visualStyle, generated: 0, failed: 0, creditsLeft: user.credits, captionStyle: null };
+      const only = withCta(currentLayers);
+      if (only.filled) await prisma.project.update({ where: { id: projectId }, data: { visualLayers: only.layers, visualStyle } });
+      if (only.filled) revalidatePath(`/studio/${projectId}`);
+      return { layers: only.layers, visualStyle, generated: 0, failed: 0, creditsLeft: user.credits, captionStyle: null, ctaFilled: only.filled };
     }
 
     const unit = isAdmin(user.role) ? 0 : CREDIT_COSTS.AI_IMAGE;
@@ -90,13 +103,14 @@ export async function generateProjectVisualsAiAction(
     if (!generated) throw new Error(failures[0]?.error ?? "Aucun visuel n'a pu être généré. Réessaie dans un instant.");
 
     const bySceneIndex = new Map(outcomes.filter((o) => o.layer).map((o) => [o.index, o.layer!]));
-    const layers = [...currentLayers.filter((l) => l.sceneIndex === undefined || !bySceneIndex.has(l.sceneIndex)), ...bySceneIndex.values()];
+    const drawn = [...currentLayers.filter((l) => l.sceneIndex === undefined || !bySceneIndex.has(l.sceneIndex)), ...bySceneIndex.values()];
+    const { layers, filled: ctaFilled } = withCta(drawn);
 
     const currentCaptionStyle = captionStyleSchema.safeParse(project.captionStyle).success ? captionStyleSchema.parse(project.captionStyle) : null;
     const captionStyle = isFirstStyle ? presetStyle(CAPTION_PRESET_FOR_VISUAL_STYLE[visualStyle], currentCaptionStyle?.position) : undefined;
 
     await prisma.project.update({ where: { id: projectId }, data: { visualLayers: layers, visualStyle, ...(captionStyle ? { captionStyle } : {}) } });
     revalidatePath(`/studio/${projectId}`);
-    return { layers, visualStyle, generated, failed: failures.length, creditsLeft, captionStyle: captionStyle ?? null };
+    return { layers, visualStyle, generated, failed: failures.length, creditsLeft, captionStyle: captionStyle ?? null, ctaFilled };
   });
 }
