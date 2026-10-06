@@ -49,7 +49,7 @@ export const ART_DIRECTIONS: Record<VisualStyle, ArtDirection> = {
     label: "Illustration 3D",
     hint: "Film d'animation, chaleureux",
     prompt:
-      "Still from a high-end 3D animated feature film, ultra-detailed. Expressive, appealing characters with clear emotions, set in hyper-realistic surroundings with tactile textures (skin, fabric, metal, food, fibres). Warm cinematic lighting with a glowing rim light and soft volumetric atmosphere, rich warm palette (amber, peach, deep brown), subsurface scattering, shallow depth of field.",
+      "Still from a high-end 3D animated feature film, ultra-detailed. Expressive, appealing characters with clear emotions, set in hyper-realistic surroundings with tactile textures (skin, fabric, metal, food, fibres). Bright, well-exposed animated-film lighting: a warm key light fills the whole scene, the characters and their faces are brightly lit and clearly readable, a glowing rim light separates them from the background, shadows stay soft and full of visible detail, glowing light sources in the setting. Luminous warm palette (amber, peach, coral), soft volumetric atmosphere, subsurface scattering, shallow depth of field.",
     swatch: ["#3B2418", "#F08A5D", "#FFD6A5"],
   },
   pastel: {
