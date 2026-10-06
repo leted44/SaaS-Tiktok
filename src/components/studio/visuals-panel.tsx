@@ -13,6 +13,7 @@ import type { VisualLayer, VisualPoolItem, BackgroundStyle, CaptionStyle } from 
 import type { ShortVideoProps } from "@/lib/render/props";
 import { Progress } from "@/components/ui/progress";
 import { uploadAsset } from "@/lib/assets/upload-client";
+import { CharacterReference, type CharacterReferenceState } from "@/components/shared/character-reference";
 import { probeVideo, convertVideo, canConvert } from "@/lib/assets/video-compat";
 import { Section } from "@/components/ui/section";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,7 @@ interface Props {
   visualMotif: string;
   onVisualStyleChange: (style: string) => void;
   onMotifChange: (motif: string) => void;
+  characterReference: CharacterReferenceState;
   /** Set only the first time a project picks a style — its captions adopt a matching look, once. */
   onCaptionStyleChange: (style: CaptionStyle) => void;
   aiImagesConfigured: boolean;
@@ -75,6 +77,7 @@ export function VisualsPanel({
   onBackgroundChange,
   visualStyle,
   visualMotif,
+  characterReference,
   onVisualStyleChange,
   onMotifChange,
   onCaptionStyleChange,
@@ -515,6 +518,7 @@ export function VisualsPanel({
               />
               <p className="text-[11px] text-muted-foreground">La personne récurrente et le décor communs à tous les plans. C'est ce qui en fait une seule vidéo tournée d'un coup plutôt que des extraits sans rapport. Rempli par le script s'il est vide.</p>
             </div>
+            <CharacterReference projectId={projectId} initial={characterReference} />
 
             {emptyScenes.length > 0 ? (
               <Button variant="gradient" className="w-full" onClick={() => generateAiVisuals("missing")} loading={generatingAi} disabled={!hasScript || autoFilling || credits < emptyScenes.length * aiImageCost}>

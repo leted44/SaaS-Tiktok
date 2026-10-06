@@ -14,6 +14,7 @@ import { aiSource, DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from 
 import { DEFAULT_IMAGE_MODEL } from "@/lib/ai/image-models";
 import { asImageModelChoice, coverReference, generateSeries, generateSlideImage, SERIES_BUDGET_MS } from "@/lib/carousel/ai-visuals";
 import { integrations } from "@/lib/env";
+import { projectCast } from "@/lib/characters";
 import { activeLessons, lessonsBrief } from "@/lib/results/lessons";
 import { guard, type ActionResult } from "@/server/action-result";
 
@@ -175,8 +176,8 @@ export async function generateSlideImageAction(
     if (tooLongForImage(slide, state.template)) throw new Error("Raccourcis d'abord le texte de cette slide : l'image prend une partie de la place.");
 
     const visualStyle = state.visualStyle ?? DEFAULT_VISUAL_STYLE;
-    const series = { template: state.template, format: state.format, visualMotif: state.visualMotif, visualStyle };
-    const reference = slide.kind === "cover" ? null : await coverReference(state.slides, visualStyle, user.id);
+    const [reference, cast] = await Promise.all([slide.kind === "cover" ? null : coverReference(state.slides, visualStyle, user.id), projectCast(projectId, user.id)]);
+    const series = { template: state.template, format: state.format, visualMotif: state.visualMotif, visualStyle, cast };
 
     const cost = isAdmin(user.role) ? 0 : CREDIT_COSTS.AI_IMAGE;
     const creditsLeft = cost > 0 ? await chargeCredits(user.id, cost, "SCRIPT_GENERATION", "Image générée par IA") : user.credits;
@@ -227,7 +228,8 @@ export async function generateCarouselVisualsAction(
     let creditsLeft = total > 0 ? await chargeCredits(user.id, total, "SCRIPT_GENERATION", `${targets.length} images générées par IA`) : user.credits;
 
     const imageModelChoice = isAdmin(user.role) ? asImageModelChoice(imageModel) : DEFAULT_IMAGE_MODEL;
-    const outcomes = await generateSeries(user.id, state.slides, targets, { template: state.template, format: state.format, visualMotif: state.visualMotif, visualStyle, imageModel: imageModelChoice }, started + SERIES_BUDGET_MS);
+    const cast = await projectCast(projectId, user.id);
+    const outcomes = await generateSeries(user.id, state.slides, targets, { template: state.template, format: state.format, visualMotif: state.visualMotif, visualStyle, imageModel: imageModelChoice, cast }, started + SERIES_BUDGET_MS);
     const failures = outcomes.filter((o) => !o.image);
     if (failures.length && unit > 0) {
       creditsLeft = await refundCredits(user.id, unit * failures.length, `Remboursement — ${failures.length} image${failures.length > 1 ? "s" : ""} non générée${failures.length > 1 ? "s" : ""}`);

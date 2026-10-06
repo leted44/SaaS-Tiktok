@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireDbUser } from "@/lib/auth";
 import { buildShortVideoProps } from "@/lib/render/build-props";
 import { sceneVisualDescriptions } from "@/lib/pipeline/visuals";
+import { projectCast } from "@/lib/characters";
 import { existingSceneReference, generateSceneVisuals, videoAspect, type SceneTarget } from "@/lib/pipeline/ai-visuals";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
@@ -68,10 +69,11 @@ export async function generateProjectVisualsAiAction(
     const total = unit * targets.length;
     let creditsLeft = total > 0 ? await chargeCredits(user.id, total, "SCRIPT_GENERATION", `${targets.length} visuels vidéo générés par IA`) : user.credits;
 
-    const reference = await existingSceneReference(currentLayers, visualStyle, user.id);
+    const [reference, cast] = await Promise.all([existingSceneReference(currentLayers, visualStyle, user.id), projectCast(projectId, user.id)]);
     const outcomes = await generateSceneVisuals(user.id, targets, visualStyle, motif, videoAspect(project.aspectRatio), reference, started + 170_000,
       // The image model test is the admin's alone, as on the carousel; clients get Nano Banana 2.
-      isAdmin(user.role) ? asImageModelChoice(imageModel) : DEFAULT_IMAGE_MODEL);
+      isAdmin(user.role) ? asImageModelChoice(imageModel) : DEFAULT_IMAGE_MODEL,
+      cast);
     const failures = outcomes.filter((o) => !o.layer);
     if (failures.length && unit > 0) {
       creditsLeft = await refundCredits(user.id, unit * failures.length, `Remboursement — ${failures.length} visuel${failures.length > 1 ? "s" : ""} vidéo non généré${failures.length > 1 ? "s" : ""}`);

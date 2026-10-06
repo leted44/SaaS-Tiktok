@@ -15,6 +15,7 @@ import { SPACE_COLORS, type SpaceOption } from "@/lib/spaces";
 import { TONES, TONE_LABELS } from "@/lib/autopilot/template-shared";
 import { LANGUAGE_LABELS } from "@/lib/tts/voices";
 import { cn } from "@/lib/utils";
+import { CharacterSheetUpload } from "@/components/shared/character-sheet-upload";
 
 const CONTENT_LANGUAGES = ["fr", "en", "es", "de", "it", "pt"];
 /** Sentinel for "use the brand kit's default" — Radix Select rejects an empty string value. */
@@ -32,14 +33,15 @@ interface FormState {
   tone: string;
   voiceId: string;
   brief: string;
+  characterImage: string | null;
 }
 
 function blank(): FormState {
-  return { name: "", color: SPACE_COLORS[0], language: DEFAULT, tone: DEFAULT, voiceId: DEFAULT, brief: "" };
+  return { name: "", color: SPACE_COLORS[0], language: DEFAULT, tone: DEFAULT, voiceId: DEFAULT, brief: "", characterImage: null };
 }
 
 function fromSpace(s: SpaceOption): FormState {
-  return { name: s.name, color: s.color, language: s.language ?? DEFAULT, tone: s.tone ?? DEFAULT, voiceId: s.voiceId ?? DEFAULT, brief: s.brief ?? "" };
+  return { name: s.name, color: s.color, language: s.language ?? DEFAULT, tone: s.tone ?? DEFAULT, voiceId: s.voiceId ?? DEFAULT, brief: s.brief ?? "", characterImage: s.characterImage };
 }
 
 /**
@@ -79,6 +81,7 @@ export function SpaceManagerDialog({ spaces, voices, open, onOpenChange }: { spa
       tone: form.tone === DEFAULT ? null : form.tone,
       voiceId: form.voiceId === DEFAULT ? null : form.voiceId,
       brief: form.brief,
+      characterImage: form.characterImage,
     });
     setSaving(false);
     if (!res.ok) return toast.error(res.error);
@@ -145,7 +148,13 @@ export function SpaceManagerDialog({ spaces, voices, open, onOpenChange }: { spa
                 onChange={(e) => set("brief", e.target.value)}
                 placeholder="Ex. : pensées positives et petites habitudes pour bien commencer la journée, pour des femmes de 25-40 ans"
               />
-              <p className="text-[11px] text-muted-foreground">De quoi parle ce compte, en une ou deux phrases. Le pilote automatique s'en sert quand tu le laisses choisir les sujets.</p>
+              <p className="text-[11px] text-muted-foreground">De quoi parle ce compte, en une ou deux phrases, et son univers visuel s'il en a un. L'IA s'en sert pour écrire chaque script et ses images, et le pilote automatique pour choisir les sujets.</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Image de référence <span className="font-normal text-muted-foreground">(facultatif)</span></Label>
+              <CharacterSheetUpload value={form.characterImage} onChange={(url) => set("characterImage", url)} />
+              <p className="text-[11px] text-muted-foreground">Tes personnages récurrents, seuls, en pied et de face, sur fond blanc. Elle accompagne chaque image IA de cet espace — vidéos et carrousels — pour qu'ils aient la même apparence dans chaque publication.</p>
             </div>
 
             <div className="space-y-1.5">

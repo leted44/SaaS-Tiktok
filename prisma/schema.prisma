@@ -262,6 +262,8 @@ model Project {
   // one (e.g. two different Instagram pages). Optional: unassigned projects
   // just don't show a tag.
   spaceId           String?
+  /// This project's own character sheet, replacing its space's for this project only. Null: the space's is used.
+  characterImage    String?       @db.Text
   status            ProjectStatus @default(DRAFT)
   aspectRatio       AspectRatio   @default(VERTICAL)
   targetDurationSec Int           @default(20)
@@ -305,8 +307,8 @@ model Project {
 
   // Marked by hand as posted — most videos are shared from the phone, not
   // through a connected account, so the app can't know otherwise.
-  postedAt        DateTime?
-  postedPlatforms String[]  @default([])
+  postedAt          DateTime?
+  postedPlatforms   String[]  @default([])
   // When the "add your results" reminder went out for this post — once, 48 h
   // after it was marked posted.
   resultsReminderAt DateTime?
@@ -351,12 +353,14 @@ model Space {
   name   String
   color  String @default("#7C3AED")
 
-  language String?
-  tone     String?
-  voiceId  String?
+  language       String?
+  tone           String?
+  voiceId        String?
   // What this account/theme talks about, in the user's words. The autopilot
   // reads it to invent each video's topic when the user lets it choose.
-  brief    String? @db.Text
+  brief          String? @db.Text
+  /// The account's character sheet ("Image de référence"): its recurring characters on a plain background, sent with every AI image of its videos and carousels so they look the same in every post.
+  characterImage String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

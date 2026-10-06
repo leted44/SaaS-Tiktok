@@ -62,6 +62,7 @@ export default async function CarouselPage({ params }: { params: Promise<{ id: s
       posted={project.postedAt ? { platforms: project.postedPlatforms } : null}
       admin={admin}
       review={review ? { report: review, tally: reviewTally } : null}
+      characterReference={{ own: project.characterImage, space: project.space?.characterImage ?? null, spaceName: project.space?.name ?? null }}
       scriptStart={{ topic: project.topic ?? project.title, niche: project.niche, language: project.language, cost: admin ? 0 : CREDIT_COSTS.SCRIPT_GENERATION }}
     />
   );

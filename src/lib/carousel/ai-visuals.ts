@@ -14,7 +14,12 @@ import { imageAspect, imageLayout, type CarouselSlide, type CarouselState } from
  * prompt, and the carousel reads as a collection of unrelated pictures.
  */
 
-type Series = Pick<CarouselState, "template" | "format" | "visualMotif"> & { visualStyle: VisualStyle; imageModel?: ImageModelChoice };
+type Series = Pick<CarouselState, "template" | "format" | "visualMotif"> & {
+  visualStyle: VisualStyle;
+  imageModel?: ImageModelChoice;
+  /** The account's character sheet (lib/characters), sent with every slide. */
+  cast?: GeneratedImage | null;
+};
 
 export { asImageModelChoice, type ImageModelChoice } from "@/lib/ai/image-models";
 /** The model that draws this slide — the cover sets the series, so "mix" keeps it on Pro. */
@@ -55,6 +60,7 @@ export async function generateSlideImage(slide: CarouselSlide, series: Series, o
     scene,
     layout,
     reference: opts.reference,
+    cast: series.cast,
     model: modelFor(slide.kind, series.imageModel),
     timeoutMs: opts.timeoutMs,
     intent: intentOf(slide),

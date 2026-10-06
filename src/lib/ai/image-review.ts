@@ -32,7 +32,7 @@ Check, in this order:
 3. Physical coherence: equipment and objects are realistic (a bar is straight and continuous, nothing floats or passes through a body).
 4. Text: no letters, numbers, logos or watermarks anywhere. No object taken literally from a figure of speech (a wooden board for "une planche", fire for "brûler des calories", a key for "la clé du succès") — that is a meaning defect.
 5. Framing: the safe-zone rule given with the image is respected.
-6. Series: when a reference image is given, the image belongs to the same series (same look) and any recurring person is the same person.
+6. Series: when a reference image is given, the image belongs to the same series (same look) and any recurring person is the same person. When a character sheet is given, every character from it that appears is drawn as on the sheet — same shape, colours, face and accessories; a recurring character drawn differently is a defect.
 
 Flag only defects a viewer would notice on a phone. Style preferences are not defects.
 
@@ -71,6 +71,8 @@ export interface ReviewInput {
   layout: VisualLayout;
   /** The series' first image, when this one was drawn to match it. */
   reference?: GeneratedImage | null;
+  /** The account's character sheet, when it has one. */
+  cast?: GeneratedImage | null;
 }
 
 /** The verdict on one image, or null when no review could be made — a review never blocks an image. */
@@ -79,6 +81,10 @@ export async function reviewImage(input: ReviewInput): Promise<ImageVerdict | nu
   if (!anthropic) return null;
   try {
     const content: Anthropic.ContentBlockParam[] = [];
+    if (input.cast) {
+      content.push({ type: "text", text: "Character sheet — the account's recurring characters:" });
+      content.push({ type: "image", source: { type: "base64", ...(await forReview(input.cast, 768)) } });
+    }
     if (input.reference) {
       content.push({ type: "text", text: "Reference — the first image of the series:" });
       content.push({ type: "image", source: { type: "base64", ...(await forReview(input.reference, 768)) } });

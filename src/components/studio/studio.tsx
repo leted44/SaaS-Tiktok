@@ -268,6 +268,7 @@ export function Studio(props: StudioProps) {
                     onBackgroundChange={(b) => patch("backgroundStyle", b)}
                     visualStyle={state.visualStyle}
                     visualMotif={state.visualMotif}
+                    characterReference={project.characterReference}
                     onVisualStyleChange={(v) => patch("visualStyle", v)}
                     onMotifChange={(v) => patch("visualMotif", v)}
                     onCaptionStyleChange={(s) => patch("captionStyle", s)}

@@ -2,6 +2,7 @@ import type { CaptionStyle, VisualLayer, VisualPoolItem, BackgroundStyle, Scene 
 import type { ShortVideoProps } from "@/lib/render/props";
 import type { SocialCopy } from "@/lib/social/captions";
 import type { ReviewReport, ReviewTally } from "@/lib/ai/review-report";
+import type { CharacterReferenceState } from "@/components/shared/character-reference";
 
 export type { ReviewTally };
 
@@ -30,6 +31,8 @@ export interface StudioProject {
   visualMotif: string;
   postedAt: string | null;
   postedPlatforms: string[];
+  /** The character sheet its AI images are drawn with (lib/characters). */
+  characterReference: CharacterReferenceState;
 }
 
 export interface StudioScript {

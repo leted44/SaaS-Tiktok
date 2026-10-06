@@ -34,6 +34,18 @@ export type ImageAspect = "1:1" | "4:5" | "9:16" | "16:9" | "5:4" | "21:9";
 const REFERENCE_NOTE =
   "The attached image is the first image of the same series. Keep its art direction exactly — lighting, colour grade, lens, depth of field, texture and mood — so both images unmistakably belong together. If the new scene features the same recurring person or character, keep them identical: same face, hair, skin tone, build and outfit. The action, pose, camera angle and framing come only from the new description below, not from the attached image.";
 
+/**
+ * How the account's character sheet is to be used: the creator's own drawing
+ * of the recurring characters, the same for every post — where the series'
+ * first image only holds one post together, the sheet holds the account
+ * together, so a mascot looks the same in every video and carousel.
+ */
+const CAST_NOTE =
+  "The first attached image is a character sheet: this account's recurring characters, on a plain background. Whenever one of them appears in the new image, draw them exactly as on the sheet — same shape, proportions, colours, face, eyes, mouth, limbs and accessories — in the pose, action and framing the description asks for. Never copy the sheet itself: not its plain background, its side-by-side lineup or its front-facing pose. Never add a character from the sheet that the description does not mention.";
+
+const REFERENCE_AFTER_CAST_NOTE =
+  "The second attached image is the first image of the same series. Keep its art direction exactly — lighting, colour grade, lens, depth of field, texture and mood — so both images unmistakably belong together. The action, pose, camera angle and framing come only from the new description below, not from either attached image.";
+
 export class AiImageError extends Error {
   constructor(message: string, public code: "NOT_CONFIGURED" | "REFUSED" | "UPSTREAM" | "RATE_LIMITED" | "UNAVAILABLE") {
     super(message);
@@ -49,6 +61,8 @@ interface Options {
   prompt: string;
   aspectRatio: ImageAspect;
   reference?: GeneratedImage | null;
+  /** The account's character sheet (Space or project "Image de référence"), sent with every image when set. */
+  cast?: GeneratedImage | null;
   /** Hard cap for one attempt. Batches pass a shorter one so a whole carousel fits in one request. */
   timeoutMs?: number;
   /** Which Gemini image model draws it — Nano Banana 2 unless a test says otherwise. */
@@ -60,12 +74,17 @@ type GeminiResponse = {
   promptFeedback?: { blockReason?: string };
 };
 
-async function attempt({ prompt, aspectRatio, reference, edit, timeoutMs = 60_000, model = "flash" }: Options & { edit?: GeneratedImage }): Promise<GeneratedImage> {
-  const parts = edit
-    ? [{ inlineData: { mimeType: edit.mimeType, data: edit.data.toString("base64") } }, { text: prompt }]
-    : reference
-      ? [{ inlineData: { mimeType: reference.mimeType, data: reference.data.toString("base64") } }, { text: `${REFERENCE_NOTE}\n\n${prompt}` }]
-      : [{ text: prompt }];
+const inline = (image: GeneratedImage) => ({ inlineData: { mimeType: image.mimeType, data: image.data.toString("base64") } });
+
+function partsFor(prompt: string, reference: GeneratedImage | null | undefined, cast: GeneratedImage | null | undefined) {
+  if (cast && reference) return [inline(cast), inline(reference), { text: `${CAST_NOTE}\n\n${REFERENCE_AFTER_CAST_NOTE}\n\n${prompt}` }];
+  if (cast) return [inline(cast), { text: `${CAST_NOTE}\n\n${prompt}` }];
+  if (reference) return [inline(reference), { text: `${REFERENCE_NOTE}\n\n${prompt}` }];
+  return [{ text: prompt }];
+}
+
+async function attempt({ prompt, aspectRatio, reference, cast, edit, timeoutMs = 60_000, model = "flash" }: Options & { edit?: GeneratedImage }): Promise<GeneratedImage> {
+  const parts = edit ? [inline(edit), { text: prompt }] : partsFor(prompt, reference, cast);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

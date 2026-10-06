@@ -55,6 +55,7 @@ async function one(
   timeoutMs: number,
   deadline: number,
   modelChoice: ImageModelChoice,
+  cast: GeneratedImage | null,
 ): Promise<{ outcome: SceneVisualOutcome; bytes?: GeneratedImage }> {
   try {
     // "frame": captions can land anywhere over a video scene, not a fixed text
@@ -65,6 +66,7 @@ async function one(
       prompt: compose(target.description),
       aspectRatio,
       reference,
+      cast,
       timeoutMs,
       // Scene 0 sets the series, the video's counterpart of the carousel's cover.
       model: modelForImage(target.index === 0, modelChoice),
@@ -104,6 +106,8 @@ export async function generateSceneVisuals(
   // A studio server action may run 180 s; the scenes are done by 170 s, checks and corrections included.
   deadline = Date.now() + 170_000,
   modelChoice: ImageModelChoice = DEFAULT_IMAGE_MODEL,
+  /** The account's character sheet (lib/characters), sent with every scene. */
+  cast: GeneratedImage | null = null,
 ): Promise<SceneVisualOutcome[]> {
   if (!targets.length) return [];
   const first = targets.find((t) => t.index === 0);
@@ -113,12 +117,12 @@ export async function generateSceneVisuals(
   let reference = existingReference;
   if (first) {
     // The other scenes still need ~70 s after the first, so its own check stops in time for them.
-    const firstResult = await one(userId, first, style, motif, aspectRatio, null, 55_000, rest.length ? deadline - 70_000 : deadline, modelChoice);
+    const firstResult = await one(userId, first, style, motif, aspectRatio, null, 55_000, rest.length ? deadline - 70_000 : deadline, modelChoice, cast);
     outcomes.push(firstResult.outcome);
     reference = firstResult.bytes ?? null;
   }
 
-  const restResults = await Promise.all(rest.map((t) => one(userId, t, style, motif, aspectRatio, reference, 65_000, deadline, modelChoice)));
+  const restResults = await Promise.all(rest.map((t) => one(userId, t, style, motif, aspectRatio, reference, 65_000, deadline, modelChoice, cast)));
   outcomes.push(...restResults.map((r) => r.outcome));
   return outcomes;
 }

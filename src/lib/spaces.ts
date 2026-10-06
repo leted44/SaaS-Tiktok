@@ -23,6 +23,8 @@ export const spaceInputSchema = z.object({
     .max(600, "Thématique trop longue (600 caractères maximum).")
     .nullable()
     .transform((v) => v || null),
+  /** The character sheet ("Image de référence"), a stored image URL. Null = none. */
+  characterImage: z.string().trim().max(2000).nullable().optional(),
 });
 export type SpaceInput = z.input<typeof spaceInputSchema>;
 
@@ -34,6 +36,7 @@ export interface SpaceOption {
   tone: string | null;
   voiceId: string | null;
   brief: string | null;
+  characterImage: string | null;
   /** Projects currently tagged with it, so deleting says what it affects. */
   projectCount: number;
 }

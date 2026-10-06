@@ -15,6 +15,7 @@ import { assembleFullText, heuristicScores } from "@/lib/ai/script-generator";
 import { countWords } from "@/lib/utils";
 import { POST_PLATFORMS } from "@/lib/projects/progress";
 import { deleteUnusedKeys, keysIn } from "@/lib/storage-cleanup";
+import { assertCharacterSheet } from "@/lib/characters";
 
 export async function createProject(input: unknown): Promise<ActionResult<{ id: string }>> {
   return guard(async () => {
@@ -216,6 +217,19 @@ export async function setActiveScript(projectId: string, scriptId: string): Prom
     await prisma.script.findFirstOrThrow({ where: { id: scriptId, projectId, userId: user.id } });
     await prisma.project.update({ where: { id: projectId, userId: user.id }, data: { activeScriptId: scriptId } });
     revalidatePath(`/studio/${projectId}`);
+    return undefined;
+  });
+}
+
+/** Give a project its own character sheet, or (null) go back to its space's. */
+export async function setProjectCharacterImageAction(projectId: string, url: string | null): Promise<ActionResult<undefined>> {
+  return guard(async () => {
+    const user = await requireUser();
+    if (url) await assertCharacterSheet(url, user.id);
+    const { count } = await prisma.project.updateMany({ where: { id: projectId, userId: user.id }, data: { characterImage: url } });
+    if (!count) throw new Error("Ce projet n'existe plus.");
+    revalidatePath(`/studio/${projectId}`);
+    revalidatePath(`/studio/${projectId}/carousel`);
     return undefined;
   });
 }

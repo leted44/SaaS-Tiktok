@@ -19,6 +19,7 @@ import { ScriptStart } from "@/components/carousel/script-start";
 import type { ImageModelChoice } from "@/lib/ai/image-models";
 import { ImageModelPicker, useAdminImageModel } from "@/components/shared/image-model-picker";
 import { ReviewCard } from "@/components/shared/review-card";
+import { CharacterReference, type CharacterReferenceState } from "@/components/shared/character-reference";
 import type { ReviewReport, ReviewTally } from "@/lib/ai/review-report";
 import { generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
@@ -53,6 +54,8 @@ interface Props {
   posted: { platforms: string[] } | null;
   /** The admin account sees the image model test. */
   admin: boolean;
+  /** The character sheet its AI images are drawn with (lib/characters). */
+  characterReference: CharacterReferenceState;
   /** What the critic pass did to the script — admin only. */
   review: { report: ReviewReport; tally: ReviewTally | null } | null;
   /** What the script of a project without one is written from. */
@@ -115,7 +118,7 @@ function lengthOf(slides: CarouselState["slides"]): CarouselLength {
   return slides.filter((s) => s.kind === "content").length <= CONTENT_SLIDES.short ? "short" : "full";
 }
 
-export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured, posted, admin, review, scriptStart }: Props) {
+export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured, posted, admin, review, characterReference, scriptStart }: Props) {
   const [marking, setMarking] = useState(false);
   const [unmarking, setUnmarking] = useState(false);
   async function unmarkPosted() {
@@ -759,6 +762,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                   Il s'applique à la prochaine génération : les images déjà créées ne changent pas tant que tu ne les régénères pas.
                 </p>
               </div>
+              <CharacterReference projectId={projectId} initial={characterReference} />
 
               {pendingVisuals > 0 ? (
                 <Button variant="gradient" className="w-full" onClick={() => generateVisuals("missing")} loading={visualsBusy} disabled={generating || filling || busy !== null || credits < pendingVisuals * aiImageCost}>

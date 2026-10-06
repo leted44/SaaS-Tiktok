@@ -50,6 +50,7 @@ export async function getProjectForStudio(projectId: string) {
     where: { id: projectId, userId: user.id },
     include: {
       workspace: true,
+      space: { select: { name: true, characterImage: true } },
       scripts: { orderBy: { version: "desc" } },
       voiceovers: { orderBy: { createdAt: "desc" }, take: 5 },
       renderJobs: { orderBy: { createdAt: "desc" }, take: 5 },
@@ -66,7 +67,7 @@ export async function getProjectForCarousel(projectId: string) {
   const user = await getCurrentUser();
   const project = await prisma.project.findFirst({
     where: { id: projectId, userId: user.id },
-    include: { workspace: true, scripts: { orderBy: { version: "desc" } }, carousel: true },
+    include: { workspace: true, space: { select: { name: true, characterImage: true } }, scripts: { orderBy: { version: "desc" } }, carousel: true },
   });
   if (!project) return null;
   const activeScript = project.scripts.find((s) => s.id === project.activeScriptId) ?? project.scripts[0] ?? null;
