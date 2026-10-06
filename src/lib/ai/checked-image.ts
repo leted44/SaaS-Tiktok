@@ -43,28 +43,34 @@ export interface CheckedImage {
   /** What happened, for the logs: "pass", "fixed", "redrawn", "unchecked" or "kept". */
   outcome: "pass" | "fixed" | "redrawn" | "unchecked" | "kept";
   problems: string[];
+  /**
+   * The first drawing, when a correction replaced it ("fixed" or "redrawn"): the
+   * correction is not always better — a fix can put a hand out of place — so
+   * callers keep it for the owner to go back to.
+   */
+  draft: GeneratedImage | null;
 }
 
 export async function generateCheckedImage(input: CheckedImageInput): Promise<CheckedImage> {
   const timeLeft = () => input.deadline - Date.now();
   const first = await generateImage({ prompt: input.prompt, aspectRatio: input.aspectRatio, reference: input.reference, cast: input.cast, model: input.model, timeoutMs: Math.min(attemptMs(input.model, input.timeoutMs), Math.max(10_000, timeLeft())) });
 
-  if (timeLeft() < REVIEW_MS + CORRECTION_MS) return { image: first, outcome: "unchecked", problems: [] };
+  if (timeLeft() < REVIEW_MS + CORRECTION_MS) return { image: first, outcome: "unchecked", problems: [], draft: null };
   const verdict = await reviewImage({ image: first, intent: input.intent, scene: input.scene, layout: input.layout, reference: input.reference, cast: input.cast });
-  if (!verdict) return { image: first, outcome: "unchecked", problems: [] };
-  if (verdict.verdict === "pass") return { image: first, outcome: "pass", problems: [] };
-  if (timeLeft() < CORRECTION_MS) return { image: first, outcome: "kept", problems: verdict.problems };
+  if (!verdict) return { image: first, outcome: "unchecked", problems: [], draft: null };
+  if (verdict.verdict === "pass") return { image: first, outcome: "pass", problems: [], draft: null };
+  if (timeLeft() < CORRECTION_MS) return { image: first, outcome: "kept", problems: verdict.problems, draft: null };
 
   const timeoutMs = Math.min(CORRECTION_MS + 15_000, timeLeft() - 3_000);
   try {
     if (verdict.verdict === "fix") {
       const image = await editImage({ image: first, instruction: verdict.instruction, aspectRatio: input.aspectRatio, model: input.model, timeoutMs });
-      return { image, outcome: "fixed", problems: verdict.problems };
+      return { image, outcome: "fixed", problems: verdict.problems, draft: first };
     }
     const image = await generateImage({ prompt: input.recompose(verdict.instruction), aspectRatio: input.aspectRatio, reference: input.reference, cast: input.cast, model: input.model, timeoutMs });
-    return { image, outcome: "redrawn", problems: verdict.problems };
+    return { image, outcome: "redrawn", problems: verdict.problems, draft: first };
   } catch (err) {
     console.error("[checked-image] correction failed, keeping the first image:", err instanceof Error ? err.message : err);
-    return { image: first, outcome: "kept", problems: verdict.problems };
+    return { image: first, outcome: "kept", problems: verdict.problems, draft: null };
   }
 }

@@ -35,6 +35,8 @@ export interface SceneTarget {
 export interface SceneVisualOutcome {
   index: number;
   layer?: VisualLayer;
+  /** The first drawing, kept in storage when an automatic correction replaced it. */
+  draftUrl?: string;
   error?: string;
 }
 
@@ -97,8 +99,10 @@ async function one(
     if (result.outcome !== "pass" && result.outcome !== "unchecked") console.log(`[video-image] scene ${target.index}: ${result.outcome} — ${result.problems.join("; ")}`);
     const bytes = result.image;
     const url = await storeGeneratedImage(userId, bytes, "video");
+    // The first drawing, when the automatic correction replaced it: kept in storage for the owner to go back to.
+    const draftUrl = result.draft ? await storeGeneratedImage(userId, result.draft, "video").catch(() => undefined) : undefined;
     const layer: VisualLayer = { id: nanoid(8), type: "image", src: url, startMs: target.startMs, endMs: target.endMs, fit: "cover", kenBurns: "in", opacity: 1, sceneIndex: target.index, source: aiSource(style) };
-    return { outcome: { index: target.index, layer }, bytes };
+    return { outcome: { index: target.index, layer, draftUrl }, bytes };
   } catch (err) {
     return { outcome: { index: target.index, error: err instanceof AiImageError || err instanceof Error ? err.message : "Échec de la génération." } };
   }

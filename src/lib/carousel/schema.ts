@@ -33,6 +33,8 @@ export const carouselSlideSchema = z.object({
    * slides never puts the same photo on two of them.
    */
   image: z.object({ url: z.string().min(1).max(600), source: z.string().max(600).optional() }).nullable().default(null),
+  /** The AI's first drawing, kept when its automatic correction replaced it — the correction is not always better, so the owner can go back. */
+  draftImage: z.object({ url: z.string().min(1).max(600), source: z.string().max(600).optional() }).nullable().optional(),
   /** Stock photos the user took off this slide — "Remplir" never proposes them again. */
   rejectedImages: z.array(z.string().max(600)).max(40).optional(),
 });

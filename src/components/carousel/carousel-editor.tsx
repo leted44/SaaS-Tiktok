@@ -240,12 +240,12 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       return false;
     }
     const snapshot = res.data.carousel;
-    const images = new Map(snapshot.slides.map((s) => [s.id, s.image]));
+    const images = new Map(snapshot.slides.map((s) => [s.id, s]));
     lastSaved.current = JSON.stringify(withoutVersion(snapshot));
     setVersion(snapshot.version);
     setCredits(res.data.creditsLeft);
     setState((prev) =>
-      prev ? { ...prev, visualStyle: snapshot.visualStyle, slides: prev.slides.map((s) => (images.has(s.id) ? { ...s, image: images.get(s.id) ?? null } : s)) } : withoutVersion(snapshot),
+      prev ? { ...prev, visualStyle: snapshot.visualStyle, slides: prev.slides.map((s) => (images.has(s.id) ? { ...s, image: images.get(s.id)!.image ?? null, draftImage: images.get(s.id)!.draftImage ?? null } : s)) } : withoutVersion(snapshot),
     );
     const { generated, failed, tooLong } = res.data;
     toast.success(
@@ -996,10 +996,12 @@ function SlideEditor({ imageModel, anchorId, projectId, slide, template, label, 
             ensureSaved={ensureSaved}
             gemini={gemini}
             onGenerated={onGenerated}
+            onDraft={(draftImage) => onChange({ draftImage })}
+            onUseDraft={() => slide.draftImage && onChange({ image: slide.draftImage, draftImage: slide.image })}
             onPromptChange={(imagePrompt) => onChange({ imagePrompt })}
             blockedReason={tooLongForPhoto ? `Pour ajouter une image, raccourcis le titre à ${IMAGE_SLIDE_LIMITS.title} et le texte à ${IMAGE_SLIDE_LIMITS.body} caractères : l'image prend une partie de la slide.` : null}
             // A stock photo taken off is remembered so "Remplir" never proposes it again.
-            onChange={(image) => onChange(image === null && slide.image?.source?.startsWith("http") ? { image, rejectedImages: [...(slide.rejectedImages ?? []), slide.image.source].slice(-40) } : { image })}
+            onChange={(image) => onChange(image === null && slide.image?.source?.startsWith("http") ? { image, draftImage: null, rejectedImages: [...(slide.rejectedImages ?? []), slide.image.source].slice(-40) } : { image, draftImage: null })}
           />
         )}
       </div>
@@ -1045,7 +1047,7 @@ async function toJpeg(file: File): Promise<File> {
 }
 
 /** Image of one slide: an AI visual in the carousel's art direction, a stock photo, or the user's own. */
-function ImageControl({ imageModel, projectId, slide, aiImageCost, aiImagesConfigured, credits, blockedReason, ensureSaved, gemini, onGenerated, onPromptChange, onChange }: {
+function ImageControl({ imageModel, projectId, slide, aiImageCost, aiImagesConfigured, credits, blockedReason, ensureSaved, gemini, onGenerated, onDraft, onUseDraft, onPromptChange, onChange }: {
   imageModel?: ImageModelChoice;
   projectId: string;
   slide: CarouselSlide;
@@ -1056,6 +1058,10 @@ function ImageControl({ imageModel, projectId, slide, aiImageCost, aiImagesConfi
   ensureSaved: () => Promise<boolean>;
   gemini: { prompt: string; cast: boolean } | null;
   onGenerated: (style: VisualStyle, creditsLeft: number) => void;
+  /** The AI's first drawing, when an automatic correction replaced it (null otherwise). */
+  onDraft: (draft: CarouselSlide["image"]) => void;
+  /** Swap the image and its first drawing. */
+  onUseDraft: () => void;
   onPromptChange: (prompt: string) => void;
   onChange: (image: CarouselSlide["image"]) => void;
 }) {
@@ -1078,7 +1084,9 @@ function ImageControl({ imageModel, projectId, slide, aiImageCost, aiImagesConfi
       const res = await generateSlideImageAction(projectId, slide.id, slide.imagePrompt, imageModel);
       if (!res.ok) return toast.error(res.error);
       onChange({ url: res.data.url, source: res.data.source });
+      onDraft(res.data.draftUrl ? { url: res.data.draftUrl, source: res.data.source } : null);
       onGenerated(res.data.visualStyle, res.data.creditsLeft);
+      if (res.data.draftUrl) toast.info("Une retouche automatique a été faite. La 1re version est gardée : « Remettre la 1re version » sous l'image.");
       setOpen(false);
     } finally {
       setGeneratingAi(false);
@@ -1159,6 +1167,13 @@ function ImageControl({ imageModel, projectId, slide, aiImageCost, aiImagesConfi
         )}
       </div>
       {blockedReason && <p className="text-[10px] text-amber-300">{blockedReason}</p>}
+      {slide.image && slide.draftImage && (
+        <div className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] p-1.5">
+          <img src={slide.draftImage.url} alt="" className="h-10 w-8 shrink-0 rounded object-cover" />
+          <p className="min-w-0 flex-1 text-[10px] leading-snug text-muted-foreground">L&apos;IA a retouché cette image toute seule. La 1re version est gardée.</p>
+          <Button size="sm" variant="secondary" className="h-auto min-h-7 px-2 py-1 text-[10px] leading-tight" onClick={onUseDraft}>Remettre la 1re version</Button>
+        </div>
+      )}
 
       {open && (
         <div className="space-y-3 rounded-lg border border-white/[0.06] bg-black/20 p-2.5">

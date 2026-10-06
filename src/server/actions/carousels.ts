@@ -166,7 +166,7 @@ export async function generateSlideImageAction(
   slideId: string,
   scene?: string,
   imageModel?: string,
-): Promise<ActionResult<{ url: string; source: string; visualStyle: VisualStyle; creditsLeft: number }>> {
+): Promise<ActionResult<{ url: string; source: string; draftUrl: string | null; visualStyle: VisualStyle; creditsLeft: number }>> {
   const started = Date.now();
   return guard(async () => {
     const user = await requireDbUser();
@@ -185,9 +185,11 @@ export async function generateSlideImageAction(
     const creditsLeft = cost > 0 ? await chargeCredits(user.id, cost, "SCRIPT_GENERATION", "Image générée par IA") : user.credits;
     try {
       // The image model test is the admin's alone; clients get Nano Banana 2.
-      const bytes = await generateSlideImage(slide, { ...series, imageModel: isAdmin(user.role) ? asImageModelChoice(imageModel) : DEFAULT_IMAGE_MODEL }, { reference, deadline: started + SERIES_BUDGET_MS, sceneOverride: scene });
+      const { image: bytes, draft } = await generateSlideImage(slide, { ...series, imageModel: isAdmin(user.role) ? asImageModelChoice(imageModel) : DEFAULT_IMAGE_MODEL }, { reference, deadline: started + SERIES_BUDGET_MS, sceneOverride: scene });
       const url = await storeGeneratedImage(user.id, bytes);
-      return { url, source: aiSource(visualStyle), visualStyle, creditsLeft };
+      // The first drawing, when the automatic correction replaced it: kept so the owner can go back to it.
+      const draftUrl = draft ? await storeGeneratedImage(user.id, draft).catch(() => null) : null;
+      return { url, source: aiSource(visualStyle), draftUrl, visualStyle, creditsLeft };
     } catch (err) {
       if (cost > 0) await refundCredits(user.id, cost, "Remboursement — la génération d'image a échoué");
       throw err;
@@ -239,8 +241,11 @@ export async function generateCarouselVisualsAction(
     const generated = outcomes.length - failures.length;
     if (!generated) throw new Error(failures[0]?.error ?? "Aucune image n'a pu être générée. Réessaie dans un instant.");
 
-    const images = new Map(outcomes.filter((o) => o.image).map((o) => [o.slideId, o.image!]));
-    const slides = state.slides.map((s) => (images.has(s.id) ? { ...s, image: images.get(s.id)! } : s));
+    const images = new Map(outcomes.filter((o) => o.image).map((o) => [o.slideId, o]));
+    const slides = state.slides.map((s) => {
+      const outcome = images.get(s.id);
+      return outcome ? { ...s, image: outcome.image!, draftImage: outcome.draft ?? null } : s;
+    });
     const saved = await prisma.carousel.update({ where: { id: row.id }, data: { slides, visualStyle } });
     return { carousel: toSnapshot(saved), generated, failed: failures.length, tooLong, creditsLeft };
   });

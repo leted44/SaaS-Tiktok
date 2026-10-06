@@ -38,7 +38,7 @@ export async function generateProjectVisualsAiAction(
   imageModel?: string,
   /** Draw this scene alone — replacing its current image — and leave every other scene untouched. */
   onlyScene?: number,
-): Promise<ActionResult<{ layers: VisualLayer[]; visualStyle: string; generated: number; failed: number; creditsLeft: number; captionStyle: CaptionStyle | null; ctaFilled: boolean }>> {
+): Promise<ActionResult<{ layers: VisualLayer[]; visualStyle: string; generated: number; failed: number; creditsLeft: number; captionStyle: CaptionStyle | null; ctaFilled: boolean; drafts: { index: number; url: string }[] }>> {
   const started = Date.now();
   return guard(async () => {
     const user = await requireDbUser();
@@ -80,7 +80,7 @@ export async function generateProjectVisualsAiAction(
       const only = withCta(currentLayers);
       if (only.filled) await prisma.project.update({ where: { id: projectId }, data: { visualLayers: only.layers, visualStyle } });
       if (only.filled) revalidatePath(`/studio/${projectId}`);
-      return { layers: only.layers, visualStyle, generated: 0, failed: 0, creditsLeft: user.credits, captionStyle: null, ctaFilled: only.filled };
+      return { layers: only.layers, visualStyle, generated: 0, failed: 0, creditsLeft: user.credits, captionStyle: null, ctaFilled: only.filled, drafts: [] };
     }
 
     const unit = isAdmin(user.role) ? 0 : CREDIT_COSTS.AI_IMAGE;
@@ -111,6 +111,6 @@ export async function generateProjectVisualsAiAction(
 
     await prisma.project.update({ where: { id: projectId }, data: { visualLayers: layers, visualStyle, ...(captionStyle ? { captionStyle } : {}) } });
     revalidatePath(`/studio/${projectId}`);
-    return { layers, visualStyle, generated, failed: failures.length, creditsLeft, captionStyle: captionStyle ?? null, ctaFilled };
+    return { layers, visualStyle, generated, failed: failures.length, creditsLeft, captionStyle: captionStyle ?? null, ctaFilled, drafts: outcomes.flatMap((o) => (o.layer && o.draftUrl ? [{ index: o.index, url: o.draftUrl }] : [])) };
   });
 }

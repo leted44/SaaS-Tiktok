@@ -47,7 +47,7 @@ export function intentOf(slide: CarouselSlide): string {
  * One slide's image, checked and corrected once if needed (lib/ai/checked-image).
  * `deadline` is when the calling request must be done by.
  */
-export async function generateSlideImage(slide: CarouselSlide, series: Series, opts: { reference: GeneratedImage | null; deadline: number; sceneOverride?: string; timeoutMs?: number }): Promise<GeneratedImage> {
+export async function generateSlideImage(slide: CarouselSlide, series: Series, opts: { reference: GeneratedImage | null; deadline: number; sceneOverride?: string; timeoutMs?: number }): Promise<{ image: GeneratedImage; draft: GeneratedImage | null }> {
   const { prompt, aspectRatio, scene, layout } = promptFor(slide, series, opts.sceneOverride);
   const result = await generateCheckedImage({
     prompt,
@@ -63,7 +63,7 @@ export async function generateSlideImage(slide: CarouselSlide, series: Series, o
     deadline: opts.deadline,
   });
   if (result.outcome !== "pass" && result.outcome !== "unchecked") console.log(`[carousel-image] slide ${slide.id}: ${result.outcome} — ${result.problems.join("; ")}`);
-  return result.image;
+  return { image: result.image, draft: result.draft };
 }
 
 /** The series' style reference: the cover's image, when it is an AI image in the same style. */
@@ -81,14 +81,18 @@ const REST_MS = 70_000;
 export interface VisualOutcome {
   slideId: string;
   image?: { url: string; source: string };
+  /** The first drawing, kept in storage when an automatic correction replaced it. */
+  draft?: { url: string; source: string };
   error?: string;
 }
 
 async function one(userId: string, slide: CarouselSlide, series: Series, reference: GeneratedImage | null, timeoutMs: number, deadline: number): Promise<{ outcome: VisualOutcome; bytes?: GeneratedImage }> {
   try {
-    const bytes = await generateSlideImage(slide, series, { reference, deadline, timeoutMs });
+    const { image: bytes, draft } = await generateSlideImage(slide, series, { reference, deadline, timeoutMs });
     const url = await storeGeneratedImage(userId, bytes);
-    return { outcome: { slideId: slide.id, image: { url, source: aiSource(series.visualStyle) } }, bytes };
+    const draftUrl = draft ? await storeGeneratedImage(userId, draft).catch(() => null) : null;
+    const source = aiSource(series.visualStyle);
+    return { outcome: { slideId: slide.id, image: { url, source }, ...(draftUrl ? { draft: { url: draftUrl, source } } : {}) }, bytes };
   } catch (err) {
     return { outcome: { slideId: slide.id, error: err instanceof AiImageError || err instanceof Error ? err.message : "Échec de la génération." } };
   }

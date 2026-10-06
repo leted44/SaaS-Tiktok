@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Image as ImageIcon, Film, Trash2, Layers, Palette, Loader2, Sparkles, Search, Ban, LibraryBig, X, ChevronDown, Wand2, RefreshCw, Coins, Copy } from "lucide-react";
+import { Upload, Image as ImageIcon, Film, Trash2, Layers, Palette, Loader2, Sparkles, Search, Ban, LibraryBig, X, ChevronDown, Wand2, RefreshCw, Coins, Copy, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -377,6 +377,9 @@ export function VisualsPanel({
     toast.success(`CTA : même image que ${sceneName(cta - 1)}`);
   }
 
+  /** The first drawings kept when an automatic correction replaced them, as library entries (lib/ai/checked-image `draft`). */
+  const draftEntries = (drafts: { index: number; url: string }[]) => drafts.map((d) => ({ type: "image" as const, src: d.url, thumbnailUrl: null, label: `${sceneName(d.index)} · 1re version` }));
+
   /**
    * AI visuals for the scenes still missing one, or every scene when `mode`
    * is "all" — the video's own version of the carousel's series generation.
@@ -392,7 +395,8 @@ export function VisualsPanel({
       if (!(await ensureSaved())) return;
       const res = await generateProjectVisualsAiAction(projectId, mode, admin ? imageModel : undefined);
       if (!res.ok) return toast.error(res.error);
-      const { generated, failed, layers: newLayers, visualStyle: usedStyle, captionStyle: newCaptionStyle, ctaFilled } = res.data;
+      const { generated, failed, layers: newLayers, visualStyle: usedStyle, captionStyle: newCaptionStyle, ctaFilled, drafts } = res.data;
+      if (drafts.length) remember(...draftEntries(drafts));
       onLayersChange(newLayers);
       onVisualStyleChange(usedStyle);
       if (newCaptionStyle) onCaptionStyleChange(newCaptionStyle);
@@ -401,7 +405,8 @@ export function VisualsPanel({
         (generated ? `${generated} visuel${generated > 1 ? "s" : ""} créé${generated > 1 ? "s" : ""}` : "Le CTA reprend l'image de la dernière scène") +
           (generated && ctaFilled ? " · le CTA reprend l'image de la dernière scène" : "") +
           (failed ? ` · ${failed} échec${failed > 1 ? "s" : ""}, crédits remboursés` : "") +
-          (newCaptionStyle ? " · sous-titres accordés au style" : ""),
+          (newCaptionStyle ? " · sous-titres accordés au style" : "") +
+          (drafts.length ? ` · ${drafts.length} retouche${drafts.length > 1 ? "s" : ""} automatique${drafts.length > 1 ? "s" : ""} : la 1re version est dans la bibliothèque du projet` : ""),
       );
       router.refresh();
     } finally {
@@ -425,12 +430,13 @@ export function VisualsPanel({
       if (!(await ensureSaved())) return;
       const res = await generateProjectVisualsAiAction(projectId, "missing", admin ? imageModel : undefined, i);
       if (!res.ok) return toast.error(res.error);
-      const { layers: newLayers, visualStyle: usedStyle, captionStyle: newCaptionStyle } = res.data;
-      if (existing) remember(...occupantOf(i));
+      const { layers: newLayers, visualStyle: usedStyle, captionStyle: newCaptionStyle, drafts } = res.data;
+      // One call: the replaced image and the first drawing are remembered together.
+      remember(...(existing ? occupantOf(i) : []), ...draftEntries(drafts));
       onLayersChange(newLayers);
       onVisualStyleChange(usedStyle);
       if (newCaptionStyle) onCaptionStyleChange(newCaptionStyle);
-      toast.success(`${sceneName(i)} : nouvelle image créée`);
+      toast.success(`${sceneName(i)} : nouvelle image créée${drafts.length ? " · retouche automatique : la 1re version est dans la bibliothèque du projet" : ""}`);
       router.refresh();
     } finally {
       setSceneBusy(null);
@@ -555,6 +561,19 @@ export function VisualsPanel({
                       </span>
                     )}
                   </button>
+                  {layer?.src && !animating && (
+                    // A real link to the stored file: the image is the owner's, and the phone saves it in one tap.
+                    <a
+                      href={layer.src}
+                      download={`${sceneName(i).toLowerCase().replace(/\s+/g, "-")}.${layer.type === "video" ? "mp4" : "jpg"}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={`Télécharger l'image ${sceneLabel(i)}`}
+                      className="absolute right-1 top-9 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-black/90"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </a>
+                  )}
                   {layer && !animating && (
                     // Beside the tile button, not inside it: one tap removes, it never also selects the scene.
                     <button
@@ -763,7 +782,19 @@ export function VisualsPanel({
                     )}
                     <span className="absolute bottom-1 right-1 rounded bg-black/60 p-0.5 text-white">{item.type === "video" ? <Film className="h-3 w-3" /> : <ImageIcon className="h-3 w-3" />}</span>
                     {inUse && <span className="absolute bottom-1 left-1 h-2 w-2 rounded-full bg-primary" title="Déjà placé sur une scène" />}
+                    {item.label?.endsWith("1re version") && <span className="absolute inset-x-0 top-0 bg-black/60 px-1 py-0.5 text-center text-[9px] font-semibold leading-tight text-white">{item.label}</span>}
                   </button>
+                  <a
+                    href={item.src}
+                    download={`${(item.label ?? "image").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.${item.type === "video" ? "mp4" : "jpg"}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Télécharger"
+                    title="Télécharger"
+                    className="absolute -bottom-1 -left-1 rounded-full border border-white/10 bg-background p-1 text-muted-foreground hover:text-foreground"
+                  >
+                    <Download className="h-3 w-3" />
+                  </a>
                   <button
                     type="button"
                     onClick={() => banish(item)}
