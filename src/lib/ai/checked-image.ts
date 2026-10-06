@@ -14,7 +14,14 @@ import type { VisualLayout } from "@/lib/carousel/art-direction";
  * whole loop respects `deadline`, the moment the calling request must be
  * done by: a check or a correction that could not finish in time is skipped,
  * and the first image is kept, rather than losing everything to a timeout.
+ *
+ * Today the check and the correction are off for every model (AUTO_CORRECTION):
+ * the owner's call — one image per request, a fixed cost, and a creator who
+ * wants another picture presses "Refaire".
  */
+
+/** The check-and-correct pass below — kept in the code, off. */
+const AUTO_CORRECTION = false;
 
 /** A check takes ~10-20 s, a correction ~20-40 s. */
 const REVIEW_MS = 25_000;
@@ -64,9 +71,10 @@ export async function generateCheckedImage(input: CheckedImageInput): Promise<Ch
     const image = await generateImage({ prompt: input.prompt, aspectRatio: input.aspectRatio, reference: input.reference, cast: input.cast, model: input.model, timeoutMs: Math.max(10_000, timeLeft() - 2_000) });
     return { image, outcome: "unchecked", problems: [], draft: null };
   }
+  // Nano Banana: the same one call, now that the correction is off.
   const first = await generateImage({ prompt: input.prompt, aspectRatio: input.aspectRatio, reference: input.reference, cast: input.cast, model: input.model, timeoutMs: Math.min(attemptMs(input.model, input.timeoutMs), Math.max(10_000, timeLeft())) });
 
-  if (timeLeft() < REVIEW_MS + CORRECTION_MS) return { image: first, outcome: "unchecked", problems: [], draft: null };
+  if (!AUTO_CORRECTION || timeLeft() < REVIEW_MS + CORRECTION_MS) return { image: first, outcome: "unchecked", problems: [], draft: null };
   const verdict = await reviewImage({ image: first, intent: input.intent, scene: input.scene, layout: input.layout, reference: input.reference, cast: input.cast });
   if (!verdict) return { image: first, outcome: "unchecked", problems: [], draft: null };
   if (verdict.verdict === "pass") return { image: first, outcome: "pass", problems: [], draft: null };
