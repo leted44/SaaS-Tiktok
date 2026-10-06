@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { LayoutDashboard, FolderKanban, Sparkles, Mic2, Send, CalendarClock, Palette, CreditCard, Settings, ChevronLeft, X, Zap, Coins, Lightbulb } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Sparkles, Mic2, Send, CalendarClock, Palette, CreditCard, Settings, ChevronLeft, X, Zap, Coins, Lightbulb, Shapes } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/shared/logo";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -13,6 +13,7 @@ import type { Plan } from "@prisma/client";
 const NAV = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/projects", label: "Projets", icon: FolderKanban },
+  { href: "/spaces", label: "Espaces", icon: Shapes },
   { href: "/scripts", label: "Générateur de script", icon: Sparkles },
   { href: "/voices", label: "Voix", icon: Mic2 },
   { href: "/autopilot", label: "Pilote automatique", icon: CalendarClock },

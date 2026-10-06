@@ -13,6 +13,7 @@ import type { ShellUser } from "@/components/layout/app-shell";
 const TITLES: Record<string, string> = {
   "/dashboard": "Tableau de bord",
   "/projects": "Projets",
+  "/spaces": "Espaces",
   "/scripts": "Générateur de script",
   "/voices": "Voix",
   "/autopilot": "Pilote automatique",

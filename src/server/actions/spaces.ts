@@ -5,7 +5,7 @@ import type { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { spaceInputSchema } from "@/lib/spaces";
-import { assertCharacterSheet } from "@/lib/characters";
+import { assertCharacterSheet, sheetText } from "@/lib/characters";
 import { guard, type ActionResult } from "@/server/action-result";
 
 /** First validation message, in French, instead of guard()'s generic one for a ZodError. */
@@ -23,8 +23,11 @@ export async function saveSpaceAction(id: string | null, input: unknown): Promis
     const user = await requireUser();
     const data = parseOrThrow(spaceInputSchema, input);
     if (data.characterImage) await assertCharacterSheet(data.characterImage, user.id);
+    // A new sheet is put into words once, here, for the writers (lib/ai/cast-reader).
+    const previous = id ? await prisma.space.findFirst({ where: { id, userId: user.id }, select: { characterImage: true } }) : null;
+    const sheet = data.characterImage !== undefined && data.characterImage !== (previous?.characterImage ?? null) ? { characterSheetText: await sheetText(data.characterImage, user.id) } : {};
     if (id) {
-      const { count } = await prisma.space.updateMany({ where: { id, userId: user.id }, data });
+      const { count } = await prisma.space.updateMany({ where: { id, userId: user.id }, data: { ...data, ...sheet } });
       if (!count) throw new Error("Cet espace n'existe plus.");
       revalidatePath("/projects");
       revalidatePath("/autopilot");
@@ -32,7 +35,7 @@ export async function saveSpaceAction(id: string | null, input: unknown): Promis
     }
     const existing = await prisma.space.count({ where: { userId: user.id } });
     if (existing >= MAX_SPACES) throw new Error(`${MAX_SPACES} espaces au maximum.`);
-    const space = await prisma.space.create({ data: { ...data, userId: user.id } });
+    const space = await prisma.space.create({ data: { ...data, ...sheet, userId: user.id } });
     revalidatePath("/projects");
     revalidatePath("/autopilot");
     return { id: space.id };

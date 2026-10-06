@@ -6,7 +6,7 @@ import type { GenerateScriptInput } from "@/lib/validations";
 import { normalizeSocialCopy, socialCopyFields } from "@/lib/ai/caption-generator";
 import { anthropicErrorMessage } from "@/lib/ai/anthropic-errors";
 import { countWords } from "@/lib/utils";
-import { ANNOUNCED_COUNT, NO_INVENTED_EXPERIENCE, accountConceptLine } from "@/lib/ai/writing-rules";
+import { ANNOUNCED_COUNT, NO_INVENTED_EXPERIENCE, accountConceptLine, characterSheetLine } from "@/lib/ai/writing-rules";
 import { buildReviewReport, type ReviewReport } from "@/lib/ai/review-report";
 
 /**
@@ -167,12 +167,15 @@ export interface BrandContext {
   lessons?: string | null;
   /** The space's "Thématique": the account's subject and, often, its recurring visual world. */
   concept?: string | null;
+  /** The character sheet in words (lib/characters castTextFor). */
+  cast?: string | null;
 }
 
 function buildUserPrompt(input: GenerateScriptInput, brand?: BrandContext): string {
   const targetWords = Math.round(input.targetDurationSec * 2.6);
   return [
     accountConceptLine(brand?.concept),
+    characterSheetLine(brand?.cast),
     `Topic / brief: ${input.topic}`,
     input.sourceUrl ? `Source URL for reference (use its subject as the basis): ${input.sourceUrl}` : null,
     `Niche: ${input.niche === "general" ? "infer it from the topic" : input.niche}`,

@@ -251,23 +251,25 @@ model Workspace {
 // ───────────────────────────── Projects ─────────────────────────────
 
 model Project {
-  id                String        @id @default(cuid())
-  workspaceId       String
-  userId            String
-  title             String
-  topic             String?       @db.Text
-  niche             String?
-  sourceUrl         String?
+  id                 String        @id @default(cuid())
+  workspaceId        String
+  userId             String
+  title              String
+  topic              String?       @db.Text
+  niche              String?
+  sourceUrl          String?
   // Which brand/theme this video belongs to, for accounts running more than
   // one (e.g. two different Instagram pages). Optional: unassigned projects
   // just don't show a tag.
-  spaceId           String?
+  spaceId            String?
   /// This project's own character sheet, replacing its space's for this project only. Null: the space's is used.
-  characterImage    String?       @db.Text
-  status            ProjectStatus @default(DRAFT)
-  aspectRatio       AspectRatio   @default(VERTICAL)
-  targetDurationSec Int           @default(20)
-  language          String        @default("en")
+  characterImage     String?       @db.Text
+  /// Its own sheet put into words, alongside characterImage.
+  characterSheetText String?       @db.Text
+  status             ProjectStatus @default(DRAFT)
+  aspectRatio        AspectRatio   @default(VERTICAL)
+  targetDurationSec  Int           @default(20)
+  language           String        @default("en")
 
   voiceId      String?
   musicTrackId String?
@@ -353,14 +355,16 @@ model Space {
   name   String
   color  String @default("#7C3AED")
 
-  language       String?
-  tone           String?
-  voiceId        String?
+  language           String?
+  tone               String?
+  voiceId            String?
   // What this account/theme talks about, in the user's words. The autopilot
   // reads it to invent each video's topic when the user lets it choose.
-  brief          String? @db.Text
+  brief              String? @db.Text
   /// The account's character sheet ("Image de référence"): its recurring characters on a plain background, sent with every AI image of its videos and carousels so they look the same in every post.
-  characterImage String? @db.Text
+  characterImage     String? @db.Text
+  /// The sheet put into words (lib/ai/cast-reader), for the writers that compose image briefs and never see the image.
+  characterSheetText String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -11,7 +11,6 @@ import { Poster } from "@/components/dashboard/poster";
 import { WorkflowBar } from "@/components/dashboard/workflow";
 import { MarkPostedDialog } from "@/components/projects/mark-posted-dialog";
 import { ResultsDialog } from "@/components/results/results-dialog";
-import { SpaceManagerDialog } from "@/components/projects/space-manager-dialog";
 import { deleteProject, unmarkProjectPosted } from "@/server/actions/projects";
 import { setProjectSpaceAction } from "@/server/actions/spaces";
 import { POST_PLATFORM_LABELS, type PostPlatform, type ProjectCardData, type ProjectStage } from "@/lib/projects/progress";
@@ -41,7 +40,7 @@ function platformsText(platforms: string[]): string {
  * accounts juggling several Instagram pages or niches from seeing them all
  * mixed together.
  */
-export function ProjectsBoard({ projects, initialView, spaces, voices, sheetGeneration }: { projects: ProjectCardData[]; initialView: View | null; spaces: SpaceOption[]; voices: { id: string; name: string }[]; sheetGeneration: { cost: number; enabled: boolean } }) {
+export function ProjectsBoard({ projects, initialView, spaces, initialSpace }: { projects: ProjectCardData[]; initialView: View | null; spaces: SpaceOption[]; initialSpace?: string }) {
   const counts = useMemo(() => ({
     todo: projects.filter((p) => p.stage === "todo").length,
     ready: projects.filter((p) => p.stage === "ready").length,
@@ -49,9 +48,8 @@ export function ProjectsBoard({ projects, initialView, spaces, voices, sheetGene
     all: projects.length,
   }), [projects]);
   const [view, setView] = useState<View>(initialView ?? (counts.todo ? "todo" : counts.ready ? "ready" : counts.posted ? "posted" : "todo"));
-  const [spaceFilter, setSpaceFilter] = useState<string>(ALL_SPACES);
+  const [spaceFilter, setSpaceFilter] = useState<string>(initialSpace ?? ALL_SPACES);
   const [query, setQuery] = useState("");
-  const [managing, setManaging] = useState(false);
 
   function pick(v: View) {
     setView(v);
@@ -111,14 +109,14 @@ export function ProjectsBoard({ projects, initialView, spaces, voices, sheetGene
               <Circle className="h-2.5 w-2.5" /> Sans espace
             </button>
           )}
-          <button onClick={() => setManaging(true)} className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-muted-foreground transition hover:text-foreground">
+          <Link href="/spaces" className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-muted-foreground transition hover:text-foreground">
             <FolderCog className="h-3.5 w-3.5" /> Gérer
-          </button>
+          </Link>
         </div>
       ) : (
-        <button onClick={() => setManaging(true)} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition hover:text-foreground">
+        <Link href="/spaces" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition hover:text-foreground">
           <FolderCog className="h-3.5 w-3.5" /> Plusieurs marques ou thèmes ? Crée des espaces pour les séparer.
-        </button>
+        </Link>
       )}
 
       {shown.length === 0 ? (
@@ -129,7 +127,6 @@ export function ProjectsBoard({ projects, initialView, spaces, voices, sheetGene
         </ul>
       )}
 
-      <SpaceManagerDialog spaces={spaces} voices={voices} open={managing} onOpenChange={setManaging} sheetGeneration={sheetGeneration} />
     </div>
   );
 }

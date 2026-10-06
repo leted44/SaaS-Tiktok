@@ -747,7 +747,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                 <StylePicker value={style} onChange={(v) => set({ visualStyle: v })} />
               </div>
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between"><Label>Fil conducteur <span className="font-normal normal-case text-muted-foreground">· la personne et le décor des images IA</span></Label><Counter value={state.visualMotif} max={VISUAL_MOTIF_MAX} /></div>
+                <div className="flex items-center justify-between"><Label>Fil conducteur <span className="font-normal normal-case text-muted-foreground">· le décor et qui apparaît</span></Label><Counter value={state.visualMotif} max={VISUAL_MOTIF_MAX} /></div>
                 <Textarea
                   value={state.visualMotif}
                   maxLength={VISUAL_MOTIF_MAX}

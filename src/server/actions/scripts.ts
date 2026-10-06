@@ -1,6 +1,7 @@
 "use server";
 
 import { activeLessons, lessonsBrief } from "@/lib/results/lessons";
+import { castTextFor } from "@/lib/characters";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -136,6 +137,7 @@ export async function splitIntoSeriesAction(scriptId: string, parts: number): Pr
           targetAudience: source.workspace.targetAudience,
           lessons: lessonsBrief(await activeLessons(user.id, source.spaceId, "video").catch(() => [])),
           concept: source.space?.brief,
+          cast: await castTextFor(user.id, source.id, source.spaceId),
         },
         parts,
       );

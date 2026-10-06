@@ -6,6 +6,7 @@ import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
 import type { GenerateScriptInput } from "@/lib/validations";
 import { activeLessons, lessonsBrief } from "@/lib/results/lessons";
+import { castTextFor } from "@/lib/characters";
 
 export interface GeneratedScriptSummary {
   projectId: string;
@@ -32,14 +33,15 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
 
   // The account the script is for: the space picked, or the one of the project it is written into.
   const targetSpaceId = data.spaceId ?? (data.projectId ? ((await prisma.project.findFirst({ where: { id: data.projectId, userId: user.id }, select: { spaceId: true } }))?.spaceId ?? null) : null);
-  const [lessons, targetSpace] = await Promise.all([
+  const [lessons, targetSpace, cast] = await Promise.all([
     activeLessons(user.id, targetSpaceId, data.carouselLength ? "carousel" : "video").catch(() => []),
     targetSpaceId ? prisma.space.findFirst({ where: { id: targetSpaceId, userId: user.id }, select: { brief: true } }) : null,
+    castTextFor(user.id, data.projectId, targetSpaceId),
   ]);
 
   let result;
   try {
-    result = await generateScript(data, { toneOfVoice: workspace.toneOfVoice, targetAudience: workspace.targetAudience, lessons: lessonsBrief(lessons), concept: targetSpace?.brief });
+    result = await generateScript(data, { toneOfVoice: workspace.toneOfVoice, targetAudience: workspace.targetAudience, lessons: lessonsBrief(lessons), concept: targetSpace?.brief, cast });
   } catch (err) {
     if (!admin) await refundCredits(user.id, CREDIT_COSTS.SCRIPT_GENERATION, "Remboursement — la génération du script a échoué");
     throw err;

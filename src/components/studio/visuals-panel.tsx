@@ -508,7 +508,7 @@ export function VisualsPanel({
               <StylePicker value={style} onChange={onVisualStyleChange} />
             </div>
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between"><Label>Fil conducteur</Label><span className="text-[11px] text-muted-foreground">{visualMotif.length}/500</span></div>
+              <div className="flex items-center justify-between"><Label>Fil conducteur <span className="font-normal normal-case text-muted-foreground">· le décor et qui apparaît</span></Label><span className="text-[11px] text-muted-foreground">{visualMotif.length}/500</span></div>
               <Textarea
                 value={visualMotif}
                 maxLength={500}

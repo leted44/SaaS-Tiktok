@@ -33,6 +33,7 @@ Counterparts to check every time:
 | Structure for retention (short hook, payoff early, one-word question) and default length | `carousel-generator.ts` SYSTEM_PROMPT + `script-generator.ts` CAROUSEL_SCRIPT_RULES; 6 slides (`CONTENT_SLIDES` in `lib/carousel/schema.ts`) | `script-generator.ts` SCRIPT_SYSTEM_PROMPT + critic; 20 s (`DEFAULT_DURATION_SEC` in `lib/scripts/options.ts`) |
 | Writing rules (no invented claims or promises) | `carousel-generator.ts` SYSTEM_PROMPT | `script-generator.ts` SCRIPT_SYSTEM_PROMPT + critic |
 | Character sheet ("Image de référence", space or project) | `lib/characters.ts` → `Series.cast` in `lib/carousel/ai-visuals.ts`; block in carousel editor | `lib/characters.ts` → `generateSceneVisuals(…, cast)`; block in `visuals-panel.tsx` |
+| Character sheet in words for the writers (`lib/ai/cast-reader.ts`, `characterSheetLine`) | `carousel-generator.ts` (`cast`), via `castTextFor` in `carousels.ts` | `script-generator.ts` `BrandContext.cast` + `series-generator.ts`, via `castTextFor` |
 | Fil conducteur / series bible UI | carousel editor "Fil conducteur" | `components/studio/visuals-panel.tsx` "Fil conducteur" |
 | Storage, cleanup, image reading | `lib/storage.ts`, `lib/storage-cleanup.ts`, `lib/ai/images.ts` (shared) | same |
 | Voice-over (ElevenLabs; Eleven v3 default, standard for custom speed) | — (carousels are read, not heard) | `lib/tts/elevenlabs.ts`, `components/studio/audio-panel.tsx` |

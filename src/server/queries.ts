@@ -2,7 +2,11 @@ import { cache } from "react";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import { PLANS } from "@/lib/plans";
+import { PLANS, effectivePlanDef, isAdmin, CREDIT_COSTS } from "@/lib/plans";
+import { integrations } from "@/lib/env";
+import type { SpaceOption } from "@/lib/spaces";
+import { VOICES, sortVoices } from "@/lib/tts/voices";
+import { CUSTOM_VOICE_ID, customVoiceDefinition } from "@/lib/tts/resolve-voice";
 import { getUsageSummary } from "@/lib/credits";
 import { reviewReportSchema, reviewTally, type ReviewReport, type ReviewTally } from "@/lib/ai/review-report";
 
@@ -114,4 +118,37 @@ export async function getBillingData() {
 export async function getScriptsLibrary() {
   const user = await getCurrentUser();
   return prisma.script.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 60, include: { project: { select: { id: true, title: true, status: true } } } });
+}
+
+/**
+ * The user's spaces with what their cards and editor need: settings, project
+ * and published counts, the voices the editor offers, and what drawing a
+ * character sheet costs this account.
+ */
+export async function getSpacesData() {
+  const [user, workspace] = await Promise.all([getCurrentUser(), getCurrentWorkspace()]);
+  const plan = effectivePlanDef(user);
+  const [rows, published, customVoice] = await Promise.all([
+    prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, color: true, language: true, tone: true, voiceId: true, brief: true, characterImage: true, _count: { select: { projects: true } } } }),
+    prisma.project.groupBy({ by: ["spaceId"], where: { userId: user.id, postedAt: { not: null }, spaceId: { not: null } }, _count: { _all: true } }),
+    plan.voiceCloning ? prisma.customVoice.findUnique({ where: { userId: user.id }, select: { name: true } }) : null,
+  ]);
+  const publishedBySpace = new Map(published.map((p) => [p.spaceId, p._count._all]));
+  const spaces: (SpaceOption & { publishedCount: number })[] = rows.map((s) => ({
+    id: s.id,
+    name: s.name,
+    color: s.color,
+    language: s.language,
+    tone: s.tone,
+    voiceId: s.voiceId,
+    brief: s.brief,
+    characterImage: s.characterImage,
+    projectCount: s._count.projects,
+    publishedCount: publishedBySpace.get(s.id) ?? 0,
+  }));
+  const voices = [
+    ...(customVoice ? [customVoiceDefinition(customVoice.name)] : []),
+    ...sortVoices(VOICES, workspace.defaultLanguage, plan.premiumVoices),
+  ].map((v) => ({ id: v.id, name: v.id === CUSTOM_VOICE_ID ? `${v.name} (ta voix)` : v.name }));
+  return { user, spaces, voices, sheetGeneration: { cost: isAdmin(user.role) ? 0 : CREDIT_COSTS.AI_IMAGE, enabled: integrations.aiImages() } };
 }

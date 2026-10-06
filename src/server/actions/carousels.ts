@@ -14,7 +14,7 @@ import { aiSource, DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from 
 import { DEFAULT_IMAGE_MODEL } from "@/lib/ai/image-models";
 import { asImageModelChoice, coverReference, generateSeries, generateSlideImage, SERIES_BUDGET_MS } from "@/lib/carousel/ai-visuals";
 import { integrations } from "@/lib/env";
-import { projectCast } from "@/lib/characters";
+import { castTextFor, projectCast } from "@/lib/characters";
 import { activeLessons, lessonsBrief } from "@/lib/results/lessons";
 import { guard, type ActionResult } from "@/server/action-result";
 
@@ -75,6 +75,7 @@ export async function generateCarouselAction(
         targetAudience: project.workspace.targetAudience,
         lessons: lessonsBrief(lessons),
         concept: project.space?.brief,
+        cast: await castTextFor(user.id, project.id, project.spaceId),
         visualStyle,
         template,
         length: asLength(options.length),

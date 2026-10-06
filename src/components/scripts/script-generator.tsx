@@ -40,18 +40,19 @@ const EXAMPLES = [
   "La routine matinale que les neurosciences valident vraiment",
 ];
 
-export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initialTopic, initialFormat, spaces = [] }: { credits: number; cost: number; aiConfigured: boolean; projectId?: string; initialTopic?: string; initialFormat?: ContentFormat; spaces?: SpaceOption[] }) {
+export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initialTopic, initialFormat, spaces = [], initialSpaceId }: { credits: number; cost: number; aiConfigured: boolean; projectId?: string; initialTopic?: string; initialFormat?: ContentFormat; spaces?: SpaceOption[]; /** Started from a space's card: that space, its language and tone already picked. */ initialSpaceId?: string }) {
   const router = useRouter();
   const [topic, setTopic] = useState(initialTopic ?? "");
   const [sourceUrl, setSourceUrl] = useState("");
   const [niche, setNiche] = useState(AUTO_NICHE);
-  const [tone, setTone] = useState<Tone>("energetic");
+  const startSpace = spaces.find((s) => s.id === initialSpaceId);
+  const [tone, setTone] = useState<Tone>(startSpace?.tone && (TONES as readonly string[]).includes(startSpace.tone) ? (startSpace.tone as Tone) : "energetic");
   const [hookStyle, setHookStyle] = useState<HookStyle>("auto");
-  const [language, setLanguage] = useState("fr");
+  const [language, setLanguage] = useState(startSpace?.language ?? "fr");
   const [duration, setDuration] = useState(DEFAULT_DURATION_SEC);
   const [cta, setCta] = useState<CtaGoal>("follow");
   const [audience, setAudience] = useState("");
-  const [spaceId, setSpaceId] = useState(NO_SPACE);
+  const [spaceId, setSpaceId] = useState(startSpace?.id ?? NO_SPACE);
   const [format, setFormat] = useState<ContentFormat>(initialFormat ?? "video");
   const [carouselLength, setCarouselLength] = useState<CarouselLength>("full");
   /** Only a new carousel-only project gets a script shaped for slides; "Les deux" and an existing project keep the video script. */

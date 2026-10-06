@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { CharacterSheetUpload, type SheetGeneration } from "@/components/shared/character-sheet-upload";
@@ -12,6 +13,8 @@ export interface CharacterReferenceState {
   /** Its space's sheet, used when the project has none of its own. */
   space: string | null;
   spaceName: string | null;
+  /** Its space, for the link to that space's settings. */
+  spaceId: string | null;
 }
 
 /**
@@ -52,6 +55,12 @@ export function CharacterReference({ projectId, initial, generate }: { projectId
             ? `Celle de l'espace « ${initial.spaceName ?? ""} », partagée par toutes ses vidéos et tous ses carrousels.`
             : "Aucune : les personnages suivent seulement le Fil conducteur. Une image des personnages seuls, sur fond blanc, les garde identiques d'une publication à l'autre — idéalement dans les réglages de l'espace."}{" "}
         Elle s'applique aux prochaines images générées.
+        {initial.spaceId && (
+          <>
+            {" "}
+            <Link href={`/spaces?modifier=${initial.spaceId}`} className="font-medium text-foreground underline underline-offset-2">Réglages de l&apos;espace</Link>
+          </>
+        )}
       </p>
     </div>
   );

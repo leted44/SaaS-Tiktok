@@ -15,7 +15,7 @@ import { assembleFullText, heuristicScores } from "@/lib/ai/script-generator";
 import { countWords } from "@/lib/utils";
 import { POST_PLATFORMS } from "@/lib/projects/progress";
 import { deleteUnusedKeys, keysIn } from "@/lib/storage-cleanup";
-import { assertCharacterSheet } from "@/lib/characters";
+import { assertCharacterSheet, sheetText } from "@/lib/characters";
 
 export async function createProject(input: unknown): Promise<ActionResult<{ id: string }>> {
   return guard(async () => {
@@ -226,7 +226,7 @@ export async function setProjectCharacterImageAction(projectId: string, url: str
   return guard(async () => {
     const user = await requireUser();
     if (url) await assertCharacterSheet(url, user.id);
-    const { count } = await prisma.project.updateMany({ where: { id: projectId, userId: user.id }, data: { characterImage: url } });
+    const { count } = await prisma.project.updateMany({ where: { id: projectId, userId: user.id }, data: { characterImage: url, characterSheetText: await sheetText(url, user.id) } });
     if (!count) throw new Error("Ce projet n'existe plus.");
     revalidatePath(`/studio/${projectId}`);
     revalidatePath(`/studio/${projectId}/carousel`);

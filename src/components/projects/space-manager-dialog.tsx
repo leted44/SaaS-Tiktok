@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Palette, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -50,7 +50,7 @@ function fromSpace(s: SpaceOption): FormState {
  * Each space can carry its own default voice, ton and langue, prefilled
  * (never forced) whenever a script starts in it.
  */
-export function SpaceManagerDialog({ spaces, voices, open, onOpenChange, sheetGeneration }: { spaces: SpaceOption[]; voices: VoiceOption[]; open: boolean; onOpenChange: (v: boolean) => void; sheetGeneration: { cost: number; enabled: boolean } }) {
+export function SpaceManagerDialog({ spaces, voices, open, onOpenChange, sheetGeneration, focus = null }: { spaces: SpaceOption[]; voices: VoiceOption[]; open: boolean; onOpenChange: (v: boolean) => void; sheetGeneration: { cost: number; enabled: boolean }; /** Open straight on one space's form ("new" for a new one) and close when it is done, as the Espaces page's cards do. */ focus?: string | null }) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(blank());
@@ -70,7 +70,23 @@ export function SpaceManagerDialog({ spaces, voices, open, onOpenChange, sheetGe
   function cancel() {
     setEditingId(null);
     setForm(blank());
+    if (focus) onOpenChange(false);
   }
+
+  // Opened from a card: go straight to that space's form.
+  useEffect(() => {
+    if (!open || !focus) return;
+    if (focus === "new") {
+      setEditingId("new");
+      setForm(blank());
+      return;
+    }
+    const space = spaces.find((s) => s.id === focus);
+    if (space) {
+      setEditingId(space.id);
+      setForm(fromSpace(space));
+    }
+  }, [open, focus, spaces]);
 
   async function save() {
     setSaving(true);
@@ -103,7 +119,7 @@ export function SpaceManagerDialog({ spaces, voices, open, onOpenChange, sheetGe
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) cancel(); }}>
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setEditingId(null); setForm(blank()); } }}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Espaces</DialogTitle>

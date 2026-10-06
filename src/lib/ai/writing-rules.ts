@@ -23,3 +23,15 @@ export function accountConceptLine(concept: string | null | undefined): string |
     ? `Account concept, set by the creator for every post of this account: «${text}». The post fits this concept; when it describes a recurring cast, characters or visual world, the series bible (visualMotif) and every image brief are built on it rather than on a cast of your own.`
     : null;
 }
+
+/**
+ * The account's character sheet in words (lib/ai/cast-reader). The image
+ * model draws from the sheet itself; the writer's visualMotif and image
+ * briefs must say the same thing, or the image model gets two descriptions.
+ */
+export function characterSheetLine(text: string | null | undefined): string | null {
+  const t = text?.trim();
+  return t
+    ? `Character sheet of this account — the image every picture of it is drawn from, described:\n${t}\nWhenever the series bible (visualMotif) or an image brief shows one of these characters, describe it exactly like this — same shape, colours, face, limbs and accessories, never a variant of your own. Give them the names the brief or the account concept gives them.`
+    : null;
+}

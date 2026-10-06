@@ -69,7 +69,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         visualMotif: project.visualMotif ?? "",
         postedAt: project.postedAt?.toISOString() ?? null,
         postedPlatforms: project.postedPlatforms,
-        characterReference: { own: project.characterImage, space: project.space?.characterImage ?? null, spaceName: project.space?.name ?? null },
+        characterReference: { own: project.characterImage, space: project.space?.characterImage ?? null, spaceName: project.space?.name ?? null, spaceId: project.spaceId },
       }}
       scripts={project.scripts.map((s) => ({
         id: s.id,
