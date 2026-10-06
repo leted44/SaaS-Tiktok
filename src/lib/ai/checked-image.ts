@@ -1,4 +1,4 @@
-import { editImage, generateImage, type GeneratedImage, type ImageAspect, type ImageModel } from "@/lib/ai/image-generator";
+import { attemptMs, editImage, generateImage, type GeneratedImage, type ImageAspect, type ImageModel } from "@/lib/ai/image-generator";
 import { reviewImage } from "@/lib/ai/image-review";
 import type { VisualLayout } from "@/lib/carousel/art-direction";
 
@@ -47,7 +47,7 @@ export interface CheckedImage {
 
 export async function generateCheckedImage(input: CheckedImageInput): Promise<CheckedImage> {
   const timeLeft = () => input.deadline - Date.now();
-  const first = await generateImage({ prompt: input.prompt, aspectRatio: input.aspectRatio, reference: input.reference, cast: input.cast, model: input.model, timeoutMs: Math.min(input.timeoutMs ?? 60_000, Math.max(10_000, timeLeft())) });
+  const first = await generateImage({ prompt: input.prompt, aspectRatio: input.aspectRatio, reference: input.reference, cast: input.cast, model: input.model, timeoutMs: Math.min(attemptMs(input.model, input.timeoutMs), Math.max(10_000, timeLeft())) });
 
   if (timeLeft() < REVIEW_MS + CORRECTION_MS) return { image: first, outcome: "unchecked", problems: [] };
   const verdict = await reviewImage({ image: first, intent: input.intent, scene: input.scene, layout: input.layout, reference: input.reference, cast: input.cast });

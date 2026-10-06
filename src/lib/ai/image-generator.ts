@@ -1,5 +1,9 @@
 import { env } from "@/lib/env";
 import { CAST_NOTE } from "@/lib/ai/gemini-prompt";
+import { AiImageError, type GeneratedImage, type ImageAspect } from "@/lib/ai/image-types";
+import { generateWithGpt, gptAttemptMs, isGptModel, type GptImageModel } from "@/lib/ai/gpt-image";
+
+export { AiImageError, type GeneratedImage, type ImageAspect };
 
 /**
  * Image generation with Gemini's image model ("Nano Banana").
@@ -17,14 +21,14 @@ import { CAST_NOTE } from "@/lib/ai/gemini-prompt";
  * — which every framing rule here depends on (subject up top, text below) —
  * and to be slower, so it stays opt-in until real carousels show otherwise.
  */
-export type ImageModel = "pro" | "flash";
-const MODELS: Record<ImageModel, string> = {
+type GeminiModel = "pro" | "flash";
+/** Gemini's two (Nano Banana 2, Pro) and OpenAI's GPT Image 2 at two qualities, the latter through fal.ai (lib/ai/gpt-image). */
+export type ImageModel = GeminiModel | GptImageModel;
+const MODELS: Record<GeminiModel, string> = {
   pro: "gemini-3-pro-image-preview",
   flash: "gemini-3.1-flash-image-preview",
 };
-const endpoint = (model: ImageModel) => `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[model]}:generateContent`;
-
-export type ImageAspect = "1:1" | "4:5" | "9:16" | "16:9" | "5:4" | "21:9";
+const endpoint = (model: GeminiModel) => `https://generativelanguage.googleapis.com/v1beta/models/${MODELS[model]}:generateContent`;
 
 /**
  * How the series' first image is to be used: its look always, its recurring
@@ -45,24 +49,13 @@ const REFERENCE_NOTE =
 const REFERENCE_AFTER_CAST_NOTE =
   "The second attached image is the first image of the same series. Keep its art direction exactly — lighting, colour grade, lens, depth of field, texture and mood — so both images unmistakably belong together. The action, pose, camera angle and framing come only from the new description below, not from either attached image.";
 
-export class AiImageError extends Error {
-  constructor(message: string, public code: "NOT_CONFIGURED" | "REFUSED" | "UPSTREAM" | "RATE_LIMITED" | "UNAVAILABLE") {
-    super(message);
-  }
-}
-
-export interface GeneratedImage {
-  data: Buffer;
-  mimeType: string;
-}
-
 interface Options {
   prompt: string;
   aspectRatio: ImageAspect;
   reference?: GeneratedImage | null;
   /** The account's character sheet (Space or project "Image de référence"), sent with every image when set. */
   cast?: GeneratedImage | null;
-  /** Hard cap for one attempt. Batches pass a shorter one so a whole carousel fits in one request. */
+  /** Hard cap for one attempt. Batches pass a shorter one so a whole carousel fits in one request (the first attempt of GPT Image never gets less than its own floor, see attemptMs). */
   timeoutMs?: number;
   /** Which Gemini image model draws it — Nano Banana 2 unless a test says otherwise. */
   model?: ImageModel;
@@ -73,17 +66,35 @@ type GeminiResponse = {
   promptFeedback?: { blockReason?: string };
 };
 
-const inline = (image: GeneratedImage) => ({ inlineData: { mimeType: image.mimeType, data: image.data.toString("base64") } });
-
-function partsFor(prompt: string, reference: GeneratedImage | null | undefined, cast: GeneratedImage | null | undefined) {
-  if (cast && reference) return [inline(cast), inline(reference), { text: `${CAST_NOTE}\n\n${REFERENCE_AFTER_CAST_NOTE}\n\n${prompt}` }];
-  if (cast) return [inline(cast), { text: `${CAST_NOTE}\n\n${prompt}` }];
-  if (reference) return [inline(reference), { text: `${REFERENCE_NOTE}\n\n${prompt}` }];
-  return [{ text: prompt }];
+/** The first attempt's time cap: the batch's own, but never below what the chosen model needs to draw one image. */
+export function attemptMs(model: ImageModel | undefined, requested?: number): number {
+  const base = requested ?? 60_000;
+  return model && isGptModel(model) ? Math.max(base, gptAttemptMs(model)) : base;
 }
 
-async function attempt({ prompt, aspectRatio, reference, cast, edit, timeoutMs = 60_000, model = "flash" }: Options & { edit?: GeneratedImage }): Promise<GeneratedImage> {
+const inline = (image: GeneratedImage) => ({ inlineData: { mimeType: image.mimeType, data: image.data.toString("base64") } });
+
+/** The reference images in the order the prompt's notes name them, and the prompt with those notes — the same for every provider. */
+function withReferences(prompt: string, reference: GeneratedImage | null | undefined, cast: GeneratedImage | null | undefined): { images: GeneratedImage[]; text: string } {
+  if (cast && reference) return { images: [cast, reference], text: `${CAST_NOTE}\n\n${REFERENCE_AFTER_CAST_NOTE}\n\n${prompt}` };
+  if (cast) return { images: [cast], text: `${CAST_NOTE}\n\n${prompt}` };
+  if (reference) return { images: [reference], text: `${REFERENCE_NOTE}\n\n${prompt}` };
+  return { images: [], text: prompt };
+}
+
+function partsFor(prompt: string, reference: GeneratedImage | null | undefined, cast: GeneratedImage | null | undefined) {
+  const { images, text } = withReferences(prompt, reference, cast);
+  return [...images.map(inline), { text }];
+}
+
+async function attempt({ prompt, aspectRatio, reference, cast, edit, timeoutMs, model = "flash" }: Options & { edit?: GeneratedImage }): Promise<GeneratedImage> {
+  if (isGptModel(model)) {
+    const { images, text } = edit ? { images: [edit], text: prompt } : withReferences(prompt, reference, cast);
+    // A caller's cap is kept as given: the corrections of checked-image size theirs to the time left in the request.
+    return generateWithGpt({ model, prompt: text, aspectRatio, images, timeoutMs: timeoutMs ?? gptAttemptMs(model) });
+  }
   const parts = edit ? [inline(edit), { text: prompt }] : partsFor(prompt, reference, cast);
+  timeoutMs ??= 60_000;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -130,7 +141,7 @@ async function attempt({ prompt, aspectRatio, reference, cast, edit, timeoutMs =
  * time would push the whole server action past its deadline.
  */
 export async function generateImage(options: Options): Promise<GeneratedImage> {
-  if (!env.geminiApiKey) throw new AiImageError("La génération d'images IA n'est pas configurée (clé GEMINI_API_KEY manquante).", "NOT_CONFIGURED");
+  if (!isGptModel(options.model ?? "flash") && !env.geminiApiKey) throw new AiImageError("La génération d'images IA n'est pas configurée (clé GEMINI_API_KEY manquante).", "NOT_CONFIGURED");
   const started = Date.now();
   try {
     return await attempt(options);
@@ -147,7 +158,7 @@ export async function generateImage(options: Options): Promise<GeneratedImage> {
  * a new one, which would bring new defects of its own.
  */
 export async function editImage(options: { image: GeneratedImage; instruction: string; aspectRatio: ImageAspect; timeoutMs?: number; model?: ImageModel }): Promise<GeneratedImage> {
-  if (!env.geminiApiKey) throw new AiImageError("La génération d'images IA n'est pas configurée (clé GEMINI_API_KEY manquante).", "NOT_CONFIGURED");
+  if (!isGptModel(options.model ?? "flash") && !env.geminiApiKey) throw new AiImageError("La génération d'images IA n'est pas configurée (clé GEMINI_API_KEY manquante).", "NOT_CONFIGURED");
   const prompt = `Edit the attached image: ${options.instruction.trim().replace(/[.\s]+$/, "")}. Keep everything else exactly as it is — the same person, pose, framing, lighting, colours and background. The image contains no text of any kind.`;
   return attempt({ prompt, aspectRatio: options.aspectRatio, edit: options.image, timeoutMs: options.timeoutMs, model: options.model });
 }

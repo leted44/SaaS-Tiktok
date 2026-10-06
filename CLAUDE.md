@@ -29,7 +29,7 @@ Counterparts to check every time:
 | Opening image (scroll-stopper) | cover brief `coverImagePrompt` (`carousel-generator.ts`) | hook brief `hookVisualDescription` → `Script.hookVisual` (`script-generator.ts`, `pipeline/visuals.ts`) |
 | Prompt composition, art direction, framing | `lib/carousel/art-direction.ts` (layout `bleed`/`band`) | same file (layout `frame`, purpose `video`) |
 | Generation + check + correction | `lib/carousel/ai-visuals.ts` → `lib/ai/checked-image.ts` | `lib/pipeline/ai-visuals.ts` → `lib/ai/checked-image.ts` |
-| Admin image model test | carousel editor (`ImageModelPicker`) | studio visuals panel (`ImageModelPicker`) |
+| Admin image model test (Nano Banana 2 / Pro / mix, and GPT Image 2 medium/high through fal.ai — `lib/ai/gpt-image.ts`, `image-models.ts`) | carousel editor (`ImageModelPicker`) | studio visuals panel (`ImageModelPicker`) |
 | Structure for retention (short hook, payoff early, one-word question) and default length | `carousel-generator.ts` SYSTEM_PROMPT + `script-generator.ts` CAROUSEL_SCRIPT_RULES; 6 slides (`CONTENT_SLIDES` in `lib/carousel/schema.ts`) | `script-generator.ts` SCRIPT_SYSTEM_PROMPT + critic; 20 s (`DEFAULT_DURATION_SEC` in `lib/scripts/options.ts`) |
 | Writing rules (no invented claims or promises) | `carousel-generator.ts` SYSTEM_PROMPT | `script-generator.ts` SCRIPT_SYSTEM_PROMPT + critic |
 | Character sheet ("Image de référence", space or project) | `lib/characters.ts` → `Series.cast` in `lib/carousel/ai-visuals.ts`; block in carousel editor | `lib/characters.ts` → `generateSceneVisuals(…, cast)`; block in `visuals-panel.tsx` |

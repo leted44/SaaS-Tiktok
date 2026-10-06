@@ -24,6 +24,8 @@ export const env = {
   // every model fal hosts, so this alone is enough regardless of which Kling
   // tier (or, later, another provider fal carries) a clip is generated with.
   falApiKey: read("FAL_API_KEY"),
+  // fal's queue, where image jobs (GPT Image) are submitted; only a test points it elsewhere.
+  falQueueUrl: read("FAL_QUEUE_URL", "https://queue.fal.run"),
   // A second, independent catalog. Pexels alone is thin on specific,
   // non-generic subjects (a named gymnastics move, a niche craft) — Pixabay's
   // library is curated differently and fills gaps Pexels leaves empty, not
@@ -97,6 +99,7 @@ export const integrations = {
   stock: () => Boolean(env.pexelsApiKey),
   aiImages: () => Boolean(env.geminiApiKey),
   videoClips: () => Boolean(env.falApiKey),
+  gptImages: () => Boolean(env.falApiKey),
   stripe: () => Boolean(env.stripe.secretKey),
   r2: () => Boolean(env.r2.accountId && env.r2.bucket && env.r2.accessKeyId && env.r2.secretAccessKey && env.r2.publicUrl),
   s3: (): boolean => integrations.r2() || (env.storageDriver === "s3" && Boolean(env.s3.accessKeyId)),

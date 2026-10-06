@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { asImageModelChoice, DEFAULT_IMAGE_MODEL, type ImageModelChoice } from "@/lib/ai/image-models";
 import { cn } from "@/lib/utils";
 
-/** Prices per image at 1K, Google's own API. */
+/** Prices per image: Google's own API at 1K; GPT Image 2 through fal.ai at about 1.3 megapixels (fal's grid, rounded). */
 const CHOICES: { id: ImageModelChoice; label: string; price: string }[] = [
   { id: "flash", label: "Nano Banana 2", price: "0,067 $ / image · clients" },
   { id: "pro", label: "Pro", price: "0,134 $ / image" },
   { id: "mix", label: "Mélange", price: "Pro la 1re image, NB2 le reste" },
+  { id: "gpt-medium", label: "GPT Image 2 · moyenne", price: "≈ 0,04 $ / image" },
+  { id: "gpt-high", label: "GPT Image 2 · haute", price: "≈ 0,15 $ / image · plus lente" },
 ];
 
 const KEY = "vs-image-model";
@@ -40,12 +42,12 @@ export function useAdminImageModel(admin: boolean): [ImageModelChoice, (choice: 
   return [model, choose];
 }
 
-/** The admin test box: the three models and what each costs. */
+/** The admin test box: the models and what each costs. */
 export function ImageModelPicker({ value, onChange, note, children }: { value: ImageModelChoice; onChange: (choice: ImageModelChoice) => void; note: string; children?: React.ReactNode }) {
   return (
     <div className="space-y-2 rounded-lg border border-amber-300/30 bg-amber-300/[0.06] p-3">
       <p className="text-xs font-semibold text-amber-200">Test admin · modèle d'image</p>
-      <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Modèle d'image">
+      <div className="grid grid-cols-2 gap-1.5" role="radiogroup" aria-label="Modèle d'image">
         {CHOICES.map((m) => (
           <button
             key={m.id}
