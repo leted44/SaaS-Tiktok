@@ -275,6 +275,7 @@ export const lambdaRemotionEngine: RenderEngine = {
     } else {
       const inputProps = shortVideoPropsSchema.parse(props);
       await updateRenderProgress(job.id, "rendering", 25);
+      const project = await prisma.project.findUnique({ where: { id: job.projectId }, select: { title: true } });
       const started = await lambda.renderMediaOnLambda({
         region: env.remotion.region,
         functionName: env.remotion.functionName,
@@ -307,6 +308,10 @@ export const lambdaRemotionEngine: RenderEngine = {
         // total work — its own download plus decode — small next to 400s.
         framesPerLambda: hasOwnStorageVisual(props) ? 50 : undefined,
         outName: `${job.id}.mp4`,
+        // Served as an attachment named after the video: the studio's "Télécharger"
+        // saves the file on a phone instead of opening it in a player tab. A
+        // <video> tag (previews, the exports page) still plays it as before.
+        downloadBehavior: { type: "download", fileName: downloadFileName(project?.title) },
       });
       renderId = started.renderId;
       bucketName = started.bucketName;
@@ -339,6 +344,19 @@ export const lambdaRemotionEngine: RenderEngine = {
     }
   },
 };
+
+/** "Ton estomac est plein, ton cerveau l'ignore" → "ton-estomac-est-plein-ton-cerveau-l-ignore.mp4" — plain ASCII, safe in a download header. */
+export function downloadFileName(title: string | null | undefined): string {
+  const slug = (title ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+    .replace(/-+$/g, "");
+  return `${slug || "video-vidisprint"}.mp4`;
+}
 
 export function getRenderEngine(): RenderEngine {
   return env.renderEngine === "lambda" ? lambdaRemotionEngine : localRemotionEngine;

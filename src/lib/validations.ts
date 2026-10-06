@@ -175,8 +175,9 @@ export const voiceoverRequestSchema = z.object({
   voiceId: z.string().min(1),
   stability: z.number().min(0).max(1).default(0.5),
   similarity: z.number().min(0).max(1).default(0.75),
+  /** Ignored like voiceModel below: Eleven v3 reads at its natural pace. */
   speed: z.number().min(0.7).max(1.3).default(1),
-  /** Expressive (Eleven v3) or standard (Multilingual v2, honours speed). Omitted: see defaultVoiceModel. */
+  /** Ignored: every voice-over is read by Eleven v3 (lib/tts/elevenlabs VOICE_MODEL). Still accepted from older pages. */
   voiceModel: z.enum(["standard", "expressive"]).optional(),
 });
 

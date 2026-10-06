@@ -107,7 +107,7 @@ export function ScheduleForm({ templates, initialTemplateId, customVoiceName, qu
   const spaced = ai || mode === "series";
   const times = useMemo(() => (when ? seriesTimes(new Date(when), Math.max(1, topics.length), spaced ? interval : 24) : []), [when, topics.length, spaced, interval]);
 
-  const perVideo = template ? templateCost({ targetDurationSec: duration, voiceSpeed: template.input.voiceSpeed, resolution: template.input.resolution }, plan.maxResolution) : 0;
+  const perVideo = template ? templateCost({ targetDurationSec: duration, resolution: template.input.resolution }, plan.maxResolution) : 0;
   const total = perVideo * Math.max(1, topics.length);
 
   const problem = !template

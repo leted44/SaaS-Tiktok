@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { PreviewPlayer } from "@/components/studio/preview-player";
@@ -19,6 +18,7 @@ import { MusicSection, type MusicTrackOption } from "@/components/studio/music-s
 import { BackgroundControls } from "@/components/studio/background-controls";
 import { saveTemplateAction, templateFromProjectAction } from "@/server/actions/autopilot";
 import { useVoicePreview } from "@/lib/tts/use-voice-preview";
+import { VoiceTonePicker } from "@/components/studio/voice-tone";
 import { LANGUAGE_LABELS, languageLabel } from "@/lib/tts/voices";
 import { RESOLUTIONS, ASPECTS, ASPECT_LABELS, TONES, TONE_LABELS, describeTemplate, sampleText, templateCost, templatePreviewProps, voiceLanguage, type Resolution, type TemplateInput } from "@/lib/autopilot/template-shared";
 import type { CaptionStyle } from "@/lib/validations";
@@ -82,7 +82,7 @@ export function TemplateEditor({ templateId, initial, isOnlyTemplate, copiedFrom
   const dirty = JSON.stringify(t) !== saved.current;
   const set = <K extends keyof TemplateInput>(k: K, v: TemplateInput[K]) => setT((s) => ({ ...s, [k]: v }));
 
-  const preview = useVoicePreview(sampleText(t.language).slice(0, 280), t.voiceSpeed);
+  const preview = useVoicePreview(sampleText(t.language).slice(0, 280));
   const previewProps = useMemo(() => templatePreviewProps(t, brand, sampleVisual), [t, brand, sampleVisual]);
   // Open on a moment with words on screen, so the caption style and position show before pressing play.
   const [captionFrame] = useState(() => {
@@ -296,9 +296,9 @@ export function TemplateEditor({ templateId, initial, isOnlyTemplate, copiedFrom
                 </div>
               ))}
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-4">
-              <div className="space-y-2"><div className="flex justify-between"><Label>Vitesse</Label><span className="text-xs">{t.voiceSpeed.toFixed(2)}×</span></div><Slider value={[t.voiceSpeed]} min={0.7} max={1.3} step={0.05} onValueChange={([v]) => set("voiceSpeed", v)} /></div>
-              <div className="space-y-2"><div className="flex justify-between"><Label>Stabilité</Label><span className="text-xs">{Math.round(t.voiceStability * 100)}%</span></div><Slider value={[t.voiceStability]} min={0} max={1} step={0.05} onValueChange={([v]) => set("voiceStability", v)} /></div>
+            <div className="mt-4 space-y-1.5">
+              <Label>Ton de la voix</Label>
+              <VoiceTonePicker value={t.voiceStability} onChange={(v) => set("voiceStability", v)} />
             </div>
           </Block>
 

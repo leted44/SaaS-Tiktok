@@ -5,13 +5,13 @@ import { toast } from "sonner";
 
 /**
  * Plays a short TTS sample for a voice, shared by the studio panel and the voice
- * catalog. Samples are cached per voice/text/speed for the life of the page so
+ * catalog. Samples are cached per voice and text for the life of the page so
  * re-auditioning a voice costs nothing.
  *
  * Previews are deliberately available for premium voices too: hearing a locked
  * voice is what makes someone upgrade to it.
  */
-export function useVoicePreview(text: string, speed = 1, voiceModel?: "standard" | "expressive") {
+export function useVoicePreview(text: string) {
   const [playing, setPlaying] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -35,7 +35,7 @@ export function useVoicePreview(text: string, speed = 1, voiceModel?: "standard"
       if (playing === voiceId) return stop();
       audioRef.current?.pause();
 
-      const key = `${voiceId}:${speed}:${voiceModel ?? "auto"}:${text}`;
+      const key = `${voiceId}:${text}`;
       let url = cache.current.get(key);
       if (!url) {
         setLoadingId(voiceId);
@@ -43,8 +43,8 @@ export function useVoicePreview(text: string, speed = 1, voiceModel?: "standard"
           const res = await fetch("/api/voice/preview", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            // Heard with the model the voice-over will be read with, so the preview never promises another voice.
-            body: JSON.stringify({ voiceId, text, speed, voiceModel }),
+            // Read by the same model as the voice-over (lib/tts/elevenlabs VOICE_MODEL), so the preview never promises another voice.
+            body: JSON.stringify({ voiceId, text }),
           });
           if (!res.ok) {
             const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -67,7 +67,7 @@ export function useVoicePreview(text: string, speed = 1, voiceModel?: "standard"
       await audio.play().catch(() => undefined);
       setPlaying(voiceId);
     },
-    [playing, speed, stop, text, voiceModel],
+    [playing, stop, text],
   );
 
   return { playing, loadingId, toggle, stop };

@@ -36,7 +36,9 @@ Counterparts to check every time:
 | Character sheet in words for the writers (`lib/ai/cast-reader.ts`, `characterSheetLine`) | `carousel-generator.ts` (`cast`), via `castTextFor` in `carousels.ts` | `script-generator.ts` `BrandContext.cast` + `series-generator.ts`, via `castTextFor` |
 | Fil conducteur / series bible UI | carousel editor "Fil conducteur" | `components/studio/visuals-panel.tsx` "Fil conducteur" |
 | Storage, cleanup, image reading | `lib/storage.ts`, `lib/storage-cleanup.ts`, `lib/ai/images.ts` (shared) | same |
-| Voice-over (ElevenLabs; Eleven v3 default, standard for custom speed) | — (carousels are read, not heard) | `lib/tts/elevenlabs.ts`, `components/studio/audio-panel.tsx` |
+| Voice-over (ElevenLabs Eleven v3 only, `VOICE_MODEL`; one setting, the tone) | — (carousels are read, not heard) | `lib/tts/elevenlabs.ts`, `components/studio/audio-panel.tsx`, `voice-tone.tsx` |
+| Default art direction (the space's latest style) | `lib/space-style.ts` → `carousels.ts`, carousel editor `defaultStyle` | `lib/space-style.ts` → `video-visuals.ts`, studio `defaultVisualStyle` |
+| Getting the finished file | "Télécharger les images" / ZIP under the preview | ready card "Télécharger la vidéo" in `export-panel.tsx` + header button; Lambda `downloadBehavior` |
 
 ## Communication
 

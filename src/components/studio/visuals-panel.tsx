@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { nanoid } from "nanoid";
 import { BackgroundControls, backgroundLabel } from "@/components/studio/background-controls";
 import { StylePicker } from "@/components/shared/style-picker";
-import { DEFAULT_VISUAL_STYLE, type VisualStyle } from "@/lib/carousel/art-direction";
+import { isAiSource, type VisualStyle } from "@/lib/carousel/art-direction";
 import { generateProjectVisualsAiAction } from "@/server/actions/video-visuals";
 import { animateSceneClipAction, cancelVideoClipJobAction } from "@/server/actions/video-clips";
 import type { VideoClipTier } from "@/lib/ai/video-clip-generator";
@@ -41,10 +41,14 @@ interface Props {
   sceneQueries: string[];
   stockConfigured: boolean;
   selectedScene: number | null;
+  /** Picks a scene from the image grid — the scene stock, imports and the library place onto. */
+  onSelectScene?: (i: number) => void;
   onLayersChange: (l: VisualLayer[]) => void;
   onPoolChange: (p: VisualPoolItem[]) => void;
   onBackgroundChange: (b: BackgroundStyle) => void;
   visualStyle: string | null;
+  /** What an unset visualStyle stands for: the space's style, else the app default. */
+  defaultVisualStyle: string;
   visualMotif: string;
   onVisualStyleChange: (style: string) => void;
   onMotifChange: (motif: string) => void;
@@ -72,10 +76,12 @@ export function VisualsPanel({
   sceneQueries,
   stockConfigured,
   selectedScene,
+  onSelectScene,
   onLayersChange,
   onPoolChange,
   onBackgroundChange,
   visualStyle,
+  defaultVisualStyle,
   visualMotif,
   characterReference,
   onVisualStyleChange,
@@ -345,7 +351,7 @@ export function VisualsPanel({
     }
   }
 
-  const style = (visualStyle as VisualStyle) || DEFAULT_VISUAL_STYLE;
+  const style = (visualStyle || defaultVisualStyle) as VisualStyle;
   const emptyScenes = scenes.map((_, i) => i).filter((i) => !layers.some((l) => l.sceneIndex === i));
 
   /**
@@ -453,23 +459,129 @@ export function VisualsPanel({
   return (
     <div className="space-y-3">
       {/*
-        Order is the working order, not the data model's: what a scene needs
-        first sits open at the top, and everything set once or checked
-        occasionally folds away. This tab used to open on seven screens of
-        controls, every one of them at the same visual weight.
+        Order is the working order: the video's images first, with what can be
+        done to each one (animate it, take it off) right on it; then the AI
+        images that fill them; then the other sources; then the fine settings.
+        "Animer" used to sit three taps deep in a folded "Calques" list.
       */}
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wide">
-            {selectedScene === null ? "Aucune scène choisie" : sceneName(selectedScene)}
+      {scenes.length > 0 && (
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide">Images de la vidéo</p>
+            <p className="text-[11px] text-muted-foreground">{scenes.length - emptyScenes.length}/{scenes.length}</p>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {scenes.map((_, i) => {
+              const layer = layers.find((l) => l.sceneIndex === i);
+              const job = layer ? clipJobs[layer.id] : undefined;
+              const animating = Boolean(job);
+              const animateCost = layer ? (klingDurationFor(layer.endMs - layer.startMs) === "10" ? videoClipCosts.standardLong : videoClipCosts.standard) : 0;
+              return (
+                <div key={i} className="min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => onSelectScene?.(i)}
+                    className={cn("relative block aspect-[9/16] w-full overflow-hidden rounded-lg border-2 bg-white/[0.03]", selectedScene === i ? "border-primary" : layer ? "border-transparent" : "border-dashed border-white/15")}
+                    aria-label={`${sceneName(i)}${layer ? "" : " (vide)"}`}
+                  >
+                    {layer?.type === "video" && layer.src ? (
+                      // "#t=0.1" makes Safari paint the first frame instead of a black tile.
+                      <video src={`${layer.src}#t=0.1`} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                    ) : layer?.src ? (
+                      <img src={layer.src} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="absolute inset-0 flex items-center justify-center text-[10px] text-muted-foreground">Vide</span>
+                    )}
+                    <span className="absolute left-1 top-1 rounded bg-black/60 px-1 py-0.5 text-[10px] font-semibold text-white">{sceneName(i)}</span>
+                    {/* An animated AI image keeps its "ai:" source; a stock or imported clip has none. */}
+                    {layer?.type === "video" && <span className={cn("absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-semibold text-white", isAiSource(layer.source) ? "bg-emerald-500/80" : "bg-black/60")}><Film className="h-2.5 w-2.5" /> {isAiSource(layer.source) ? "Animée" : "Vidéo"}</span>}
+                    {animating && (
+                      <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/60 text-[10px] text-white">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Animation…
+                      </span>
+                    )}
+                  </button>
+                  {layer?.type === "image" && videoClipsConfigured && !animating && (
+                    <Button size="sm" variant="secondary" className="mt-1 h-7 w-full gap-1 px-1 text-[11px]" disabled={credits < animateCost} onClick={() => animateScene(layer.id, "standard")}>
+                      <Wand2 className="h-3 w-3" /> Animer{animateCost > 0 && <> · {animateCost}</>}
+                    </Button>
+                  )}
+                  {animating && layer && (
+                    <Button size="sm" variant="ghost" className="mt-1 h-7 w-full px-1 text-[11px] text-red-300" onClick={() => cancelAnimate(layer.id)}>Annuler</Button>
+                  )}
+                  {layer && !animating && (layer.type !== "image" || !videoClipsConfigured) && (
+                    <Button size="sm" variant="ghost" className="mt-1 h-7 w-full px-1 text-[11px] text-muted-foreground" onClick={() => remove(layer.id)}>Retirer</Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+            {videoClipsConfigured ? "« Animer » transforme l'image en clip vidéo (plusieurs minutes). " : ""}
+            Touche une image pour la choisir : la banque d&apos;images, tes fichiers et la bibliothèque la remplacent. Les réglages fins (retirer, déplacer, zoom) sont dans « Placement et mouvement ».
           </p>
-          <p className="text-[11px] text-muted-foreground">Touchez une scène sur la timeline</p>
         </div>
+      )}
 
+      {aiImagesConfigured && (
+        <Section title="Images IA" icon={Wand2} summary={emptyScenes.length ? `${emptyScenes.length} à créer` : "Toutes créées"} defaultOpen={emptyScenes.length > 0}>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Direction artistique</Label>
+              <StylePicker value={style} onChange={onVisualStyleChange} />
+            </div>
+            <CharacterReference projectId={projectId} initial={characterReference} generate={{ description: visualMotif, cost: aiImageCost, enabled: aiImagesConfigured }} />
+
+            {emptyScenes.length > 0 ? (
+              <Button variant="gradient" className="w-full" onClick={() => generateAiVisuals("missing")} loading={generatingAi} disabled={!hasScript || autoFilling || credits < emptyScenes.length * aiImageCost}>
+                <Wand2 /> Créer {emptyScenes.length} image{emptyScenes.length > 1 ? "s" : ""} IA {aiImageCost > 0 && <><Coins className="h-3.5 w-3.5" /> {emptyScenes.length * aiImageCost}</>}
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                className="w-full"
+                onClick={() => window.confirm(`Recréer les ${scenes.length} images de la vidéo ?${aiImageCost > 0 ? ` ${scenes.length * aiImageCost} crédits.` : ""}`) && generateAiVisuals("all")}
+                loading={generatingAi}
+                disabled={!hasScript || autoFilling || !scenes.length || credits < scenes.length * aiImageCost}
+              >
+                <RefreshCw /> Tout recréer {aiImageCost > 0 && <><Coins className="h-3.5 w-3.5" /> {scenes.length * aiImageCost}</>}
+              </Button>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              {emptyScenes.length > 0
+                ? "Seules les scènes vides sont créées : celles qui ont déjà une image ne sont jamais touchées."
+                : "Pour changer une seule image : retire-la (« Placement et mouvement »), puis crée à nouveau."}
+            </p>
+
+            <details className="group rounded-lg border border-white/[0.06] p-2.5">
+              <summary className="cursor-pointer list-none text-[11px] font-medium text-muted-foreground transition hover:text-foreground">
+                <span className="inline-flex items-center gap-1"><ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" /> Réglages avancés {admin ? "· fil conducteur, modèle d'image" : "· fil conducteur"}</span>
+              </summary>
+              <div className="mt-3 space-y-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between"><Label>Fil conducteur <span className="font-normal normal-case text-muted-foreground">· le décor et qui apparaît</span></Label><span className="text-[11px] text-muted-foreground">{visualMotif.length}/500</span></div>
+                  <Textarea
+                    value={visualMotif}
+                    maxLength={500}
+                    rows={3}
+                    placeholder="Ex. : un homme d'une trentaine d'années, brun, débardeur noir uni, dans une salle de street workout sombre"
+                    onChange={(e) => onMotifChange(e.target.value)}
+                  />
+                  <p className="text-[11px] text-muted-foreground">Écrit automatiquement avec le script. L&apos;apparence des personnages vient de l&apos;image de référence ; ce texte décrit surtout le décor commun.</p>
+                </div>
+                {admin && <ImageModelPicker value={imageModel} onChange={setImageModel} note="Visible par toi seul ; tes clients sont sur Nano Banana 2. Le même choix que dans le carrousel : « Mélange » garde Pro pour la 1re scène, qui fixe le style des suivantes." />}
+              </div>
+            </details>
+          </div>
+        </Section>
+      )}
+
+      <Section title="Banque d'images" icon={Search} summary="Photos et vidéos réelles" defaultOpen={!aiImagesConfigured}>
         {stockConfigured ? (
           <>
-            <Button className="mt-3 w-full" variant="gradient" onClick={autoFill} loading={autoFilling} disabled={!scenes.length}>
-              <Sparkles /> Remplir toutes les scènes
+            <p className="text-[11px] text-muted-foreground">De vraies photos et vidéos libres de droits, à la place des images IA. Le choix va sur : <span className="font-medium text-foreground">{sceneName(selectedScene ?? 0)}</span>.</p>
+            <Button className="mt-2 w-full" variant={aiImagesConfigured ? "secondary" : "gradient"} onClick={autoFill} loading={autoFilling} disabled={!scenes.length}>
+              <Sparkles /> Remplir les scènes vides
             </Button>
             <div className="mt-2 flex gap-2">
               <Input
@@ -493,56 +605,11 @@ export function VisualsPanel({
             )}
           </>
         ) : (
-          <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+          <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
             Clé <code>PEXELS_API_KEY</code> manquante — la recherche automatique de visuels est désactivée. Vous pouvez toujours importer vos propres fichiers.
           </p>
         )}
-      </div>
-
-      {aiImagesConfigured && (
-        <Section title="Visuels IA" icon={Wand2} summary={style ? "Style choisi" : undefined} defaultOpen={emptyScenes.length > 0 && layers.length === 0}>
-          <div className="space-y-4">
-            {admin && <ImageModelPicker value={imageModel} onChange={setImageModel} note="Visible par toi seul ; tes clients sont sur Nano Banana 2. Le même choix que dans le carrousel : « Mélange » garde Pro pour la 1re scène, qui fixe le style des suivantes." />}
-            <div className="space-y-2">
-              <Label>Direction artistique</Label>
-              <StylePicker value={style} onChange={onVisualStyleChange} />
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between"><Label>Fil conducteur <span className="font-normal normal-case text-muted-foreground">· le décor et qui apparaît</span></Label><span className="text-[11px] text-muted-foreground">{visualMotif.length}/500</span></div>
-              <Textarea
-                value={visualMotif}
-                maxLength={500}
-                rows={2}
-                placeholder="Ex. : un homme d'une trentaine d'années, brun, débardeur noir uni, dans une salle de street workout sombre"
-                onChange={(e) => onMotifChange(e.target.value)}
-              />
-              <p className="text-[11px] text-muted-foreground">La personne récurrente et le décor communs à tous les plans. C'est ce qui en fait une seule vidéo tournée d'un coup plutôt que des extraits sans rapport. Rempli par le script s'il est vide.</p>
-            </div>
-            <CharacterReference projectId={projectId} initial={characterReference} generate={{ description: visualMotif, cost: aiImageCost, enabled: aiImagesConfigured }} />
-
-            {emptyScenes.length > 0 ? (
-              <Button variant="gradient" className="w-full" onClick={() => generateAiVisuals("missing")} loading={generatingAi} disabled={!hasScript || autoFilling || credits < emptyScenes.length * aiImageCost}>
-                <Wand2 /> Générer {emptyScenes.length} visuel{emptyScenes.length > 1 ? "s" : ""} IA {aiImageCost > 0 && <><Coins className="h-3.5 w-3.5" /> {emptyScenes.length * aiImageCost}</>}
-              </Button>
-            ) : (
-              <Button
-                variant="secondary"
-                className="w-full"
-                onClick={() => window.confirm(`Recréer les ${scenes.length} visuels de la vidéo ? ${scenes.length * aiImageCost} crédits.`) && generateAiVisuals("all")}
-                loading={generatingAi}
-                disabled={!hasScript || autoFilling || !scenes.length || credits < scenes.length * aiImageCost}
-              >
-                <RefreshCw /> Tout régénérer {aiImageCost > 0 && <><Coins className="h-3.5 w-3.5" /> {scenes.length * aiImageCost}</>}
-              </Button>
-            )}
-            <p className="text-[11px] text-muted-foreground">
-              {emptyScenes.length > 0
-                ? "Les scènes déjà remplies, à la main ou par la banque d'images, ne sont jamais touchées. Le premier plan est créé d'abord et sert de référence de lumière et de couleurs aux suivants."
-                : "Tous les plans ont un visuel. Pour en changer un seul : retirez-le puis générez à nouveau."}
-            </p>
-          </div>
-        </Section>
-      )}
+      </Section>
 
       <Section title="Importer un fichier" icon={Upload} summary={assets.length ? `${assets.length} importé${assets.length > 1 ? "s" : ""}` : "Aucun"}>
         <div
@@ -630,7 +697,7 @@ export function VisualsPanel({
         </Section>
       )}
 
-      <Section title="Calques" icon={Layers} count={layers.length}>
+      <Section title="Placement et mouvement" icon={Layers} count={layers.length}>
         {layers.length === 0 ? (
           <p className="text-xs text-muted-foreground">Aucun calque visuel. Le fond animé s&apos;affiche derrière les sous-titres.</p>
         ) : (

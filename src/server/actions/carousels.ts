@@ -15,6 +15,7 @@ import { DEFAULT_IMAGE_MODEL } from "@/lib/ai/image-models";
 import { asImageModelChoice, coverReference, generateSeries, generateSlideImage, SERIES_BUDGET_MS } from "@/lib/carousel/ai-visuals";
 import { integrations } from "@/lib/env";
 import { castTextFor, projectCast } from "@/lib/characters";
+import { projectSpaceStyle, spaceVisualStyle } from "@/lib/space-style";
 import { activeLessons, lessonsBrief } from "@/lib/results/lessons";
 import { guard, type ActionResult } from "@/server/action-result";
 
@@ -52,7 +53,7 @@ export async function generateCarouselAction(
     const ai = options.visuals === "ai";
     if (ai && !integrations.aiImages()) throw new Error("La génération d'images IA n'est pas configurée.");
 
-    const visualStyle = asStyle(options.visualStyle) ?? asStyle(project.carousel?.visualStyle) ?? DEFAULT_VISUAL_STYLE;
+    const visualStyle = asStyle(options.visualStyle) ?? asStyle(project.carousel?.visualStyle) ?? (await spaceVisualStyle(user.id, project.spaceId)) ?? DEFAULT_VISUAL_STYLE;
     // The template this generation will actually use — an existing carousel keeps
     // its own, a brand new AI one starts on Immersive (see the upsert below), and
     // anything else falls back to the schema's own default. Text is written and
@@ -176,7 +177,7 @@ export async function generateSlideImageAction(
     if (!slide || slide.kind === "cta") throw new Error("Cette slide n'accepte pas d'image.");
     if (tooLongForImage(slide, state.template)) throw new Error("Raccourcis d'abord le texte de cette slide : l'image prend une partie de la place.");
 
-    const visualStyle = state.visualStyle ?? DEFAULT_VISUAL_STYLE;
+    const visualStyle = state.visualStyle ?? (await projectSpaceStyle(user.id, projectId)) ?? DEFAULT_VISUAL_STYLE;
     const [reference, cast] = await Promise.all([slide.kind === "cover" ? null : coverReference(state.slides, visualStyle, user.id), projectCast(projectId, user.id)]);
     const series = { template: state.template, format: state.format, visualMotif: state.visualMotif, visualStyle, cast };
 
@@ -214,7 +215,7 @@ export async function generateCarouselVisualsAction(
     if (!integrations.aiImages()) throw new Error("La génération d'images IA n'est pas configurée.");
     const row = await prisma.carousel.findFirstOrThrow({ where: { projectId, userId: user.id } });
     const state = toSnapshot(row);
-    const visualStyle = state.visualStyle ?? DEFAULT_VISUAL_STYLE;
+    const visualStyle = state.visualStyle ?? (await projectSpaceStyle(user.id, projectId)) ?? DEFAULT_VISUAL_STYLE;
 
     const candidates = state.slides.filter((s) => s.kind !== "cta" && (mode === "all" || needsAiVisual(s, visualStyle)));
     const tooLong = candidates.filter((s) => tooLongForImage(s, state.template)).length;

@@ -197,7 +197,7 @@ async function step(item: AutopilotItem): Promise<StepResult> {
       const existing = await prisma.voiceover.findFirst({ where: { projectId: project.id, scriptId, status: "READY" } });
       if (!existing) {
         const voiceId = project.voiceId ?? applied.voiceId;
-        await createVoiceover(user, voiceoverRequestSchema.parse({ projectId: project.id, scriptId, voiceId, stability: applied.voiceStability, speed: applied.voiceSpeed }));
+        await createVoiceover(user, voiceoverRequestSchema.parse({ projectId: project.id, scriptId, voiceId, stability: applied.voiceStability }));
       }
       return { next: { status: "VISUALS" } };
     }

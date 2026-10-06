@@ -97,10 +97,9 @@ export function describeTemplate(t: TemplateInput, customVoiceName?: string | nu
   const preset = CAPTION_PRESET_BY_ID[t.captionStyle.preset]?.name ?? t.captionStyle.preset;
   const track = t.musicUrl ? null : getTrack(t.musicTrackId);
   const musicTitle = t.musicUrl ? (t.musicName ?? "Ta musique") : track && track.id !== "none" ? track.name : null;
-  const speed = Math.abs(t.voiceSpeed - 1) > 0.01 ? ` · vitesse ${t.voiceSpeed.toFixed(2)}×` : "";
   return {
     content: `${languageLabel(t.language)} · ${t.targetDurationSec} s · ton ${TONE_LABELS[t.tone].toLowerCase()}`,
-    voice: `${voiceName(t.voiceId, customVoiceName)}${speed}`,
+    voice: voiceName(t.voiceId, customVoiceName),
     captions: `${preset}, ${POSITION_LABELS[t.captionStyle.position]}${t.captionStyle.uppercase ? ", majuscules" : ""}`,
     music: musicTitle ? `${musicTitle} · ${Math.round(t.musicVolume * 100)} %${t.musicStartMs > 0 ? ` · dès ${formatDuration(t.musicStartMs)}` : ""}${t.beatSync && t.musicBpm ? " · coupes sur le rythme" : ""}` : "Aucune",
     visuals: t.stockVisuals ? "Une vidéo de banque d'images par scène" : "Fond animé seul",
@@ -108,9 +107,9 @@ export function describeTemplate(t: TemplateInput, customVoiceName?: string | nu
   };
 }
 
-/** Credits one video made from this template costs, at the plan's resolution cap. */
-export function templateCost(t: Pick<TemplateInput, "targetDurationSec" | "voiceSpeed" | "resolution">, maxResolution: Resolution): number {
-  return CREDIT_COSTS.SCRIPT_GENERATION + voiceoverCost((t.targetDurationSec * 1000) / t.voiceSpeed) + renderCost(clampResolution(t.resolution, maxResolution));
+/** Credits one video made from this template costs, at the plan's resolution cap. The voice reads at its natural pace (Eleven v3): voiceSpeed is no longer applied. */
+export function templateCost(t: Pick<TemplateInput, "targetDurationSec" | "resolution">, maxResolution: Resolution): number {
+  return CREDIT_COSTS.SCRIPT_GENERATION + voiceoverCost(t.targetDurationSec * 1000) + renderCost(clampResolution(t.resolution, maxResolution));
 }
 
 const SAMPLE_TEXT: Record<string, string> = {
@@ -138,7 +137,7 @@ export function templatePreviewProps(t: TemplateInput, brand: { primaryColor: st
     boundaries.push(cursor);
     cursor += s.split(/\s+/).filter(Boolean).length;
   }
-  const words = estimateWordTimings(text, boundaries, 2.6 * t.voiceSpeed);
+  const words = estimateWordTimings(text, boundaries, 2.6);
   const durationMs = (words[words.length - 1]?.endMs ?? 3000) + 900;
   const scenes = sentences.map((s, index) => {
     const ws = words.filter((w) => w.sceneIndex === index);

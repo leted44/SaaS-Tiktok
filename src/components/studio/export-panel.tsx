@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Film, Download, Send, Lock, Coins, Subtitles, AlertTriangle, Trash2, Loader2, MessageSquareText, History } from "lucide-react";
+import { Film, Download, Send, Lock, Coins, Subtitles, AlertTriangle, Trash2, Loader2, MessageSquareText, History, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -88,34 +88,42 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
     router.refresh();
   }
 
-  // Once a render lands, the history is the only place to grab the file — so it
-  // opens itself exactly then, and stays folded the rest of the time.
-  const latest = renders[0] ?? null;
-  const showHistory = !activeRender && latest?.status === "COMPLETED";
+  // The newest finished video is the point of this tab: it gets the top spot
+  // and a real download button, instead of a small icon in the history list.
+  const ready = renders.find((r) => r.status === "COMPLETED" && r.outputUrl) ?? null;
+  const showCost = cost > 0;
 
-  return (
-    <div className="space-y-4">
+  const renderControls = (
+    <div className="space-y-3">
       <div>
-        <Label>Résolution</Label>
+        <Label>Qualité</Label>
         <div className="mt-2 grid grid-cols-3 gap-2">
           {(["720p", "1080p", "4K"] as const).map((r) => {
             const locked = RES_RANK[r] > RES_RANK[planLimits.maxResolution];
             return (
-              <button key={r} type="button" disabled={locked} onClick={() => setResolution(r)} className={cn("rounded-lg border p-3 text-center transition disabled:opacity-50", resolution === r ? "border-primary/60 bg-primary/10" : "border-white/10 hover:border-white/20")}>
-                <p className="font-semibold">{r} {locked && <Lock className="inline h-3 w-3" />}</p>
-                <p className="text-[11px] text-muted-foreground">{planLimits.costs[r]} crédits</p>
+              <button key={r} type="button" disabled={locked} onClick={() => setResolution(r)} className={cn("rounded-lg border p-2.5 text-center transition disabled:opacity-50", resolution === r ? "border-primary/60 bg-primary/10" : "border-white/10 hover:border-white/20")}>
+                <p className="text-sm font-semibold">{r} {locked && <Lock className="inline h-3 w-3" />}</p>
+                {planLimits.costs[r] > 0 && <p className="text-[11px] text-muted-foreground">{planLimits.costs[r]} crédits</p>}
               </button>
             );
           })}
         </div>
         {planLimits.watermark && <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-amber-300"><AlertTriangle className="h-3 w-3" /> Les exports du forfait gratuit incluent un filigrane. <Link href="/billing" className="underline">Passez à un forfait supérieur</Link> pour le retirer.</p>}
       </div>
+      <Button className="w-full" size="lg" variant={ready ? "secondary" : "gradient"} onClick={render} loading={loading} disabled={!hasScript || credits < cost}>
+        <Film /> {ready ? "Créer une nouvelle version" : "Créer la vidéo"} {showCost && <>· <Coins className="h-3.5 w-3.5" /> {cost}</>}
+      </Button>
+      {credits < cost && <p className="text-center text-[11px] text-red-300">Crédits insuffisants ({credits}/{cost}). <Link href="/billing" className="underline">Recharger</Link>.</p>}
+    </div>
+  );
 
-      {!hasVoiceover && hasScript && <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">Pas encore de voix off — le rendu sera silencieux avec un timing de sous-titres estimé. Générez-en une dans l'onglet Audio pour un meilleur résultat.</p>}
+  return (
+    <div className="space-y-4">
+      {!hasVoiceover && hasScript && <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">Pas encore de voix off — la vidéo sera muette, avec un timing de sous-titres estimé. Génère-la d&apos;abord dans l&apos;onglet Voix.</p>}
 
-      {activeRender ? (
+      {activeRender && (
         <div className="surface min-w-0 overflow-hidden p-4">
-          <div className="flex items-center justify-between"><p className="text-sm font-semibold">Rendu en cours…</p><StatusBadge status={live?.status ?? activeRender.status} /></div>
+          <div className="flex items-center justify-between"><p className="text-sm font-semibold">Création de la vidéo…</p><StatusBadge status={live?.status ?? activeRender.status} /></div>
           <Progress value={live?.progress ?? activeRender.progress} className="mt-3 h-2" indicatorClassName="bg-brand-gradient" />
           <ol className="mt-4 space-y-1.5">
             {RENDER_STEPS.filter((s) => s.key !== "done").map((s) => {
@@ -129,37 +137,56 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
               );
             })}
           </ol>
-          <p className="mt-3 text-[11px] text-muted-foreground">Les rendus s'exécutent dans le worker en arrière-plan. Vous pouvez quitter cette page.</p>
+          <p className="mt-3 text-[11px] text-muted-foreground">Ça avance plus vite si cette page reste ouverte ; tu peux aussi la quitter, la vidéo se termine quand même.</p>
           {live?.status === "FAILED" && live.error && <RenderError raw={live.error} />}
         </div>
-      ) : (
-        <Button className="w-full" size="lg" variant="gradient" onClick={render} loading={loading} disabled={!hasScript || credits < cost}>
-          <Film /> Rendu {resolution} · <Coins className="h-3.5 w-3.5" /> {cost}
-        </Button>
       )}
-      {credits < cost && !activeRender && <p className="text-center text-[11px] text-red-300">Crédits insuffisants ({credits}/{cost}). <Link href="/billing" className="underline">Recharger</Link>.</p>}
 
-      {hasVoiceover && <Button asChild variant="outline" className="w-full"><a href={`/api/projects/${projectId}/captions`}><Subtitles /> Télécharger les sous-titres (.srt)</a></Button>}
+      {ready && !activeRender && (
+        <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-3">
+          <div className="flex items-center gap-3">
+            <div className="h-20 w-[45px] shrink-0 overflow-hidden rounded-md bg-white/5">{ready.thumbnailUrl && <img src={ready.thumbnailUrl} alt="" className="h-full w-full object-cover" />}</div>
+            <div className="min-w-0">
+              <p className="inline-flex items-center gap-1.5 text-sm font-semibold"><CheckCircle2 className="h-4 w-4 text-emerald-400" /> Ta vidéo est prête</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Créée {relativeTime(ready.createdAt)} · {ready.width}×{ready.height}</p>
+            </div>
+          </div>
+          <Button asChild size="lg" variant="gradient" className="mt-3 w-full">
+            <a href={ready.outputUrl!} download target="_blank" rel="noreferrer"><Download /> Télécharger la vidéo</a>
+          </Button>
+          <p className="mt-2 text-[11px] text-muted-foreground">Elle s&apos;enregistre dans les téléchargements de ton téléphone. Si elle s&apos;ouvre dans un lecteur à la place, utilise le bouton de téléchargement du lecteur (⋮ ou ⤓).</p>
+        </div>
+      )}
 
       {socialCopy && scriptId && (
-        <Section title="Description du post" icon={MessageSquareText} summary="TikTok & Instagram">
+        <Section title="Description du post" icon={MessageSquareText} summary="TikTok & Instagram" defaultOpen={Boolean(ready) && !activeRender}>
           <SocialCopyBlock scriptId={scriptId} copy={socialCopy} hashtags={hashtags} cost={planLimits.costs.socialCopy} aiConfigured={aiConfigured} />
         </Section>
       )}
 
-      {renders.length > 0 && (
-        <Section title="Rendus récents" icon={History} count={renders.length} defaultOpen={showHistory} summary={latest ? `${relativeTime(latest.createdAt)} · ${latest.status === "COMPLETED" ? "prêt" : latest.status === "FAILED" ? "échec" : "en cours"}` : undefined}>
+      {!activeRender && (ready ? (
+        <Section title="Nouvelle version" icon={Film} summary="Après une modification">
+          <p className="mb-3 text-[11px] text-muted-foreground">Tu as changé le texte, la voix ou une image depuis ? Crée une nouvelle version : l&apos;ancienne reste dans l&apos;historique.</p>
+          {renderControls}
+        </Section>
+      ) : (
+        renderControls
+      ))}
+
+      {(renders.length > 0 || hasVoiceover) && (
+        <Section title="Historique et sous-titres" icon={History} count={renders.length || undefined}>
+          {hasVoiceover && <Button asChild variant="outline" size="sm" className="mb-3 w-full"><a href={`/api/projects/${projectId}/captions`}><Subtitles /> Télécharger les sous-titres (.srt)</a></Button>}
           <ul className="space-y-2">
             {renders.map((r) => (
               <li key={r.id} className="min-w-0 overflow-hidden rounded-lg border border-white/[0.06] bg-white/[0.02] p-2">
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-8 shrink-0 overflow-hidden rounded bg-white/5">{r.thumbnailUrl && <img src={r.thumbnailUrl} alt="" className="h-full w-full object-cover" />}</div>
-                  <div className="min-w-0 flex-1"><p className="text-xs font-medium">{r.width}×{r.height}</p><p className="text-[11px] text-muted-foreground">{relativeTime(r.createdAt)} · {r.creditsCharged} cr</p></div>
+                  <div className="min-w-0 flex-1"><p className="text-xs font-medium">{r.width}×{r.height}</p><p className="text-[11px] text-muted-foreground">{relativeTime(r.createdAt)}{r.creditsCharged > 0 && ` · ${r.creditsCharged} cr`}</p></div>
                   <StatusBadge status={r.status} />
                   {r.status === "COMPLETED" && r.outputUrl && (
                     <>
-                      <Button asChild size="icon-sm" variant="ghost"><a href={r.outputUrl} download target="_blank" rel="noreferrer"><Download /></a></Button>
-                      <Button asChild size="icon-sm" variant="ghost"><Link href="/exports"><Send /></Link></Button>
+                      <Button asChild size="icon-sm" variant="ghost" aria-label="Télécharger cette version"><a href={r.outputUrl} download target="_blank" rel="noreferrer"><Download /></a></Button>
+                      <Button asChild size="icon-sm" variant="ghost" aria-label="Publier"><Link href="/exports"><Send /></Link></Button>
                     </>
                   )}
                   {r.status !== "QUEUED" && r.status !== "PROCESSING" && (

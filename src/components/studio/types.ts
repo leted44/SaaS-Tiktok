@@ -28,6 +28,8 @@ export interface StudioProject {
   visualPool: VisualPoolItem[];
   backgroundStyle: BackgroundStyle;
   visualStyle: string | null;
+  /** The style shown while visualStyle is unset: its space's (lib/space-style), else the app default — the one the server will draw with. */
+  defaultVisualStyle: string;
   visualMotif: string;
   postedAt: string | null;
   postedPlatforms: string[];

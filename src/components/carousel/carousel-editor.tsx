@@ -24,7 +24,7 @@ import type { ReviewReport, ReviewTally } from "@/lib/ai/review-report";
 import { generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
 import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, IMAGE_PROMPT_MAX, VISUAL_MOTIF_MAX, SLIDE_LIMITS, fullBleedTemplate, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
-import { DEFAULT_VISUAL_STYLE, type VisualStyle } from "@/lib/carousel/art-direction";
+import type { VisualStyle } from "@/lib/carousel/art-direction";
 import { StylePicker } from "@/components/shared/style-picker";
 import { resolveTemplate } from "@/lib/carousel/templates";
 import { FormatSwitcher } from "@/components/studio/format-switcher";
@@ -56,6 +56,8 @@ interface Props {
   admin: boolean;
   /** The character sheet its AI images are drawn with (lib/characters). */
   characterReference: CharacterReferenceState;
+  /** The art direction a carousel without one starts on: its space's (lib/space-style), else the app default. */
+  defaultStyle: VisualStyle;
   /** What the critic pass did to the script — admin only. */
   review: { report: ReviewReport; tally: ReviewTally | null } | null;
   /** What the script of a project without one is written from. */
@@ -118,7 +120,7 @@ function lengthOf(slides: CarouselState["slides"]): CarouselLength {
   return slides.filter((s) => s.kind === "content").length <= CONTENT_SLIDES.short ? "short" : "full";
 }
 
-export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured, posted, admin, review, characterReference, scriptStart }: Props) {
+export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured, posted, admin, review, characterReference, defaultStyle, scriptStart }: Props) {
   const [marking, setMarking] = useState(false);
   const [unmarking, setUnmarking] = useState(false);
   async function unmarkPosted() {
@@ -138,7 +140,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   /** Whether the initial text generation is in flight — the only automatic step; visuals are a deliberate follow-up once the script has been read. */
   const [phase, setPhase] = useState<null | "text" | "images">(null);
   const [createVisuals, setCreateVisuals] = useState<"ai" | "stock">(aiImagesConfigured ? "ai" : "stock");
-  const [createStyle, setCreateStyle] = useState<VisualStyle>(DEFAULT_VISUAL_STYLE);
+  const [createStyle, setCreateStyle] = useState<VisualStyle>(defaultStyle);
   const [createLength, setCreateLength] = useState<CarouselLength>(script?.carouselLength ?? "full");
   /** The cover headlines the script offers (its hook and alternatives) that fit on a cover. */
   const coverOptions = script ? [...new Set([script.hook, ...script.alternativeHooks].map((h) => h.trim()))].filter((h) => h && h.length <= SLIDE_LIMITS.cover.title) : [];
@@ -566,7 +568,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const contentCount = state.slides.filter((s) => s.kind === "content").length;
   const photoSlots = state.slides.filter((s) => s.kind !== "cta").length;
   const photoCount = state.slides.filter((s) => s.kind !== "cta" && s.image).length;
-  const style = state.visualStyle ?? DEFAULT_VISUAL_STYLE;
+  const style = state.visualStyle ?? defaultStyle;
   const pendingVisuals = state.slides.filter((s) => needsAiVisual(s, style) && !tooLongForImage(s, state.template)).length;
   const regenerable = state.slides.filter((s) => s.kind !== "cta" && !tooLongForImage(s, state.template)).length;
   const aiCount = state.slides.filter((s) => imageOrigin(s.image) === "ai").length;

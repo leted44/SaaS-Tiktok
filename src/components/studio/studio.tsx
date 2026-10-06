@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { PlayerRef } from "@remotion/player";
-import { FileText, Captions, Layers, Music2, Film, GalleryHorizontalEnd, ArrowLeft, Check, CheckCircle2, Loader2, Pencil, Undo2, Wand2 } from "lucide-react";
+import { FileText, Captions, Layers, Mic2, Film, GalleryHorizontalEnd, ArrowLeft, Check, CheckCircle2, Download, Loader2, Pencil, Undo2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -159,6 +159,18 @@ export function Studio(props: StudioProps) {
     router.refresh();
   }
 
+  // The tabs in working order, each marked once its step is done — the studio's
+  // own checklist: a script, a voice that matches the chosen one, a visual on
+  // every scene, a finished video.
+  const readyRender = renders.find((r) => r.status === "COMPLETED" && r.outputUrl) ?? null;
+  const steps = [
+    { value: "script", label: "Script", icon: FileText, done: Boolean(activeScript) },
+    { value: "audio", label: "Voix", icon: Mic2, done: Boolean(voiceover?.audioUrl) && voiceover?.voiceId === state.voiceId },
+    { value: "visuals", label: "Visuels", icon: Layers, done: liveProps.scenes.length > 0 && liveProps.scenes.every((_, i) => state.visualLayers.some((l) => l.sceneIndex === i)) },
+    { value: "captions", label: "Sous-titres", icon: Captions, done: false },
+    { value: "export", label: "Export", icon: Film, done: Boolean(readyRender) },
+  ];
+
   return (
     <div className="mx-auto max-w-[1600px]">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -194,7 +206,11 @@ export function Studio(props: StudioProps) {
               {!templating && <Wand2 />} <span className="sm:hidden">Modèle</span><span className="hidden sm:inline">Enregistrer comme modèle</span>
             </Button>
           )}
-          <Button variant="gradient" size="sm" onClick={() => setTab("export")}><Film /> Rendu</Button>
+          {readyRender?.outputUrl ? (
+            <Button asChild variant="gradient" size="sm"><a href={readyRender.outputUrl} download target="_blank" rel="noreferrer"><Download /> Télécharger</a></Button>
+          ) : (
+            <Button variant="gradient" size="sm" onClick={() => setTab("export")}><Film /> Exporter</Button>
+          )}
         </div>
       </div>
 
@@ -238,11 +254,13 @@ export function Studio(props: StudioProps) {
             <div className="border-b border-white/[0.05] p-3">
               {/* The carousel used to hide here as a sixth, outbound tab — it now has an equal spot in the FormatSwitcher above, so this bar is video's own five. */}
               <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="script" aria-label="Script" className="flex-col gap-0.5 px-0.5 py-1 text-[10px] sm:flex-row sm:px-3 sm:text-xs"><FileText /><span>Script</span></TabsTrigger>
-                <TabsTrigger value="captions" aria-label="Sous-titres" className="flex-col gap-0.5 px-0.5 py-1 text-[10px] sm:flex-row sm:px-3 sm:text-xs"><Captions /><span>Sous-titres</span></TabsTrigger>
-                <TabsTrigger value="visuals" aria-label="Visuels" className="flex-col gap-0.5 px-0.5 py-1 text-[10px] sm:flex-row sm:px-3 sm:text-xs"><Layers /><span>Visuels</span></TabsTrigger>
-                <TabsTrigger value="audio" aria-label="Audio" className="flex-col gap-0.5 px-0.5 py-1 text-[10px] sm:flex-row sm:px-3 sm:text-xs"><Music2 /><span>Audio</span></TabsTrigger>
-                <TabsTrigger value="export" aria-label="Export" className="flex-col gap-0.5 px-0.5 py-1 text-[10px] sm:flex-row sm:px-3 sm:text-xs"><Film /><span>Export</span></TabsTrigger>
+                {steps.map((st) => (
+                  <TabsTrigger key={st.value} value={st.value} aria-label={st.label} className="relative flex-col gap-0.5 px-0.5 py-1 text-[10px] sm:flex-row sm:px-3 sm:text-xs">
+                    <st.icon />
+                    <span>{st.label}</span>
+                    {st.done && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-emerald-400" aria-label="fait" />}
+                  </TabsTrigger>
+                ))}
               </TabsList>
             </div>
             <div className="min-h-0 min-w-0 flex-1 xl:overflow-y-auto">
@@ -262,11 +280,13 @@ export function Studio(props: StudioProps) {
                     sceneQueries={sceneQueries}
                     stockConfigured={integrations.stock}
                     selectedScene={selectedScene}
+                    onSelectScene={(i) => { setSelectedScene(i); if (liveProps.scenes[i]) playerRef.current?.seekTo(Math.round((liveProps.scenes[i].startMs / 1000) * liveProps.fps)); }}
                     pool={state.visualPool}
                     onPoolChange={(p) => patch("visualPool", p)}
                     onLayersChange={(l) => patch("visualLayers", l)}
                     onBackgroundChange={(b) => patch("backgroundStyle", b)}
                     visualStyle={state.visualStyle}
+                    defaultVisualStyle={project.defaultVisualStyle}
                     visualMotif={state.visualMotif}
                     characterReference={project.characterReference}
                     onVisualStyleChange={(v) => patch("visualStyle", v)}

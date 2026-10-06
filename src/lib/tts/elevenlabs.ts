@@ -7,7 +7,7 @@ export interface TTSOptions {
   similarity?: number;
   speed?: number;
   language?: string;
-  /** "expressive" = Eleven v3 (admin test); anything else = the configured standard model. */
+  /** "expressive" = Eleven v3, the only model offered; "standard" is kept for scripts past v3's length limit. */
   model?: VoiceModel;
 }
 
@@ -25,13 +25,12 @@ export type VoiceModel = "standard" | "expressive";
 const V3_MODEL = "eleven_v3";
 
 /**
- * The model a voice-over is read with when none was chosen: Eleven v3, the
- * one the owner picked by ear — except at a custom speed, which only the
- * standard model honours (an autopilot template set to 1.1× keeps its pace).
+ * The model every voice-over and preview is read with: Eleven v3, the one
+ * the owner picked by ear and the only one offered since — the standard model
+ * and the speed setting only it honoured are gone from the app. It still
+ * reads a script too long for v3 (see synthesizeElevenLabs), never by choice.
  */
-export function defaultVoiceModel(speed = 1): VoiceModel {
-  return Math.abs(speed - 1) < 0.001 ? "expressive" : "standard";
-}
+export const VOICE_MODEL: VoiceModel = "expressive";
 const V3_MAX_CHARS = 5000;
 
 /** v3's three stability points, from the studio's 0-1 slider. */

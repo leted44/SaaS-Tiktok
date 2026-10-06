@@ -84,7 +84,8 @@ export function CharacterSheetUpload({ value, onChange, disabled, removable = tr
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-3">
+      {/* Wraps under the image when a long label ("Remplacer pour ce projet") would not fit a phone. */}
+      <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={() => input.current?.click()}

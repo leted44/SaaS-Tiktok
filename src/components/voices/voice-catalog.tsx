@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Slider } from "@/components/ui/slider";
 import type { VoiceDefinition } from "@/lib/tts/voices";
 import type { MusicTrack } from "@/lib/music/library";
 import { MOOD_LABELS } from "@/lib/music/library";
@@ -22,8 +21,7 @@ export function VoiceCatalog({ voices, tracks, premiumAllowed, ttsConfigured }: 
   const [gender, setGender] = useState<"all" | "female" | "male">("all");
   const [language, setLanguage] = useState<string>("all");
   const [text, setText] = useState(VOICE_PREVIEW_TEXT);
-  const [speed, setSpeed] = useState(1);
-  const { playing, loadingId, toggle } = useVoicePreview(text, speed);
+  const { playing, loadingId, toggle } = useVoicePreview(text);
 
   const languages = Array.from(new Set(voices.map((v) => v.language))).filter((l) => l !== "custom");
   const filtered = sortVoices(
@@ -48,14 +46,10 @@ export function VoiceCatalog({ voices, tracks, premiumAllowed, ttsConfigured }: 
       </div>
 
       <TabsContent value="voices" className="space-y-4">
-        <div className="surface grid gap-4 p-4 md:grid-cols-[1fr_auto]">
+        <div className="surface p-4">
           <div className="space-y-1.5">
             <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Texte d'essai</label>
             <Input value={text} onChange={(e) => setText(e.target.value.slice(0, 300))} placeholder="Tapez une phrase pour l'entendre dans chaque voix" />
-          </div>
-          <div className="w-full space-y-1.5 md:w-48">
-            <div className="flex justify-between text-xs font-medium uppercase tracking-wide text-muted-foreground"><span>Vitesse</span><span className="text-foreground">{speed.toFixed(2)}×</span></div>
-            <Slider value={[speed]} min={0.7} max={1.3} step={0.05} onValueChange={([v]) => setSpeed(v)} className="mt-3" />
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">

@@ -7,7 +7,7 @@ import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, effectivePlanDef, voiceoverCost } from "@/lib/plans";
 import { putObject, storageKey } from "@/lib/storage";
 import { estimateSpeechMs } from "@/lib/utils";
-import { defaultVoiceModel } from "@/lib/tts/elevenlabs";
+import { VOICE_MODEL } from "@/lib/tts/elevenlabs";
 import { masterVoiceMp3 } from "@/lib/tts/master";
 import type { z } from "zod";
 
@@ -37,21 +37,22 @@ export async function createVoiceover(user: User, data: z.output<typeof voiceove
 
   const scenes = parseJson(scenesSchema, script.scenes, []);
   const segments = [script.hook, ...scenes.map((s) => s.text), script.callToAction];
-  const estimatedMs = estimateSpeechMs(segments.join(" ")) / data.speed;
+  // Eleven v3 reads at its natural pace: a speed sent by an older page or template is ignored.
+  const speed = 1;
+  const estimatedMs = estimateSpeechMs(segments.join(" ")) / speed;
   const cost = isAdmin(user.role) ? 0 : voiceoverCost(estimatedMs);
   if (cost > 0) await chargeCredits(user.id, cost, "VOICEOVER", `Voix off (${voice.name})`, data.projectId);
 
   const voiceover = await prisma.voiceover.create({
-    data: { projectId: data.projectId, scriptId: data.scriptId, userId: user.id, voiceId: voice.id, status: "PROCESSING", stability: data.stability, similarity: data.similarity, speed: data.speed },
+    data: { projectId: data.projectId, scriptId: data.scriptId, userId: user.id, voiceId: voice.id, status: "PROCESSING", stability: data.stability, similarity: data.similarity, speed },
   });
 
   try {
     const result = await synthesizeSpeech({ segments, voiceId: voice.id, providerVoiceId: voice.providerVoiceId, options: {
         stability: data.stability,
         similarity: data.similarity,
-        speed: data.speed,
-        // Eleven v3 by default; the standard model when chosen, or when a custom speed needs it.
-        model: data.voiceModel ?? defaultVoiceModel(data.speed),
+        speed,
+        model: VOICE_MODEL,
       },
     });
     if (result.model) console.log(`[voiceover] ${voiceover.id} read by ${result.model}`);

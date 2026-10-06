@@ -159,7 +159,8 @@ export function MusicSection(p: MusicSectionProps) {
       )}
 
       <div className="mt-2 space-y-1.5">
-        {p.tracks.map((t) => {
+        {/* Tracks without a licensed file yet would only play silence: not offered at all. */}
+        {p.tracks.filter((t) => t.id === "none" || t.url).map((t) => {
           const locked = t.premium && !p.premiumAllowed;
           const missing = t.id !== "none" && !t.url;
           const selected = !p.musicUrl && (p.musicTrackId ?? "none") === t.id;
@@ -173,8 +174,8 @@ export function MusicSection(p: MusicSectionProps) {
           );
         })}
       </div>
-      {p.tracks.some((t) => t.id !== "none" && !t.url) && (
-        <p className="mt-2 text-[11px] text-muted-foreground">Les pistes marquées « indisponible » n'ont pas encore de fichier sous licence. Importez votre propre musique pour en ajouter une au montage.</p>
+      {!p.tracks.some((t) => t.id !== "none" && t.url) && (
+        <p className="mt-2 text-[11px] text-muted-foreground">La bibliothèque intégrée n&apos;a pas encore de morceaux : importe ta propre musique (libre de droits) pour en ajouter une.</p>
       )}
       {(p.musicUrl || p.musicTrackId) && (
         <>

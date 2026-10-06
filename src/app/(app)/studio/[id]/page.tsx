@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { spaceVisualStyle } from "@/lib/space-style";
 import { getProjectForStudio, getCustomVoice, getReviewTally, readReviewReport } from "@/server/queries";
 import { prisma } from "@/lib/prisma";
 import { buildShortVideoProps } from "@/lib/render/build-props";
@@ -12,7 +13,7 @@ import { integrations } from "@/lib/env";
 import { parseJson, scenesSchema, captionStyleSchema, visualLayersSchema, visualPoolSchema, backgroundStyleSchema, renderTimingsSchema } from "@/lib/validations";
 import { fallbackSocialCopy, socialCopySchema } from "@/lib/social/captions";
 import { presetStyle } from "@/lib/captions/presets";
-import { VISUAL_STYLES } from "@/lib/carousel/art-direction";
+import { DEFAULT_VISUAL_STYLE, VISUAL_STYLES } from "@/lib/carousel/art-direction";
 
 export const dynamic = "force-dynamic";
 
@@ -29,10 +30,12 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
   const { project, user, activeScript, activeVoiceover } = data;
   const plan = effectivePlanDef(user);
   const admin = isAdmin(user.role);
-  const [customVoice, carousel, reviewTally] = await Promise.all([
+  const [customVoice, carousel, reviewTally, inheritedStyle] = await Promise.all([
     getCustomVoice(user.id),
     prisma.carousel.findUnique({ where: { projectId: project.id }, select: { id: true } }),
     admin ? getReviewTally(user.id, "video") : null,
+    // A project with no style yet opens on its space's (lib/space-style) — the one the server will also use.
+    spaceVisualStyle(user.id, project.spaceId),
   ]);
   // Same rule as the project cards: a carousel, and nothing video-specific made yet.
   const carouselOnly = Boolean(carousel) && !activeVoiceover && project.renderJobs.length === 0 && parseJson(visualLayersSchema, project.visualLayers, []).length === 0;
@@ -66,6 +69,8 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         visualPool: parseJson(visualPoolSchema, project.visualPool, []),
         backgroundStyle: parseJson(backgroundStyleSchema, project.backgroundStyle, { type: "gradient", colors: [project.workspace.primaryColor, "#0B0714"], vignette: true, grain: true }),
         visualStyle: (VISUAL_STYLES as readonly string[]).includes(project.visualStyle ?? "") ? project.visualStyle : null,
+        // Shown, not saved: the project's own style stays unset until picked or first drawn, so that first drawing still adopts the matching captions.
+        defaultVisualStyle: inheritedStyle ?? DEFAULT_VISUAL_STYLE,
         visualMotif: project.visualMotif ?? "",
         postedAt: project.postedAt?.toISOString() ?? null,
         postedPlatforms: project.postedPlatforms,

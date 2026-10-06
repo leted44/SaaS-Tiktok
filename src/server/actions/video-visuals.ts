@@ -6,6 +6,7 @@ import { requireDbUser } from "@/lib/auth";
 import { buildShortVideoProps } from "@/lib/render/build-props";
 import { sceneVisualDescriptions } from "@/lib/pipeline/visuals";
 import { projectCast } from "@/lib/characters";
+import { spaceVisualStyle } from "@/lib/space-style";
 import { existingSceneReference, generateSceneVisuals, videoAspect, type SceneTarget } from "@/lib/pipeline/ai-visuals";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
@@ -45,7 +46,7 @@ export async function generateProjectVisualsAiAction(
     const script = await prisma.script.findFirstOrThrow({ where: { id: project.activeScriptId, projectId } });
     const voiceover = await prisma.voiceover.findFirst({ where: { projectId, scriptId: script.id, status: "READY" }, orderBy: { createdAt: "desc" } });
 
-    const visualStyle = asStyle(project.visualStyle) ?? DEFAULT_VISUAL_STYLE;
+    const visualStyle = asStyle(project.visualStyle) ?? (await spaceVisualStyle(user.id, project.spaceId)) ?? DEFAULT_VISUAL_STYLE;
     // Only a project's first-ever style pick also switches its captions — matching
     // the carousel's own template auto-pick at creation, never overriding a caption
     // look chosen afterwards, deliberately, once AI visuals are already in use.
