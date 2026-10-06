@@ -33,6 +33,28 @@ export async function animateSceneClipAction(projectId: string, layerId: string,
     const layer = layers.find((l) => l.id === layerId);
     if (!layer || layer.type !== "image" || !layer.src) throw new Error("Cette scène n'a pas d'image à animer.");
 
+    // A clip fal already produced, and billed, but that could not be followed or
+    // fetched (a 405 on the status URL until it was fixed, a download that broke)
+    // is still sitting at fal: pick it back up rather than paying for a new one.
+    const unfetched = await prisma.videoClipJob.findFirst({
+      where: {
+        projectId,
+        userId: user.id,
+        layerId,
+        tier,
+        imageUrl: absoluteUrl(layer.src),
+        status: "FAILED",
+        falRequestId: { not: null },
+        OR: [{ error: { startsWith: "Le suivi de l'animation a échoué" } }, { error: { startsWith: "La récupération du clip a échoué" } }, { error: { startsWith: "Le téléchargement du clip généré a échoué" } }],
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (unfetched) {
+      await prisma.videoClipJob.update({ where: { id: unfetched.id }, data: { status: "QUEUED", attempts: 0, error: null, lockedAt: null, lockedBy: null } });
+      revalidatePath(`/studio/${projectId}`);
+      return { jobId: unfetched.id, creditsLeft: user.credits };
+    }
+
     let description = "";
     // The clip covers its scene as the voice times it now, not the times stored when the image was made.
     let spanMs = layer.endMs - layer.startMs;
