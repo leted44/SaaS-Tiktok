@@ -26,19 +26,22 @@ async function copyText(text: string): Promise<boolean> {
 
 /**
  * Copies an image's full prompt (lib/ai/gemini-prompt) to paste in the Gemini
- * app — free there — before importing the result onto the scene or slide.
+ * or ChatGPT app — on the owner's own subscription — before importing the
+ * result onto the scene or slide. Labelled "Copier la description": the word
+ * "prompt" means nothing to the people this is for.
  */
 export function CopyForGemini({ prompt, cast, className }: { prompt: string; cast: boolean; className?: string }) {
   async function copy() {
     if (!(await copyText(prompt))) return void toast.error("Copie impossible sur ce navigateur.");
-    toast.success("Copié — colle-le dans Gemini", {
+    toast.success("Copié — colle-le dans Gemini ou ChatGPT", {
       description: cast ? "Joins aussi ta fiche personnages (Image de référence) à la demande." : "Puis importe l'image obtenue ici.",
-      action: { label: "Ouvrir Gemini", onClick: () => window.open("https://gemini.google.com/app", "_blank", "noopener") },
+      action: { label: "Gemini", onClick: () => window.open("https://gemini.google.com/app", "_blank", "noopener") },
+      cancel: { label: "ChatGPT", onClick: () => window.open("https://chatgpt.com", "_blank", "noopener") },
     });
   }
   return (
     <Button type="button" size="sm" variant="outline" className={cn("h-auto min-h-7 gap-1 whitespace-normal px-1.5 py-1 text-[11px] leading-tight", className)} onClick={copy}>
-      <Copy className="h-3 w-3 shrink-0" /> Copier pour Gemini
+      <Copy className="h-3 w-3 shrink-0" /> Copier la description
     </Button>
   );
 }

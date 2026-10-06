@@ -1183,7 +1183,7 @@ function ImageControl({ imageModel, projectId, slide, aiImageCost, aiImagesConfi
           {gemini && (
             <div className="space-y-1">
               <CopyForGemini prompt={gemini.prompt} cast={gemini.cast} className="w-full" />
-              <p className="text-[10px] text-muted-foreground">Gratuit dans l&apos;appli Gemini : colle, génère, puis « Ma photo » pour l&apos;importer ici.</p>
+              <p className="text-[10px] text-muted-foreground">À coller dans Gemini ou ChatGPT (avec ta fiche personnages), puis « Ma photo » pour importer l&apos;image ici.</p>
             </div>
           )}
 

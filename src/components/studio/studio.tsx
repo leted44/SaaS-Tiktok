@@ -122,7 +122,7 @@ export function Studio(props: StudioProps) {
   }, [activeScript, liveProps.scenes]);
 
   // Each scene's AI image brief, mapped the same way (lib/pipeline/visuals sceneVisualDescriptions):
-  // what "Copier pour Gemini" hands over for an empty scene.
+  // what "Copier la description" hands over for an empty scene.
   const sceneBriefs = useMemo(() => {
     const scriptScenes = activeScript?.scenes ?? [];
     const last = liveProps.scenes.length - 1;

@@ -41,7 +41,7 @@ interface Props {
   scenes: ShortVideoProps["scenes"];
   /** Stock search terms suggested by the AI, one per composition scene. */
   sceneQueries: string[];
-  /** Each scene's image brief, the frame shape and whether a character sheet applies — for "Copier pour Gemini". */
+  /** Each scene's image brief, the frame shape and whether a character sheet applies — for "Copier la description". */
   gemini: { briefs: string[]; aspect: string; cast: boolean };
   stockConfigured: boolean;
   selectedScene: number | null;
@@ -538,7 +538,7 @@ export function VisualsPanel({
           </div>
           <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
             {videoClipsConfigured ? "« Animer » transforme l'image en clip vidéo (plusieurs minutes) ; le mouvement est écrit automatiquement d'après l'image et le texte de la scène. " : ""}
-            Touche une image pour la choisir : la banque d&apos;images, tes fichiers et la bibliothèque la remplacent. Le × la retire (elle reste dans la bibliothèque du projet). Sur une case vide, « Copier pour Gemini » copie sa description complète : génère-la gratuitement dans Gemini, puis touche la case et « Importer un fichier ».
+            Touche une image pour la choisir : la banque d&apos;images, tes fichiers et la bibliothèque la remplacent. Le × la retire (elle reste dans la bibliothèque du projet). Sur une case vide, « Copier la description » copie sa description complète : colle-la dans Gemini ou ChatGPT, puis touche la case et « Importer un fichier ».
           </p>
         </div>
       )}
