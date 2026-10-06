@@ -602,8 +602,8 @@ export function VisualsPanel({
                           <Wand2 className="h-3 w-3" /> Créer{aiImageCost > 0 && <> · {aiImageCost}</>}
                         </Button>
                       )}
-                      {/* The same prompt "Créer" would send (lib/pipeline/ai-visuals), for the Gemini or ChatGPT app. */}
-                      <CopyForGemini className="w-full" cast={gemini.cast} prompt={geminiPrompt(composeImagePrompt({ scene: gemini.briefs[i], motif: visualMotif, style, layout: "frame", purpose: "video" }), { aspect: gemini.aspect, cast: gemini.cast })} />
+                      {/* The same prompt "Créer" would send (lib/pipeline/ai-visuals), for the Gemini or ChatGPT app — the owner's alone: for subscribers the AI images are the product, one tap away. */}
+                      {admin && <CopyForGemini className="w-full" cast={gemini.cast} prompt={geminiPrompt(composeImagePrompt({ scene: gemini.briefs[i], motif: visualMotif, style, layout: "frame", purpose: "video" }), { aspect: gemini.aspect, cast: gemini.cast })} />}
                     </div>
                   )}
                   {layer && !animating && aiImagesConfigured && i !== cta && gemini.briefs[i]?.trim() && (
@@ -620,7 +620,7 @@ export function VisualsPanel({
           </div>
           <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
             {videoClipsConfigured ? "« Animer » transforme l'image en clip vidéo (plusieurs minutes) ; le mouvement est écrit automatiquement d'après l'image et le texte de la scène. " : ""}
-            Touche une image pour la choisir : la banque d&apos;images, tes fichiers et la bibliothèque la remplacent. Le × la retire (elle reste dans la bibliothèque du projet). Sur une case vide, « Créer » dessine cette seule scène ; « Copier la description » copie sa description pour la coller dans Gemini ou ChatGPT, puis touche la case et « Importer un fichier ». « Refaire » remplace une image par une nouvelle.
+            Touche une image pour la choisir : la banque d&apos;images, tes fichiers et la bibliothèque la remplacent. Le × la retire (elle reste dans la bibliothèque du projet). Sur une case vide, « Créer » dessine cette seule scène{admin ? " ; « Copier la description » copie sa description pour la coller dans Gemini ou ChatGPT, puis touche la case et « Importer un fichier »" : ""}. « Refaire » remplace une image par une nouvelle.
           </p>
         </div>
       )}

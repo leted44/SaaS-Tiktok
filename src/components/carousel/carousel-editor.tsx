@@ -839,7 +839,8 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                   aiImagesConfigured={aiImagesConfigured}
                   credits={credits}
                   ensureSaved={ensureSaved}
-                  gemini={s.kind === "cta" ? null : geminiFor(s)}
+                  // "Copier la description" is the owner's alone (see visuals-panel).
+                  gemini={admin && s.kind !== "cta" ? geminiFor(s) : null}
                   onGenerated={(generatedStyle, creditsLeft) => {
                     setCredits(creditsLeft);
                     if (!state.visualStyle) set({ visualStyle: generatedStyle });

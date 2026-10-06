@@ -43,7 +43,7 @@ Counterparts to check every time:
 | Voice-over (ElevenLabs Eleven v3 only, `VOICE_MODEL`; one setting, the tone) | — (carousels are read, not heard) | `lib/tts/elevenlabs.ts`, `components/studio/audio-panel.tsx`, `voice-tone.tsx` |
 | Default art direction (the space's latest style) | `lib/space-style.ts` → `carousels.ts`, carousel editor `defaultStyle` | `lib/space-style.ts` → `video-visuals.ts`, studio `defaultVisualStyle` |
 | Animating a still (Kling; motion written by Claude from the image + spoken line, `lib/ai/motion-prompt.ts`) | — (a carousel has no motion) | `server/actions/video-clips.ts`, grid in `visuals-panel.tsx` |
-| "Copier la description" (the app's full image prompt, to paste in the Gemini or ChatGPT app and import the result; `lib/ai/gemini-prompt.ts`, `components/shared/copy-for-gemini.tsx`) | slide image panel in `carousel-editor.tsx` (`geminiFor`) | empty tiles of the image grid in `visuals-panel.tsx` (briefs from `studio.tsx` `sceneBriefs`) |
+| "Copier la description", admin only (the app's full image prompt, to paste in the Gemini or ChatGPT app and import the result; `lib/ai/gemini-prompt.ts`, `components/shared/copy-for-gemini.tsx`) | slide image panel in `carousel-editor.tsx` (`geminiFor`) | empty tiles of the image grid in `visuals-panel.tsx` (briefs from `studio.tsx` `sceneBriefs`) |
 | Captions on/off (`captionStyle.enabled`; off renders no words — `build-props.ts`, `ShortVideo.tsx`, switch in `captions-panel.tsx`) | — (the carousel's text is the slides) | Sous-titres tab + autopilot template editor |
 | Getting the finished file | "Télécharger les images" / ZIP under the preview | ready card "Télécharger la vidéo" in `export-panel.tsx` + header button; Lambda `downloadBehavior` |
 
