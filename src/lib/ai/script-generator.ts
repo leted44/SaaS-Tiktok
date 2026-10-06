@@ -7,7 +7,7 @@ import { normalizeSocialCopy, socialCopyFields } from "@/lib/ai/caption-generato
 import { anthropicErrorMessage } from "@/lib/ai/anthropic-errors";
 import { countWords } from "@/lib/utils";
 import { ANNOUNCED_COUNT, NO_INVENTED_EXPERIENCE, accountConceptLine, characterSheetLine } from "@/lib/ai/writing-rules";
-import { buildReviewReport, type ReviewReport } from "@/lib/ai/review-report";
+import { buildReviewReport, draftProblems, skippedReviewReport, type ReviewReport } from "@/lib/ai/review-report";
 
 /**
  * The brief an AI image of a scene is drawn from — the same formula as the
@@ -192,8 +192,17 @@ function buildUserPrompt(input: GenerateScriptInput, brand?: BrandContext): stri
     .join("\n");
 }
 
-function buildCriticUserPrompt(input: GenerateScriptInput, draft: GeneratedScript, brand?: BrandContext): string {
-  return [buildUserPrompt(input, brand), "", "--- DRAFT TO REVIEW AND REWRITE ---", JSON.stringify(draft, null, 2)].join("\n");
+function buildCriticUserPrompt(input: GenerateScriptInput, draft: GeneratedScript, brand?: BrandContext, problems: string[] = []): string {
+  return [
+    buildUserPrompt(input, brand),
+    "",
+    "--- DRAFT TO REVIEW AND REWRITE ---",
+    JSON.stringify(draft, null, 2),
+    // What a code check measured on the draft (in French, as the owner reads it): fix these first, without breaking what already works.
+    problems.length ? `\n--- MEASURED PROBLEMS IN THIS DRAFT (fix every one; keep every rule the draft already keeps, including its target length) ---\n${problems.map((p) => `- ${p}`).join("\n")}` : null,
+  ]
+    .filter((line) => line !== null)
+    .join("\n");
 }
 
 let client: Anthropic | null = null;
@@ -248,33 +257,45 @@ export async function generateScript(
   const anthropic = getClient();
   const model = env.anthropicModel;
 
-  // Same two passes for a carousel — only the lens changes, never the bar.
+  // Same passes for a carousel — only the lens changes, never the bar.
   const carousel = Boolean(input.carouselLength);
   const draft = await callForScript(anthropic, model, carousel ? SCRIPT_SYSTEM_PROMPT + CAROUSEL_SCRIPT_RULES : SCRIPT_SYSTEM_PROMPT, buildUserPrompt(input, brand), "medium");
-  const revised = await callForScript(anthropic, model, carousel ? SCRIPT_CRITIC_SYSTEM_PROMPT + CAROUSEL_CRITIC_RULES : SCRIPT_CRITIC_SYSTEM_PROMPT, buildCriticUserPrompt(input, draft.parsed, brand), "high");
+  const draftScript = normalizeScript(draft.parsed, input.carouselLength);
+  const rules = { topic: input.topic, carousel, contentSlides: input.carouselLength ? CAROUSEL_MAX_SCENES[input.carouselLength] : undefined, targetDurationSec: input.targetDurationSec };
 
-  const normalized = normalizeScript(revised.parsed, input.carouselLength);
+  // The critic runs only when the draft breaks a rule a code check can see —
+  // the owner's call, on cost: on drafts that broke nothing it only reworded
+  // them, for about 60 % of the script's price, and once made one too long.
+  const problems = draftProblems(draftScript, rules);
+  if (!problems.length) {
+    return finish(draftScript, draft.response.model, [draft.response.usage], skippedReviewReport({ ...rules, draft: draftScript, draftCost: { model: draft.response.model, usage: draft.response.usage } }));
+  }
+
+  const revised = await callForScript(anthropic, model, carousel ? SCRIPT_CRITIC_SYSTEM_PROMPT + CAROUSEL_CRITIC_RULES : SCRIPT_CRITIC_SYSTEM_PROMPT, buildCriticUserPrompt(input, draft.parsed, brand, problems), "high");
+  const revisedScript = normalizeScript(revised.parsed, input.carouselLength);
   const review = buildReviewReport({
-    draft: normalizeScript(draft.parsed, input.carouselLength),
-    final: normalized,
-    topic: input.topic,
-    carousel,
-    contentSlides: input.carouselLength ? CAROUSEL_MAX_SCENES[input.carouselLength] : undefined,
-    targetDurationSec: input.targetDurationSec,
+    ...rules,
+    draft: draftScript,
+    final: revisedScript,
     draftCost: { model: draft.response.model, usage: draft.response.usage },
     reviewCost: { model: revised.response.model, usage: revised.response.usage },
   });
-  const fullText = assembleFullText(normalized);
-  const wordCount = countWords(fullText);
+  // A rewrite that fixed nothing and broke something is worse than the draft: keep the draft.
+  const keepDraft = review.verdict === "regressed";
+  return finish(keepDraft ? draftScript : revisedScript, revised.response.model, [draft.response.usage, revised.response.usage], { ...review, keptDraft: keepDraft });
+}
 
+function finish(script: GeneratedScript, model: string, usages: { input_tokens: number; output_tokens: number }[], review: ReviewReport): ScriptGenerationResult {
+  const fullText = assembleFullText(script);
+  const wordCount = countWords(fullText);
   return {
-    script: normalized,
+    script,
     fullText,
     wordCount,
     estimatedDurationSec: Math.round(wordCount / 2.6),
-    model: revised.response.model,
-    inputTokens: draft.response.usage.input_tokens + revised.response.usage.input_tokens,
-    outputTokens: draft.response.usage.output_tokens + revised.response.usage.output_tokens,
+    model,
+    inputTokens: usages.reduce((n, u) => n + u.input_tokens, 0),
+    outputTokens: usages.reduce((n, u) => n + u.output_tokens, 0),
     review,
   };
 }
