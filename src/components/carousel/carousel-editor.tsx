@@ -762,7 +762,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                   Il s'applique à la prochaine génération : les images déjà créées ne changent pas tant que tu ne les régénères pas.
                 </p>
               </div>
-              <CharacterReference projectId={projectId} initial={characterReference} />
+              <CharacterReference projectId={projectId} initial={characterReference} generate={{ description: state.visualMotif, cost: aiImageCost, enabled: aiImagesConfigured }} />
 
               {pendingVisuals > 0 ? (
                 <Button variant="gradient" className="w-full" onClick={() => generateVisuals("missing")} loading={visualsBusy} disabled={generating || filling || busy !== null || credits < pendingVisuals * aiImageCost}>

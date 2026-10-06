@@ -50,7 +50,7 @@ function fromSpace(s: SpaceOption): FormState {
  * Each space can carry its own default voice, ton and langue, prefilled
  * (never forced) whenever a script starts in it.
  */
-export function SpaceManagerDialog({ spaces, voices, open, onOpenChange }: { spaces: SpaceOption[]; voices: VoiceOption[]; open: boolean; onOpenChange: (v: boolean) => void }) {
+export function SpaceManagerDialog({ spaces, voices, open, onOpenChange, sheetGeneration }: { spaces: SpaceOption[]; voices: VoiceOption[]; open: boolean; onOpenChange: (v: boolean) => void; sheetGeneration: { cost: number; enabled: boolean } }) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(blank());
@@ -153,7 +153,7 @@ export function SpaceManagerDialog({ spaces, voices, open, onOpenChange }: { spa
 
             <div className="space-y-1.5">
               <Label>Image de référence <span className="font-normal text-muted-foreground">(facultatif)</span></Label>
-              <CharacterSheetUpload value={form.characterImage} onChange={(url) => set("characterImage", url)} />
+              <CharacterSheetUpload value={form.characterImage} onChange={(url) => set("characterImage", url)} generate={{ ...sheetGeneration, description: form.brief }} />
               <p className="text-[11px] text-muted-foreground">Tes personnages récurrents, seuls, en pied et de face, sur fond blanc. Elle accompagne chaque image IA de cet espace — vidéos et carrousels — pour qu'ils aient la même apparence dans chaque publication.</p>
             </div>
 

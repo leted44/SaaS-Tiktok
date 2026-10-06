@@ -3,7 +3,8 @@ import Link from "next/link";
 import { FolderKanban, Sparkles } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, getCurrentWorkspace } from "@/server/queries";
-import { effectivePlanDef } from "@/lib/plans";
+import { effectivePlanDef, isAdmin, CREDIT_COSTS } from "@/lib/plans";
+import { integrations } from "@/lib/env";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -50,7 +51,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
       {projects.length === 0 ? (
         <EmptyState icon={FolderKanban} title="Votre studio est vide" description="Commencez avec le générateur de script IA ou créez un projet vierge." action={<NewProjectDialog spaces={spaces} />} />
       ) : (
-        <ProjectsBoard projects={projects} initialView={initialView} spaces={spaces} voices={voices} />
+        <ProjectsBoard projects={projects} initialView={initialView} spaces={spaces} voices={voices} sheetGeneration={{ cost: isAdmin(user.role) ? 0 : CREDIT_COSTS.AI_IMAGE, enabled: integrations.aiImages() }} />
       )}
     </div>
   );

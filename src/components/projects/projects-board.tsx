@@ -41,7 +41,7 @@ function platformsText(platforms: string[]): string {
  * accounts juggling several Instagram pages or niches from seeing them all
  * mixed together.
  */
-export function ProjectsBoard({ projects, initialView, spaces, voices }: { projects: ProjectCardData[]; initialView: View | null; spaces: SpaceOption[]; voices: { id: string; name: string }[] }) {
+export function ProjectsBoard({ projects, initialView, spaces, voices, sheetGeneration }: { projects: ProjectCardData[]; initialView: View | null; spaces: SpaceOption[]; voices: { id: string; name: string }[]; sheetGeneration: { cost: number; enabled: boolean } }) {
   const counts = useMemo(() => ({
     todo: projects.filter((p) => p.stage === "todo").length,
     ready: projects.filter((p) => p.stage === "ready").length,
@@ -129,7 +129,7 @@ export function ProjectsBoard({ projects, initialView, spaces, voices }: { proje
         </ul>
       )}
 
-      <SpaceManagerDialog spaces={spaces} voices={voices} open={managing} onOpenChange={setManaging} />
+      <SpaceManagerDialog spaces={spaces} voices={voices} open={managing} onOpenChange={setManaging} sheetGeneration={sheetGeneration} />
     </div>
   );
 }

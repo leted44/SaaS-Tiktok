@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
-import { CharacterSheetUpload } from "@/components/shared/character-sheet-upload";
+import { CharacterSheetUpload, type SheetGeneration } from "@/components/shared/character-sheet-upload";
 import { setProjectCharacterImageAction } from "@/server/actions/projects";
 
 export interface CharacterReferenceState {
@@ -19,7 +19,7 @@ export interface CharacterReferenceState {
  * in the video studio and the carousel editor. The space's sheet applies by
  * default; a project can swap in its own, and go back to the space's.
  */
-export function CharacterReference({ projectId, initial }: { projectId: string; initial: CharacterReferenceState }) {
+export function CharacterReference({ projectId, initial, generate }: { projectId: string; initial: CharacterReferenceState; generate?: SheetGeneration }) {
   const [own, setOwn] = useState(initial.own);
   const [saving, setSaving] = useState(false);
   const shown = own ?? initial.space;
@@ -43,6 +43,7 @@ export function CharacterReference({ projectId, initial }: { projectId: string; 
         removable={own !== null}
         removeLabel={initial.space ? "Reprendre celle de l'espace" : "Retirer"}
         pickLabel={own ? "Remplacer" : shown ? "Remplacer pour ce projet" : "Choisir une image"}
+        generate={generate}
       />
       <p className="text-[11px] text-muted-foreground">
         {own

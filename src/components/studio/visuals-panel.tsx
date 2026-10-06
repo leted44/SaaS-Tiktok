@@ -518,7 +518,7 @@ export function VisualsPanel({
               />
               <p className="text-[11px] text-muted-foreground">La personne récurrente et le décor communs à tous les plans. C'est ce qui en fait une seule vidéo tournée d'un coup plutôt que des extraits sans rapport. Rempli par le script s'il est vide.</p>
             </div>
-            <CharacterReference projectId={projectId} initial={characterReference} />
+            <CharacterReference projectId={projectId} initial={characterReference} generate={{ description: visualMotif, cost: aiImageCost, enabled: aiImagesConfigured }} />
 
             {emptyScenes.length > 0 ? (
               <Button variant="gradient" className="w-full" onClick={() => generateAiVisuals("missing")} loading={generatingAi} disabled={!hasScript || autoFilling || credits < emptyScenes.length * aiImageCost}>
