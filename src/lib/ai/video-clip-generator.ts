@@ -30,6 +30,18 @@ const ENDPOINT: Record<VideoClipTier, string> = {
 
 const QUEUE_BASE = "https://queue.fal.run";
 
+/**
+ * Where a submitted job is followed. fal submits to the full endpoint path
+ * but serves a request's status and result under the app id alone — its first
+ * two segments, "fal-ai/kling-video" — and answers 405 to the full path
+ * (the URLs in its own submit response, status_url and response_url, have
+ * this shape).
+ */
+function requestUrl(tier: VideoClipTier, requestId: string): string {
+  const app = ENDPOINT[tier].split("/").slice(0, 2).join("/");
+  return `${QUEUE_BASE}/${app}/requests/${requestId}`;
+}
+
 export class VideoClipError extends Error {
   constructor(message: string, public code: "NOT_CONFIGURED" | "REFUSED" | "UPSTREAM") {
     super(message);
@@ -77,12 +89,12 @@ export type VideoClipStatus =
 export async function checkVideoStatus(requestId: string, tier: VideoClipTier): Promise<VideoClipStatus> {
   if (!env.falApiKey) throw new VideoClipError("L'animation de scène n'est pas configurée (clé FAL_API_KEY manquante).", "NOT_CONFIGURED");
 
-  const statusRes = await fetch(`${QUEUE_BASE}/${ENDPOINT[tier]}/requests/${requestId}/status`, { headers: authHeaders() });
+  const statusRes = await fetch(`${requestUrl(tier, requestId)}/status`, { headers: authHeaders() });
   if (!statusRes.ok) throw new VideoClipError(`Le suivi de l'animation a échoué (${await describeFailure(statusRes)}).`, "UPSTREAM");
   const status = (await statusRes.json()) as { status?: string; error?: string };
 
   if (status.status === "COMPLETED") {
-    const resultRes = await fetch(`${QUEUE_BASE}/${ENDPOINT[tier]}/requests/${requestId}`, { headers: authHeaders() });
+    const resultRes = await fetch(requestUrl(tier, requestId), { headers: authHeaders() });
     if (!resultRes.ok) throw new VideoClipError(`La récupération du clip a échoué (${await describeFailure(resultRes)}).`, "UPSTREAM");
     const result = (await resultRes.json()) as { video?: { url?: string }; error?: string };
     if (!result.video?.url) throw new VideoClipError(result.error ?? "fal.ai n'a renvoyé aucune vidéo.", "UPSTREAM");
