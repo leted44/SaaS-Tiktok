@@ -103,6 +103,8 @@ export function VisualsPanel({
 }: Props) {
   const router = useRouter();
   const [generatingAi, setGeneratingAi] = useState(false);
+  /** The scene being drawn on its own (a tile's own "Créer" / "Refaire"), so only its tile shows the wait. */
+  const [sceneBusy, setSceneBusy] = useState<number | null>(null);
   const [imageModel, setImageModel] = useAdminImageModel(admin);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -392,6 +394,35 @@ export function VisualsPanel({
     }
   }
 
+  /**
+   * One scene's AI image, on its own — the empty tile's "Créer", or "Refaire"
+   * on a tile that already has one (an imported image too: asked first). The
+   * other scenes are never touched; the new image follows a neighbouring scene's
+   * look (lib/pipeline/ai-visuals neighbourReference). A replaced image stays
+   * in the project library, like every replacement here.
+   */
+  async function generateOneScene(i: number) {
+    const existing = layers.find((l) => l.sceneIndex === i);
+    if (existing && !window.confirm(`Remplacer l'image de « ${sceneName(i)} » par une nouvelle image IA ?${aiImageCost > 0 ? ` ${aiImageCost} crédits.` : ""} L'ancienne reste dans la bibliothèque du projet.`)) return;
+    setGeneratingAi(true);
+    setSceneBusy(i);
+    try {
+      if (!(await ensureSaved())) return;
+      const res = await generateProjectVisualsAiAction(projectId, "missing", admin ? imageModel : undefined, i);
+      if (!res.ok) return toast.error(res.error);
+      const { layers: newLayers, visualStyle: usedStyle, captionStyle: newCaptionStyle } = res.data;
+      if (existing) remember(...occupantOf(i));
+      onLayersChange(newLayers);
+      onVisualStyleChange(usedStyle);
+      if (newCaptionStyle) onCaptionStyleChange(newCaptionStyle);
+      toast.success(`${sceneName(i)} : nouvelle image créée`);
+      router.refresh();
+    } finally {
+      setSceneBusy(null);
+      setGeneratingAi(false);
+    }
+  }
+
   /** Fill every scene that has no visual yet, keeping anything already placed. */
   async function autoFill() {
     const empty = scenes.map((_, i) => i).filter((i) => !layers.some((l) => l.sceneIndex === i));
@@ -503,9 +534,9 @@ export function VisualsPanel({
                     <span className="absolute left-1 top-1 rounded bg-black/60 px-1 py-0.5 text-[10px] font-semibold text-white">{sceneName(i)}</span>
                     {/* An animated AI image keeps its "ai:" source; a stock or imported clip has none. */}
                     {layer?.type === "video" && <span className={cn("absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-semibold text-white", isAiSource(layer.source) ? "bg-emerald-500/80" : "bg-black/60")}><Film className="h-2.5 w-2.5" /> {isAiSource(layer.source) ? "Animée" : "Vidéo"}</span>}
-                    {animating && (
+                    {(animating || sceneBusy === i) && (
                       <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/60 text-[10px] text-white">
-                        <Loader2 className="h-4 w-4 animate-spin" /> {job?.status === "PREPARING" ? "Préparation…" : "Animation…"}
+                        <Loader2 className="h-4 w-4 animate-spin" /> {sceneBusy === i ? "Création…" : job?.status === "PREPARING" ? "Préparation…" : "Animation…"}
                       </span>
                     )}
                   </button>
@@ -526,8 +557,20 @@ export function VisualsPanel({
                     </Button>
                   )}
                   {!layer && gemini.briefs[i]?.trim() && (
-                    // The same prompt "Créer les images IA" would send (lib/pipeline/ai-visuals), for the free Gemini app.
-                    <CopyForGemini className="mt-1 w-full" cast={gemini.cast} prompt={geminiPrompt(composeImagePrompt({ scene: gemini.briefs[i], motif: visualMotif, style, layout: "frame", purpose: "video" }), { aspect: gemini.aspect, cast: gemini.cast })} />
+                    <div className="mt-1 space-y-1">
+                      {aiImagesConfigured && (
+                        <Button size="sm" variant="secondary" className="h-7 w-full gap-1 px-1 text-[11px]" loading={sceneBusy === i} disabled={generatingAi || credits < aiImageCost} onClick={() => generateOneScene(i)}>
+                          <Wand2 className="h-3 w-3" /> Créer{aiImageCost > 0 && <> · {aiImageCost}</>}
+                        </Button>
+                      )}
+                      {/* The same prompt "Créer" would send (lib/pipeline/ai-visuals), for the Gemini or ChatGPT app. */}
+                      <CopyForGemini className="w-full" cast={gemini.cast} prompt={geminiPrompt(composeImagePrompt({ scene: gemini.briefs[i], motif: visualMotif, style, layout: "frame", purpose: "video" }), { aspect: gemini.aspect, cast: gemini.cast })} />
+                    </div>
+                  )}
+                  {layer && !animating && aiImagesConfigured && gemini.briefs[i]?.trim() && (
+                    <Button size="sm" variant="ghost" className="mt-1 h-6 w-full gap-1 px-1 text-[11px] text-muted-foreground" disabled={generatingAi || credits < aiImageCost} onClick={() => generateOneScene(i)}>
+                      <RefreshCw className="h-3 w-3" /> Refaire{aiImageCost > 0 && <> · {aiImageCost}</>}
+                    </Button>
                   )}
                   {animating && layer && job?.jobId && (
                     <Button size="sm" variant="ghost" className="mt-1 h-7 w-full px-1 text-[11px] text-red-300" onClick={() => cancelAnimate(layer.id)}>Annuler</Button>
@@ -538,7 +581,7 @@ export function VisualsPanel({
           </div>
           <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
             {videoClipsConfigured ? "« Animer » transforme l'image en clip vidéo (plusieurs minutes) ; le mouvement est écrit automatiquement d'après l'image et le texte de la scène. " : ""}
-            Touche une image pour la choisir : la banque d&apos;images, tes fichiers et la bibliothèque la remplacent. Le × la retire (elle reste dans la bibliothèque du projet). Sur une case vide, « Copier la description » copie sa description complète : colle-la dans Gemini ou ChatGPT, puis touche la case et « Importer un fichier ».
+            Touche une image pour la choisir : la banque d&apos;images, tes fichiers et la bibliothèque la remplacent. Le × la retire (elle reste dans la bibliothèque du projet). Sur une case vide, « Créer » dessine cette seule scène ; « Copier la description » copie sa description pour la coller dans Gemini ou ChatGPT, puis touche la case et « Importer un fichier ». « Refaire » remplace une image par une nouvelle.
           </p>
         </div>
       )}

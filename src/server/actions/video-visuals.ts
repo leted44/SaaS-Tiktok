@@ -7,7 +7,7 @@ import { buildShortVideoProps } from "@/lib/render/build-props";
 import { sceneVisualDescriptions } from "@/lib/pipeline/visuals";
 import { projectCast } from "@/lib/characters";
 import { spaceVisualStyle } from "@/lib/space-style";
-import { existingSceneReference, generateSceneVisuals, videoAspect, type SceneTarget } from "@/lib/pipeline/ai-visuals";
+import { existingSceneReference, generateSceneVisuals, neighbourReference, videoAspect, type SceneTarget } from "@/lib/pipeline/ai-visuals";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
 import { DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from "@/lib/carousel/art-direction";
@@ -35,6 +35,8 @@ export async function generateProjectVisualsAiAction(
   projectId: string,
   mode: "missing" | "all" = "missing",
   imageModel?: string,
+  /** Draw this scene alone — replacing its current image — and leave every other scene untouched. */
+  onlyScene?: number,
 ): Promise<ActionResult<{ layers: VisualLayer[]; visualStyle: string; generated: number; failed: number; creditsLeft: number; captionStyle: CaptionStyle | null }>> {
   const started = Date.now();
   return guard(async () => {
@@ -58,9 +60,11 @@ export async function generateProjectVisualsAiAction(
     const descriptions = sceneVisualDescriptions(props.scenes.length, script);
     const hasLayer = new Set(currentLayers.map((l) => l.sceneIndex).filter((i) => i !== undefined));
 
+    if (onlyScene !== undefined && (!Number.isInteger(onlyScene) || onlyScene < 0 || onlyScene >= props.scenes.length)) throw new Error("Cette scène n'existe pas.");
     const targets: SceneTarget[] = props.scenes
       .map((scene, index) => ({ index, startMs: scene.startMs, endMs: scene.endMs, description: descriptions[index]?.trim() ?? "", intent: scene.text }))
-      .filter((t) => t.description && (mode === "all" || !hasLayer.has(t.index)));
+      .filter((t) => t.description && (onlyScene !== undefined ? t.index === onlyScene : mode === "all" || !hasLayer.has(t.index)));
+    if (onlyScene !== undefined && !targets.length) throw new Error("Cette scène n'a pas de description d'image. Ajoute une image à la main, ou régénère le script.");
 
     if (!targets.length) {
       return { layers: currentLayers, visualStyle, generated: 0, failed: 0, creditsLeft: user.credits, captionStyle: null };
@@ -70,7 +74,10 @@ export async function generateProjectVisualsAiAction(
     const total = unit * targets.length;
     let creditsLeft = total > 0 ? await chargeCredits(user.id, total, "SCRIPT_GENERATION", `${targets.length} visuels vidéo générés par IA`) : user.credits;
 
-    const [reference, cast] = await Promise.all([existingSceneReference(currentLayers, visualStyle, user.id), projectCast(projectId, user.id)]);
+    const [reference, cast] = await Promise.all([
+      onlyScene !== undefined ? neighbourReference(currentLayers, visualStyle, user.id, onlyScene) : existingSceneReference(currentLayers, visualStyle, user.id),
+      projectCast(projectId, user.id),
+    ]);
     const outcomes = await generateSceneVisuals(user.id, targets, visualStyle, motif, videoAspect(project.aspectRatio), reference, started + 170_000,
       // The image model test is the admin's alone, as on the carousel; clients get Nano Banana 2.
       isAdmin(user.role) ? asImageModelChoice(imageModel) : DEFAULT_IMAGE_MODEL,

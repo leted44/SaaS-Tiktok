@@ -45,6 +45,24 @@ export async function existingSceneReference(layers: VisualLayer[], style: Visua
   return readOwnImage(first.src, userId);
 }
 
+/**
+ * The style reference for ONE scene drawn on its own: another scene of the same
+ * project, so it matches the rest. Scene 0 first, then the next ones; an AI
+ * image of this style, or one the owner brought in (their own Gemini or ChatGPT
+ * images — the look they want the new one to follow). Stock footage is not
+ * ours to read, so it is never a reference.
+ */
+export async function neighbourReference(layers: VisualLayer[], style: VisualStyle, userId: string, targetIndex: number): Promise<GeneratedImage | null> {
+  const candidates = layers
+    .filter((l) => l.type === "image" && l.src && l.sceneIndex !== undefined && l.sceneIndex !== targetIndex && (!l.source || l.source === aiSource(style)))
+    .sort((a, b) => (a.sceneIndex === 0 ? -1 : 0) - (b.sceneIndex === 0 ? -1 : 0) || a.sceneIndex! - b.sceneIndex!);
+  for (const layer of candidates) {
+    const image = await readOwnImage(layer.src!, userId);
+    if (image) return image;
+  }
+  return null;
+}
+
 async function one(
   userId: string,
   target: SceneTarget,
@@ -117,7 +135,8 @@ export async function generateSceneVisuals(
   let reference = existingReference;
   if (first) {
     // The other scenes still need ~70 s after the first, so its own check stops in time for them.
-    const firstResult = await one(userId, first, style, motif, aspectRatio, null, 55_000, rest.length ? deadline - 70_000 : deadline, modelChoice, cast);
+    // Alone, scene 0 follows the reference it was handed (a neighbouring scene); with others after it, it sets the series.
+    const firstResult = await one(userId, first, style, motif, aspectRatio, rest.length ? null : existingReference, 55_000, rest.length ? deadline - 70_000 : deadline, modelChoice, cast);
     outcomes.push(firstResult.outcome);
     reference = firstResult.bytes ?? null;
   }
