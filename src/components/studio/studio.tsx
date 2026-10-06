@@ -121,6 +121,17 @@ export function Studio(props: StudioProps) {
     });
   }, [activeScript, liveProps.scenes]);
 
+  // Each scene's AI image brief, mapped the same way (lib/pipeline/visuals sceneVisualDescriptions):
+  // what "Copier pour Gemini" hands over for an empty scene.
+  const sceneBriefs = useMemo(() => {
+    const scriptScenes = activeScript?.scenes ?? [];
+    const last = liveProps.scenes.length - 1;
+    const briefs = liveProps.scenes.map((_, i) => (i === 0 ? scriptScenes[0] : i === last ? scriptScenes[scriptScenes.length - 1] : scriptScenes[i - 1])?.visualDescription ?? "");
+    const hook = activeScript?.hookVisual?.trim();
+    if (hook && briefs.length > 1) briefs[0] = hook;
+    return briefs;
+  }, [activeScript, liveProps.scenes]);
+
   const patch = useCallback(<K extends keyof EditorState>(k: K, v: EditorState[K]) => setState((s) => ({ ...s, [k]: v })), []);
 
   const [templating, setTemplating] = useState(false);
@@ -278,6 +289,11 @@ export function Studio(props: StudioProps) {
                     background={state.backgroundStyle}
                     scenes={liveProps.scenes}
                     sceneQueries={sceneQueries}
+                    gemini={{
+                      briefs: sceneBriefs,
+                      aspect: project.aspectRatio === "VERTICAL" ? "9:16" : project.aspectRatio === "SQUARE" ? "1:1" : "16:9",
+                      cast: Boolean(project.characterReference.own || project.characterReference.space),
+                    }}
                     stockConfigured={integrations.stock}
                     selectedScene={selectedScene}
                     onSelectScene={(i) => { setSelectedScene(i); if (liveProps.scenes[i]) playerRef.current?.seekTo(Math.round((liveProps.scenes[i].startMs / 1000) * liveProps.fps)); }}

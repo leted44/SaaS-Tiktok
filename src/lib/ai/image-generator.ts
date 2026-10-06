@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { CAST_NOTE } from "@/lib/ai/gemini-prompt";
 
 /**
  * Image generation with Gemini's image model ("Nano Banana").
@@ -40,8 +41,6 @@ const REFERENCE_NOTE =
  * first image only holds one post together, the sheet holds the account
  * together, so a mascot looks the same in every video and carousel.
  */
-const CAST_NOTE =
-  "The first attached image is a character sheet: this account's recurring characters, on a plain background. Whenever one of them appears in the new image, draw them exactly as on the sheet — same shape, proportions, colours, face, eyes, mouth, limbs and accessories — in the pose, action and framing the description asks for. Never copy the sheet itself: not its plain background, its side-by-side lineup or its front-facing pose. Never add a character from the sheet that the description does not mention.";
 
 const REFERENCE_AFTER_CAST_NOTE =
   "The second attached image is the first image of the same series. Keep its art direction exactly — lighting, colour grade, lens, depth of field, texture and mood — so both images unmistakably belong together. The action, pose, camera angle and framing come only from the new description below, not from either attached image.";

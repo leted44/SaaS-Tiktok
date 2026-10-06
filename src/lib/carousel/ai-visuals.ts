@@ -3,7 +3,7 @@ import { generateCheckedImage } from "@/lib/ai/checked-image";
 import { DEFAULT_IMAGE_MODEL, modelForImage, type ImageModelChoice } from "@/lib/ai/image-models";
 import { aiSource, composeImagePrompt, type VisualStyle } from "@/lib/carousel/art-direction";
 import { readOwnImage, storeGeneratedImage } from "@/lib/ai/images";
-import { imageAspect, imageLayout, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
+import { imageAspect, imageLayout, imageSceneOf, type CarouselSlide, type CarouselState } from "@/lib/carousel/schema";
 
 /**
  * AI visuals for a whole carousel, generated as one series.
@@ -27,14 +27,9 @@ export function modelFor(kind: CarouselSlide["kind"], choice: ImageModelChoice =
   return modelForImage(kind === "cover", choice);
 }
 
-/** The scene to depict: the AI-written brief, or for older carousels without one, the stock search words, then the title. */
-function sceneOf(slide: CarouselSlide): string {
-  return slide.imagePrompt.trim() || slide.imageQuery.trim() || slide.title;
-}
-
 export function promptFor(slide: CarouselSlide, series: Series, sceneOverride?: string) {
   const layout = imageLayout(slide.kind, series.template);
-  const scene = sceneOverride?.trim() || sceneOf(slide);
+  const scene = sceneOverride?.trim() || imageSceneOf(slide);
   return {
     prompt: composeImagePrompt({ scene, motif: series.visualMotif, style: series.visualStyle, layout }),
     aspectRatio: imageAspect(layout, series.format),

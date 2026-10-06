@@ -23,8 +23,10 @@ import { CharacterReference, type CharacterReferenceState } from "@/components/s
 import type { ReviewReport, ReviewTally } from "@/lib/ai/review-report";
 import { generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
-import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, IMAGE_PROMPT_MAX, VISUAL_MOTIF_MAX, SLIDE_LIMITS, fullBleedTemplate, IMAGE_SLIDE_LIMITS, imageOrigin, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
-import type { VisualStyle } from "@/lib/carousel/art-direction";
+import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, IMAGE_PROMPT_MAX, VISUAL_MOTIF_MAX, SLIDE_LIMITS, fullBleedTemplate, IMAGE_SLIDE_LIMITS, imageAspect, imageLayout, imageOrigin, imageSceneOf, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
+import { composeImagePrompt, type VisualStyle } from "@/lib/carousel/art-direction";
+import { geminiPrompt } from "@/lib/ai/gemini-prompt";
+import { CopyForGemini } from "@/components/shared/copy-for-gemini";
 import { StylePicker } from "@/components/shared/style-picker";
 import { resolveTemplate } from "@/lib/carousel/templates";
 import { FormatSwitcher } from "@/components/studio/format-switcher";
@@ -569,6 +571,12 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const photoSlots = state.slides.filter((s) => s.kind !== "cta").length;
   const photoCount = state.slides.filter((s) => s.kind !== "cta" && s.image).length;
   const style = state.visualStyle ?? defaultStyle;
+  const hasCast = Boolean(characterReference.own || characterReference.space);
+  /** The prompt this slide's image would be drawn with here (lib/carousel/ai-visuals promptFor), for the Gemini app. */
+  const geminiFor = (slide: CarouselSlide) => {
+    const layout = imageLayout(slide.kind, state.template);
+    return { prompt: geminiPrompt(composeImagePrompt({ scene: imageSceneOf(slide), motif: state.visualMotif, style, layout }), { aspect: imageAspect(layout, state.format), cast: hasCast }), cast: hasCast };
+  };
   const pendingVisuals = state.slides.filter((s) => needsAiVisual(s, style) && !tooLongForImage(s, state.template)).length;
   const regenerable = state.slides.filter((s) => s.kind !== "cta" && !tooLongForImage(s, state.template)).length;
   const aiCount = state.slides.filter((s) => imageOrigin(s.image) === "ai").length;
@@ -831,6 +839,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                   aiImagesConfigured={aiImagesConfigured}
                   credits={credits}
                   ensureSaved={ensureSaved}
+                  gemini={s.kind === "cta" ? null : geminiFor(s)}
                   onGenerated={(generatedStyle, creditsLeft) => {
                     setCredits(creditsLeft);
                     if (!state.visualStyle) set({ visualStyle: generatedStyle });
@@ -906,7 +915,7 @@ function Counter({ value, max }: { value: string; max: number }) {
 }
 
 /** One slide. Limits come from what the layout can hold — tight for a band photo, the full room for a full-bleed one — so a slide within them never overflows. */
-function SlideEditor({ imageModel, anchorId, projectId, slide, template, label, canDelete, canMoveUp, canMoveDown, aiImageCost, aiImagesConfigured, credits, ensureSaved, onGenerated, onChange, onRemove, onMove }: {
+function SlideEditor({ imageModel, anchorId, projectId, slide, template, label, canDelete, canMoveUp, canMoveDown, aiImageCost, aiImagesConfigured, credits, ensureSaved, gemini, onGenerated, onChange, onRemove, onMove }: {
   imageModel?: ImageModelChoice;
   anchorId: string;
   projectId: string;
@@ -920,6 +929,8 @@ function SlideEditor({ imageModel, anchorId, projectId, slide, template, label, 
   aiImagesConfigured: boolean;
   credits: number;
   ensureSaved: () => Promise<boolean>;
+  /** The slide's full image prompt for the Gemini app; null on a slide without an image. */
+  gemini: { prompt: string; cast: boolean } | null;
   onGenerated: (style: VisualStyle, creditsLeft: number) => void;
   onChange: (patch: Partial<CarouselSlide>) => void;
   onRemove: () => void;
@@ -983,6 +994,7 @@ function SlideEditor({ imageModel, anchorId, projectId, slide, template, label, 
             aiImagesConfigured={aiImagesConfigured}
             credits={credits}
             ensureSaved={ensureSaved}
+            gemini={gemini}
             onGenerated={onGenerated}
             onPromptChange={(imagePrompt) => onChange({ imagePrompt })}
             blockedReason={tooLongForPhoto ? `Pour ajouter une image, raccourcis le titre à ${IMAGE_SLIDE_LIMITS.title} et le texte à ${IMAGE_SLIDE_LIMITS.body} caractères : l'image prend une partie de la slide.` : null}
@@ -1033,7 +1045,7 @@ async function toJpeg(file: File): Promise<File> {
 }
 
 /** Image of one slide: an AI visual in the carousel's art direction, a stock photo, or the user's own. */
-function ImageControl({ imageModel, projectId, slide, aiImageCost, aiImagesConfigured, credits, blockedReason, ensureSaved, onGenerated, onPromptChange, onChange }: {
+function ImageControl({ imageModel, projectId, slide, aiImageCost, aiImagesConfigured, credits, blockedReason, ensureSaved, gemini, onGenerated, onPromptChange, onChange }: {
   imageModel?: ImageModelChoice;
   projectId: string;
   slide: CarouselSlide;
@@ -1042,6 +1054,7 @@ function ImageControl({ imageModel, projectId, slide, aiImageCost, aiImagesConfi
   credits: number;
   blockedReason: string | null;
   ensureSaved: () => Promise<boolean>;
+  gemini: { prompt: string; cast: boolean } | null;
   onGenerated: (style: VisualStyle, creditsLeft: number) => void;
   onPromptChange: (prompt: string) => void;
   onChange: (image: CarouselSlide["image"]) => void;
@@ -1165,6 +1178,12 @@ function ImageControl({ imageModel, projectId, slide, aiImageCost, aiImagesConfi
                 <Wand2 /> {origin === "ai" ? "Régénérer" : "Générer"} avec l'IA {aiImageCost > 0 && <><Coins className="h-3 w-3" /> {aiImageCost}</>}
               </Button>
               {credits < aiImageCost && <p className="text-[10px] text-amber-300">Crédits insuffisants pour générer une image.</p>}
+            </div>
+          )}
+          {gemini && (
+            <div className="space-y-1">
+              <CopyForGemini prompt={gemini.prompt} cast={gemini.cast} className="w-full" />
+              <p className="text-[10px] text-muted-foreground">Gratuit dans l&apos;appli Gemini : colle, génère, puis « Ma photo » pour l&apos;importer ici.</p>
             </div>
           )}
 

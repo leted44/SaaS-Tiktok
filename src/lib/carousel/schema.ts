@@ -116,6 +116,11 @@ export function fullBleedTemplate(template: CarouselTemplate): boolean {
  * How a slide's image is laid out: the cover is always full-bleed; content
  * slides are full-bleed in the Immersive template and a band elsewhere.
  */
+/** The scene a slide's image depicts: the AI-written brief, or for older carousels without one, the stock search words, then the title. */
+export function imageSceneOf(slide: Pick<CarouselSlide, "imagePrompt" | "imageQuery" | "title">): string {
+  return slide.imagePrompt.trim() || slide.imageQuery.trim() || slide.title;
+}
+
 export function imageLayout(kind: CarouselSlide["kind"], template: CarouselTemplate): VisualLayout {
   return kind === "cover" ? "cover" : fullBleedTemplate(template) ? "bleed" : "band";
 }

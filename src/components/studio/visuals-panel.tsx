@@ -20,7 +20,9 @@ import { cn } from "@/lib/utils";
 import { nanoid } from "nanoid";
 import { BackgroundControls, backgroundLabel } from "@/components/studio/background-controls";
 import { StylePicker } from "@/components/shared/style-picker";
-import { isAiSource, type VisualStyle } from "@/lib/carousel/art-direction";
+import { composeImagePrompt, isAiSource, type VisualStyle } from "@/lib/carousel/art-direction";
+import { geminiPrompt } from "@/lib/ai/gemini-prompt";
+import { CopyForGemini } from "@/components/shared/copy-for-gemini";
 import { generateProjectVisualsAiAction } from "@/server/actions/video-visuals";
 import { animateSceneClipAction, cancelVideoClipJobAction } from "@/server/actions/video-clips";
 import type { VideoClipTier } from "@/lib/ai/video-clip-generator";
@@ -39,6 +41,8 @@ interface Props {
   scenes: ShortVideoProps["scenes"];
   /** Stock search terms suggested by the AI, one per composition scene. */
   sceneQueries: string[];
+  /** Each scene's image brief, the frame shape and whether a character sheet applies — for "Copier pour Gemini". */
+  gemini: { briefs: string[]; aspect: string; cast: boolean };
   stockConfigured: boolean;
   selectedScene: number | null;
   /** Picks a scene from the image grid — the scene stock, imports and the library place onto. */
@@ -74,6 +78,7 @@ export function VisualsPanel({
   background,
   scenes,
   sceneQueries,
+  gemini,
   stockConfigured,
   selectedScene,
   onSelectScene,
@@ -520,6 +525,10 @@ export function VisualsPanel({
                       <Wand2 className="h-3 w-3" /> Animer{animateCost > 0 && <> · {animateCost}</>}
                     </Button>
                   )}
+                  {!layer && gemini.briefs[i]?.trim() && (
+                    // The same prompt "Créer les images IA" would send (lib/pipeline/ai-visuals), for the free Gemini app.
+                    <CopyForGemini className="mt-1 w-full" cast={gemini.cast} prompt={geminiPrompt(composeImagePrompt({ scene: gemini.briefs[i], motif: visualMotif, style, layout: "frame", purpose: "video" }), { aspect: gemini.aspect, cast: gemini.cast })} />
+                  )}
                   {animating && layer && job?.jobId && (
                     <Button size="sm" variant="ghost" className="mt-1 h-7 w-full px-1 text-[11px] text-red-300" onClick={() => cancelAnimate(layer.id)}>Annuler</Button>
                   )}
@@ -529,7 +538,7 @@ export function VisualsPanel({
           </div>
           <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
             {videoClipsConfigured ? "« Animer » transforme l'image en clip vidéo (plusieurs minutes) ; le mouvement est écrit automatiquement d'après l'image et le texte de la scène. " : ""}
-            Touche une image pour la choisir : la banque d&apos;images, tes fichiers et la bibliothèque la remplacent. Le × la retire (elle reste dans la bibliothèque du projet).
+            Touche une image pour la choisir : la banque d&apos;images, tes fichiers et la bibliothèque la remplacent. Le × la retire (elle reste dans la bibliothèque du projet). Sur une case vide, « Copier pour Gemini » copie sa description complète : génère-la gratuitement dans Gemini, puis touche la case et « Importer un fichier ».
           </p>
         </div>
       )}
