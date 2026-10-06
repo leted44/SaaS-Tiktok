@@ -1,5 +1,6 @@
 import { attemptMs, editImage, generateImage, type GeneratedImage, type ImageAspect, type ImageModel } from "@/lib/ai/image-generator";
 import { reviewImage } from "@/lib/ai/image-review";
+import { isGptModel } from "@/lib/ai/gpt-image";
 import type { VisualLayout } from "@/lib/carousel/art-direction";
 
 /**
@@ -53,6 +54,16 @@ export interface CheckedImage {
 
 export async function generateCheckedImage(input: CheckedImageInput): Promise<CheckedImage> {
   const timeLeft = () => input.deadline - Date.now();
+
+  // GPT Image (fal.ai) is billed per call and takes 30 s to 100 s+ an image on
+  // "high": a correction doubled the bill for one image, and the wait for both
+  // could outlast the request — the app then gave up on a drawing fal still
+  // finished and billed. One call, with all the time left; a defect is the
+  // owner's call to redo ("Refaire"), not an automatic second charge.
+  if (input.model && isGptModel(input.model)) {
+    const image = await generateImage({ prompt: input.prompt, aspectRatio: input.aspectRatio, reference: input.reference, cast: input.cast, model: input.model, timeoutMs: Math.max(10_000, timeLeft() - 2_000) });
+    return { image, outcome: "unchecked", problems: [], draft: null };
+  }
   const first = await generateImage({ prompt: input.prompt, aspectRatio: input.aspectRatio, reference: input.reference, cast: input.cast, model: input.model, timeoutMs: Math.min(attemptMs(input.model, input.timeoutMs), Math.max(10_000, timeLeft())) });
 
   if (timeLeft() < REVIEW_MS + CORRECTION_MS) return { image: first, outcome: "unchecked", problems: [], draft: null };

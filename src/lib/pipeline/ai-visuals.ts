@@ -3,6 +3,7 @@ import type { AspectRatio } from "@prisma/client";
 import { AiImageError, type GeneratedImage } from "@/lib/ai/image-generator";
 import { generateCheckedImage } from "@/lib/ai/checked-image";
 import { DEFAULT_IMAGE_MODEL, modelForImage, type ImageModelChoice } from "@/lib/ai/image-models";
+import { isGptModel } from "@/lib/ai/gpt-image";
 import { aiSource, composeImagePrompt, type VisualStyle } from "@/lib/carousel/art-direction";
 import { storeGeneratedImage, readOwnImage } from "@/lib/ai/images";
 import type { VisualLayer } from "@/lib/validations";
@@ -132,6 +133,13 @@ export async function generateSceneVisuals(
   cast: GeneratedImage | null = null,
 ): Promise<SceneVisualOutcome[]> {
   if (!targets.length) return [];
+  // GPT Image takes up to ~100 s an image: drawing scene 0 first and the rest after it
+  // would not fit one request. All at once, each with the whole budget — the
+  // character sheet (and an existing scene 0) still holds the series together.
+  if (isGptModel(modelForImage(true, modelChoice))) {
+    const all = await Promise.all(targets.map((t) => one(userId, t, style, motif, aspectRatio, existingReference, 150_000, deadline, modelChoice, cast)));
+    return all.map((r) => r.outcome);
+  }
   const first = targets.find((t) => t.index === 0);
   const rest = targets.filter((t) => t !== first);
   const outcomes: SceneVisualOutcome[] = [];

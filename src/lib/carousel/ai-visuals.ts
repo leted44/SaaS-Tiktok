@@ -1,4 +1,5 @@
 import { AiImageError, type GeneratedImage, type ImageModel } from "@/lib/ai/image-generator";
+import { isGptModel } from "@/lib/ai/gpt-image";
 import { generateCheckedImage } from "@/lib/ai/checked-image";
 import { DEFAULT_IMAGE_MODEL, modelForImage, type ImageModelChoice } from "@/lib/ai/image-models";
 import { aiSource, composeImagePrompt, type VisualStyle } from "@/lib/carousel/art-direction";
@@ -110,6 +111,13 @@ async function one(userId: string, slide: CarouselSlide, series: Series, referen
  * only when enough time is left for the rest to be drawn after it.
  */
 export async function generateSeries(userId: string, slides: CarouselSlide[], targets: CarouselSlide[], series: Series, deadline = Date.now() + SERIES_BUDGET_MS): Promise<VisualOutcome[]> {
+  // GPT Image takes up to ~100 s an image: cover first, then the rest, would not fit one
+  // request. All at once, each with the whole budget, following the existing cover if any.
+  if (isGptModel(modelFor("cover", series.imageModel))) {
+    const reference = await coverReference(slides, series.visualStyle, userId);
+    const all = await Promise.all(targets.map((s) => one(userId, s, series, s.kind === "cover" ? null : reference, 150_000, deadline)));
+    return all.map((r) => r.outcome);
+  }
   const cover = targets.find((s) => s.kind === "cover");
   const rest = targets.filter((s) => s.kind !== "cover");
   const outcomes: VisualOutcome[] = [];
