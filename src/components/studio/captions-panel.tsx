@@ -23,13 +23,28 @@ export function CaptionsPanel({ style, onChange }: { style: CaptionStyle; onChan
     style.backgroundColor && "Fond",
   ].filter(Boolean) as string[];
 
+  const on = style.enabled !== false;
+  const toggle = (
+    <label className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+      <span className="min-w-0">
+        <span className="block text-sm font-medium">Afficher les sous-titres</span>
+        <span className="block text-[11px] text-muted-foreground">
+          {on ? "Le texte de la voix s'affiche mot à mot." : "La vidéo sortira sans texte. Le fichier .srt reste téléchargeable dans Export."}
+        </span>
+      </span>
+      <Switch checked={on} onCheckedChange={(v) => set("enabled", v)} aria-label="Afficher les sous-titres" />
+    </label>
+  );
+  if (!on) return <div className="space-y-3">{toggle}</div>;
+
   return (
     <div className="space-y-3">
+      {toggle}
       <div className="space-y-2">
         <Label>Style</Label>
         <div className="grid grid-cols-3 gap-2">
           {CAPTION_PRESETS.map((p) => (
-            <button key={p.id} type="button" onClick={() => onChange({ ...p.style })} className={cn("rounded-lg border p-2 text-left transition", style.preset === p.id ? "border-primary/60 bg-primary/10" : "border-white/10 hover:border-white/20")}>
+            <button key={p.id} type="button" onClick={() => onChange({ ...p.style, enabled: true })} className={cn("rounded-lg border p-2 text-left transition", style.preset === p.id ? "border-primary/60 bg-primary/10" : "border-white/10 hover:border-white/20")}>
               <div className="flex h-10 items-center justify-center rounded bg-[linear-gradient(160deg,#2a1657,#0B0714)] text-xs" style={{ fontFamily: p.style.fontFamily, fontWeight: p.style.fontWeight, color: p.style.textColor, textTransform: p.style.uppercase ? "uppercase" : "none", textShadow: p.id === "neon" ? `0 0 8px ${p.style.highlightColor}` : "0 1px 4px rgba(0,0,0,.6)" }}>
                 Deviens <span style={{ color: p.style.highlightMode === "box" ? "#fff" : p.style.highlightColor, background: p.style.highlightMode === "box" ? p.style.highlightColor : "transparent", padding: "0 3px", borderRadius: 3 }}>viral</span>
               </div>

@@ -99,7 +99,9 @@ export function buildShortVideoProps({ project, script, voiceover, workspace, re
     musicVolume: project.musicVolume,
     musicStartMs: project.musicStartMs,
     beatGrid: musicUrl ? beatGrid : null,
-    words,
+    // Captions turned off: no words at all, so even a render bundle older than the
+    // `enabled` switch draws none.
+    words: captionStyle.enabled === false ? [] : words,
     scenes: synced.scenes,
     captionStyle,
     visualLayers,

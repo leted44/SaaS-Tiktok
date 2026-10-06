@@ -32,7 +32,7 @@ export const ShortVideo: React.FC<ShortVideoProps> = (props) => {
       <Background style={props.backgroundStyle} />
       <VisualLayers layers={props.visualLayers} beatGrid={props.beatGrid} />
       <OnScreenText scenes={props.scenes} accent={props.brand.accentColor} fontFamily={props.brand.fontFamily} scale={scale} captionPosition={props.captionStyle.position} />
-      <KineticCaptions words={props.words} style={props.captionStyle} scale={scale} />
+      {props.captionStyle.enabled !== false && <KineticCaptions words={props.words} style={props.captionStyle} scale={scale} />}
       <ProgressBar color={props.brand.primaryColor} scale={scale} />
       {props.watermark && <Watermark watermark={props.watermark} scale={scale} />}
       {props.voiceoverUrl && <Audio src={props.voiceoverUrl} />}

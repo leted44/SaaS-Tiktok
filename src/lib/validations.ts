@@ -7,6 +7,8 @@ export const captionPresetIds = ["hormozi", "karaoke", "minimal", "neon", "boxed
 export type CaptionPresetId = (typeof captionPresetIds)[number];
 
 export const captionStyleSchema = z.object({
+  /** Off: the video comes out with no captions at all (a music or mood video, or TikTok's own auto-captions). Older styles have none: on. */
+  enabled: z.boolean().default(true),
   preset: z.enum(captionPresetIds).default("hormozi"),
   fontFamily: z.string().min(1).max(64).default("Inter"),
   fontSize: z.number().min(24).max(160).default(72),

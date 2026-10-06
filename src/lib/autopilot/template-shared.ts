@@ -100,7 +100,7 @@ export function describeTemplate(t: TemplateInput, customVoiceName?: string | nu
   return {
     content: `${languageLabel(t.language)} · ${t.targetDurationSec} s · ton ${TONE_LABELS[t.tone].toLowerCase()}`,
     voice: voiceName(t.voiceId, customVoiceName),
-    captions: `${preset}, ${POSITION_LABELS[t.captionStyle.position]}${t.captionStyle.uppercase ? ", majuscules" : ""}`,
+    captions: t.captionStyle.enabled === false ? "Désactivés" : `${preset}, ${POSITION_LABELS[t.captionStyle.position]}${t.captionStyle.uppercase ? ", majuscules" : ""}`,
     music: musicTitle ? `${musicTitle} · ${Math.round(t.musicVolume * 100)} %${t.musicStartMs > 0 ? ` · dès ${formatDuration(t.musicStartMs)}` : ""}${t.beatSync && t.musicBpm ? " · coupes sur le rythme" : ""}` : "Aucune",
     visuals: t.stockVisuals ? "Une vidéo de banque d'images par scène" : "Fond animé seul",
     format: `${ASPECT_LABELS[t.aspectRatio].ratio} · ${t.resolution}`,

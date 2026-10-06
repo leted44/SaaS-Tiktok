@@ -9,6 +9,7 @@ export interface CaptionPreset {
 }
 
 const base: CaptionStyle = {
+  enabled: true,
   preset: "hormozi",
   fontFamily: "Inter",
   fontSize: 72,

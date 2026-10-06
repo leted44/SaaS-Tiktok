@@ -107,7 +107,8 @@ export async function generateProjectVisualsAiAction(
     const { layers, filled: ctaFilled } = withCta(drawn);
 
     const currentCaptionStyle = captionStyleSchema.safeParse(project.captionStyle).success ? captionStyleSchema.parse(project.captionStyle) : null;
-    const captionStyle = isFirstStyle ? presetStyle(CAPTION_PRESET_FOR_VISUAL_STYLE[visualStyle], currentCaptionStyle?.position) : undefined;
+    // The look follows the style; whether captions show at all stays the owner's choice.
+    const captionStyle = isFirstStyle ? { ...presetStyle(CAPTION_PRESET_FOR_VISUAL_STYLE[visualStyle], currentCaptionStyle?.position), enabled: currentCaptionStyle?.enabled ?? true } : undefined;
 
     await prisma.project.update({ where: { id: projectId }, data: { visualLayers: layers, visualStyle, ...(captionStyle ? { captionStyle } : {}) } });
     revalidatePath(`/studio/${projectId}`);
