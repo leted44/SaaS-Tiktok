@@ -35,3 +35,12 @@ export function characterSheetLine(text: string | null | undefined): string | nu
     ? `Character sheet of this account — the image every picture of it is drawn from, described:\n${t}\nWhenever the series bible (visualMotif) or an image brief shows one of these characters, describe it exactly like this — same shape, colours, face, limbs and accessories, never a variant of your own. Give them the names the brief or the account concept gives them.`
     : null;
 }
+
+/**
+ * A setting inside the body, named by what the camera sees there. «Intérieur
+ * du crâne» came back as bone and a row of molars around a brain: image models
+ * draw the container they are given. Shared by the video and carousel writers,
+ * for the image briefs and the series bible.
+ */
+export const INNER_SETTING =
+  "Inside the body, name the tissue and structures the camera sees there (neurons, blood vessels, alveoli, muscle fibres, the stomach lining), never the bone or cavity that encloses them (a skull, a rib cage, a mouth, a jaw): image models draw the container itself, bone and teeth, instead of what is inside it.";
