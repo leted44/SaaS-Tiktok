@@ -1,3 +1,4 @@
+import type { CoverTitle } from "@/lib/video-cover";
 import type { CaptionStyle, VisualLayer, VisualPoolItem, BackgroundStyle, Scene } from "@/lib/validations";
 import type { ShortVideoProps } from "@/lib/render/props";
 import type { SocialCopy } from "@/lib/social/captions";
@@ -45,6 +46,8 @@ export interface StudioScript {
   /** The AI image brief of the hook, when the script has its own. */
   hookVisual: string | null;
   alternativeHooks: string[];
+  /** Titles for the video's cover (lib/video-cover); null on scripts written before covers. */
+  coverTitles: CoverTitle[] | null;
   scenes: Scene[];
   callToAction: string;
   hashtags: string[];

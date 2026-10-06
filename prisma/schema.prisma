@@ -401,6 +401,8 @@ model Script {
   estimatedDurationSec Int      @default(0)
   wordCount            Int      @default(0)
   alternativeHooks     String[]
+  /// Short cover titles for the video's downloadable cover image ([{ title, emphasis }], lib/video-cover). Null on older scripts: the cover then suggests lines of the script.
+  coverTitles          Json?
   /// Set when the script was written for a carousel ("single" | "short" | "full"): its hook and alternative hooks are cover headlines, and its scenes are the slides. Null for a video script.
   carouselLength       String?
 

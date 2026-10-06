@@ -14,6 +14,8 @@ import { enqueueRender } from "@/server/actions/renders";
 import { RENDER_STEPS } from "@/lib/render/queue";
 import { summarizeRenderError } from "@/lib/render/errors";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
+import { CoverPanel, type CoverImageChoice } from "@/components/studio/cover-panel";
+import type { CoverTitle } from "@/lib/video-cover";
 import type { SocialCopy } from "@/lib/social/captions";
 import type { StudioRender, StudioProps, RenderTimingsView } from "@/components/studio/types";
 import { cn, relativeTime } from "@/lib/utils";
@@ -30,11 +32,12 @@ interface Props {
   socialCopy: SocialCopy | null;
   hashtags: string[];
   aiConfigured: boolean;
+  cover: { images: CoverImageChoice[]; titles: CoverTitle[] };
 }
 
 type Live = { status: string; progress: number; step: string; stepLabel: string; outputUrl: string | null; thumbnailUrl: string | null; error: string | null };
 
-export function ExportPanel({ projectId, renders, planLimits, credits, hasScript, hasVoiceover, dirty, scriptId, socialCopy, hashtags, aiConfigured }: Props) {
+export function ExportPanel({ projectId, renders, planLimits, credits, hasScript, hasVoiceover, dirty, scriptId, socialCopy, hashtags, aiConfigured, cover }: Props) {
   const router = useRouter();
   const [resolution, setResolution] = useState<"720p" | "1080p" | "4K">(planLimits.maxResolution === "720p" ? "720p" : "1080p");
   const [loading, setLoading] = useState(false);
@@ -163,6 +166,8 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
           <SocialCopyBlock scriptId={scriptId} copy={socialCopy} hashtags={hashtags} cost={planLimits.costs.socialCopy} aiConfigured={aiConfigured} />
         </Section>
       )}
+
+      <CoverPanel projectId={projectId} images={cover.images} titles={cover.titles} />
 
       {!activeRender && (ready ? (
         <Section title="Nouvelle version" icon={Film} summary="Après une modification">

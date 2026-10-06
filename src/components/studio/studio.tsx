@@ -28,6 +28,7 @@ import type { ShortVideoProps } from "@/lib/render/props";
 import { DEFAULT_PREVIEW_PROPS } from "@/lib/render/props";
 import { alignLayersToScenes, applyBeatSync, timelineOffsetMs } from "@/lib/render/beat-grid";
 import { cn } from "@/lib/utils";
+import { coverTitleSuggestions } from "@/lib/video-cover";
 
 export function Studio(props: StudioProps) {
   const { carouselOnly, project, scripts, activeScriptId, reviewTally, voiceover, renders, previewProps, user, planLimits, voices, customVoice, tracks, integrations } = props;
@@ -131,6 +132,26 @@ export function Studio(props: StudioProps) {
     if (hook && briefs.length > 1) briefs[0] = hook;
     return briefs;
   }, [activeScript, liveProps.scenes]);
+
+  // The cover's choices: the project's own stored images (stock pictures live on another host the cover renderer does not read), scenes first.
+  const cover = useMemo(() => {
+    const last = liveProps.scenes.length - 1;
+    const name = (i: number | undefined) => (i === undefined ? "Image" : i === 0 ? "Hook" : i === last ? "CTA" : `Scène ${i}`);
+    const own = (src: string | undefined): src is string => Boolean(src && /(^|\/)asset\//.test(src));
+    const seen = new Set<string>();
+    const images: { src: string; label: string }[] = [];
+    for (const l of [...state.visualLayers].sort((a, b) => (a.sceneIndex ?? 99) - (b.sceneIndex ?? 99) || a.startMs - b.startMs)) {
+      if (l.type !== "image" || !own(l.src) || seen.has(l.src)) continue;
+      seen.add(l.src);
+      images.push({ src: l.src, label: name(l.sceneIndex) });
+    }
+    for (const p of state.visualPool) {
+      if (p.type !== "image" || p.rejected || !own(p.src) || seen.has(p.src)) continue;
+      seen.add(p.src);
+      images.push({ src: p.src, label: p.label?.trim() || "Bibliothèque" });
+    }
+    return { images: images.slice(0, 16), titles: activeScript ? coverTitleSuggestions(activeScript) : [] };
+  }, [state.visualLayers, state.visualPool, liveProps.scenes.length, activeScript]);
 
   const patch = useCallback(<K extends keyof EditorState>(k: K, v: EditorState[K]) => setState((s) => ({ ...s, [k]: v })), []);
 
@@ -353,7 +374,7 @@ export function Studio(props: StudioProps) {
                   />
                 </TabsContent>
                 <TabsContent value="export" className="mt-0">
-                  <ExportPanel projectId={project.id} renders={renders} planLimits={planLimits} credits={user.credits} hasScript={Boolean(activeScript)} hasVoiceover={Boolean(voiceover?.audioUrl)} dirty={dirty} scriptId={activeScript?.id ?? null} socialCopy={activeScript?.socialCopy ?? null} hashtags={activeScript?.hashtags ?? []} aiConfigured={integrations.ai} />
+                  <ExportPanel projectId={project.id} renders={renders} planLimits={planLimits} credits={user.credits} hasScript={Boolean(activeScript)} hasVoiceover={Boolean(voiceover?.audioUrl)} dirty={dirty} scriptId={activeScript?.id ?? null} socialCopy={activeScript?.socialCopy ?? null} hashtags={activeScript?.hashtags ?? []} aiConfigured={integrations.ai} cover={cover} />
                 </TabsContent>
               </div>
             </div>

@@ -45,6 +45,7 @@ Counterparts to check every time:
 | Animating a still (Kling; motion written by Claude from the image + spoken line, `lib/ai/motion-prompt.ts`) | — (a carousel has no motion) | `server/actions/video-clips.ts`, grid in `visuals-panel.tsx` |
 | "Copier la description", admin only (the app's full image prompt, to paste in the Gemini or ChatGPT app and import the result; `lib/ai/gemini-prompt.ts`, `components/shared/copy-for-gemini.tsx`) | slide image panel in `carousel-editor.tsx` (`geminiFor`) | empty tiles of the image grid in `visuals-panel.tsx` (briefs from `studio.tsx` `sceneBriefs`) |
 | Captions on/off (`captionStyle.enabled`; off renders no words — `build-props.ts`, `ShortVideo.tsx`, switch in `captions-panel.tsx`) | — (the carousel's text is the slides) | Sous-titres tab + autopilot template editor |
+| Cover image with a catchy title (downloaded, set as the post's cover; title kept inside the profile grid's 3:4 crop) | the carousel's own cover slide (`coverTitle`, `coverEmphasis` in `carousel-generator.ts`) | Export tab "Couverture": `components/studio/cover-panel.tsx` → `/api/projects/[id]/cover` (`video-cover.tsx`, `lib/video-cover.ts`); titles from `Script.coverTitles` (`script-generator.ts`), older scripts fall back to their hook lines |
 | Getting the finished file | "Télécharger les images" / ZIP under the preview | ready card "Télécharger la vidéo" in `export-panel.tsx` + header button; Lambda `downloadBehavior` |
 
 ## Communication

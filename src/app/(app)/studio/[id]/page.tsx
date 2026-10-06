@@ -14,6 +14,7 @@ import { parseJson, scenesSchema, captionStyleSchema, visualLayersSchema, visual
 import { fallbackSocialCopy, socialCopySchema } from "@/lib/social/captions";
 import { presetStyle } from "@/lib/captions/presets";
 import { DEFAULT_VISUAL_STYLE, VISUAL_STYLES } from "@/lib/carousel/art-direction";
+import { coverTitlesSchema } from "@/lib/video-cover";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +84,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         hook: s.hook,
         hookVisual: s.hookVisual,
         alternativeHooks: s.alternativeHooks,
+        coverTitles: parseJson(coverTitlesSchema.nullable(), s.coverTitles, null),
         scenes: parseJson(scenesSchema, s.scenes, []),
         callToAction: s.callToAction,
         hashtags: s.hashtags,

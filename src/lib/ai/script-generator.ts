@@ -28,6 +28,14 @@ export const scriptOutputSchema = z.object({
       `${SCENE_VISUAL_BRIEF} This is the image of the HOOK, the first frame a scroller sees: the most striking image of the video, built to stop the thumb on its own — the subject at its most telling moment (the action at its peak, the finished result, the mistake in full view), never an empty setting or a plain establishing shot — and a different shot from the first scene's (other angle or shot size) so the opening never holds one image for two scenes.`,
     ),
   alternativeHooks: z.array(z.string()).describe("3 alternative hooks with different angles"),
+  coverTitles: z
+    .array(
+      z.object({
+        title: z.string().describe("The cover title, in the script's language: 6 words at most, 40 characters maximum, readable at a glance on a profile grid thumbnail. A specific, intriguing promise or contrast tied to this video's payoff — never a generic label («Le sommeil»), never a question unless it is irresistible, no emoji, no hashtag. It obeys the same truth rules as the script."),
+        emphasis: z.string().describe("The 1 or 2 words of the title, copied exactly, printed in the accent colour: the word that carries the surprise."),
+      }),
+    )
+    .describe("3 cover titles for the video's cover image (the thumbnail shown on the creator's profile grid), each with a genuinely different angle."),
   scenes: z
     .array(
       z.object({
@@ -325,6 +333,7 @@ export function normalizeScript(s: GeneratedScript, carouselLength?: GenerateScr
     hashtags: s.hashtags.map((h) => h.replace(/^#/, "").replace(/\s+/g, "")).filter(Boolean).slice(0, 12),
     socialCopy: normalizeSocialCopy(s.socialCopy),
     alternativeHooks: s.alternativeHooks.slice(0, 3),
+    coverTitles: (s.coverTitles ?? []).map((c) => ({ title: c.title.trim().slice(0, 60), emphasis: c.emphasis.trim().slice(0, 40) })).filter((c) => c.title).slice(0, 3),
     scenes: s.scenes.slice(0, maxScenes).map((sc) => ({
       ...sc,
       durationSec: Math.max(1, Math.min(30, Number.isFinite(sc.durationSec) ? sc.durationSec : countWords(sc.text) / 2.6)),
