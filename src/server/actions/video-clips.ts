@@ -10,6 +10,9 @@ import { visualLayersSchema } from "@/lib/validations";
 import { sceneVisualDescriptions } from "@/lib/pipeline/visuals";
 import { buildShortVideoProps } from "@/lib/render/build-props";
 import { absoluteUrl } from "@/lib/storage";
+import { readOwnImage } from "@/lib/ai/images";
+import { writeMotionPrompt } from "@/lib/ai/motion-prompt";
+import type { GeneratedImage } from "@/lib/ai/image-generator";
 import { guard, type ActionResult } from "@/server/action-result";
 import type { VideoClipTier } from "@/lib/ai/video-clip-generator";
 
@@ -56,6 +59,7 @@ export async function animateSceneClipAction(projectId: string, layerId: string,
     }
 
     let description = "";
+    let spoken = "";
     // The clip covers its scene as the voice times it now, not the times stored when the image was made.
     let spanMs = layer.endMs - layer.startMs;
     if (layer.sceneIndex !== undefined && project.activeScriptId) {
@@ -64,15 +68,22 @@ export async function animateSceneClipAction(projectId: string, layerId: string,
         const voiceover = await prisma.voiceover.findFirst({ where: { projectId, scriptId: script.id, status: "READY" }, orderBy: { createdAt: "desc" } });
         const props = buildShortVideoProps({ project, script, voiceover, workspace: project.workspace, resolution: "1080p", watermark: false, snapCuts: false });
         description = sceneVisualDescriptions(props.scenes.length, script)[layer.sceneIndex]?.trim() ?? "";
+        spoken = props.scenes[layer.sceneIndex]?.text ?? "";
         const aligned = props.visualLayers.find((l) => l.id === layer.id);
         if (aligned) spanMs = aligned.endMs - aligned.startMs;
       }
     }
-    const prompt = `${description || "Scène de vidéo courte, style réaliste."} Mouvement subtil, naturel et réaliste — pas de tremblement de caméra, pas de mouvement de caméra brusque, aucun texte ni logo ne doit apparaître.`;
-
     const duration = klingDurationFor(spanMs);
+
     const cost = isAdmin(user.role) ? 0 : videoClipCost(tier, duration);
     const creditsLeft = cost > 0 ? await chargeCredits(user.id, cost, "SCRIPT_GENERATION", `Animation de scène (Kling ${tier}, ${duration}s)`) : user.credits;
+
+    // After the charge, so an account without the credits never pays for the writing either.
+    // Motion written for the image actually on the scene (lib/ai/motion-prompt) — an imported photo
+    // shows something else than the script's brief. The brief alone is the fallback.
+    const still = await readStill(layer.src, user.id);
+    const written = still ? await writeMotionPrompt(still, { spoken, brief: description, motif: project.visualMotif ?? "", durationSec: Number(duration) }) : null;
+    const prompt = written ?? `${description || "Scène de vidéo courte, style réaliste."} Mouvement subtil, naturel et réaliste — pas de tremblement de caméra, pas de mouvement de caméra brusque, aucun texte ni logo ne doit apparaître.`;
 
     let job;
     try {
@@ -87,6 +98,21 @@ export async function animateSceneClipAction(projectId: string, layerId: string,
     revalidatePath(`/studio/${projectId}`);
     return { jobId: job.id, creditsLeft };
   });
+}
+
+/** The scene's still as bytes: from our storage, else by its public URL (a stock picture). Null when unreadable. */
+async function readStill(src: string, userId: string): Promise<GeneratedImage | null> {
+  const own = await readOwnImage(src, userId);
+  if (own) return own;
+  try {
+    const res = await fetch(absoluteUrl(src), { signal: AbortSignal.timeout(10_000) });
+    const type = res.headers.get("content-type") ?? "";
+    if (!res.ok || !type.startsWith("image/")) return null;
+    const data = Buffer.from(await res.arrayBuffer());
+    return data.length <= 15 * 1024 * 1024 ? { data, mimeType: type } : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Cancel a clip still queued or processing — refunds if it hadn't started producing anything yet. */

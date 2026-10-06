@@ -38,6 +38,7 @@ Counterparts to check every time:
 | Storage, cleanup, image reading | `lib/storage.ts`, `lib/storage-cleanup.ts`, `lib/ai/images.ts` (shared) | same |
 | Voice-over (ElevenLabs Eleven v3 only, `VOICE_MODEL`; one setting, the tone) | — (carousels are read, not heard) | `lib/tts/elevenlabs.ts`, `components/studio/audio-panel.tsx`, `voice-tone.tsx` |
 | Default art direction (the space's latest style) | `lib/space-style.ts` → `carousels.ts`, carousel editor `defaultStyle` | `lib/space-style.ts` → `video-visuals.ts`, studio `defaultVisualStyle` |
+| Animating a still (Kling; motion written by Claude from the image + spoken line, `lib/ai/motion-prompt.ts`) | — (a carousel has no motion) | `server/actions/video-clips.ts`, grid in `visuals-panel.tsx` |
 | Getting the finished file | "Télécharger les images" / ZIP under the preview | ready card "Télécharger la vidéo" in `export-panel.tsx` + header button; Lambda `downloadBehavior` |
 
 ## Communication

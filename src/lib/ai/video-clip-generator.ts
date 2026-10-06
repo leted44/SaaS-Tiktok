@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import type { KlingDuration } from "@/lib/plans";
+import { MOTION_NEGATIVE } from "@/lib/ai/motion-prompt";
 
 /**
  * Animates one scene's still into a short clip with Kling (image-to-video),
@@ -72,7 +73,7 @@ export async function submitImageToVideo(imageUrl: string, prompt: string, tier:
   const res = await fetch(`${QUEUE_BASE}/${ENDPOINT[tier]}`, {
     method: "POST",
     headers: authHeaders(),
-    body: JSON.stringify({ image_url: imageUrl, prompt: prompt.slice(0, 2500), duration }),
+    body: JSON.stringify({ image_url: imageUrl, prompt: prompt.slice(0, 2500), duration, negative_prompt: MOTION_NEGATIVE }),
   });
   if (!res.ok) throw new VideoClipError(`La demande d'animation a échoué (${await describeFailure(res)}).`, "UPSTREAM");
   const json = (await res.json()) as { request_id?: string };

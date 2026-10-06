@@ -156,16 +156,19 @@ export function VisualsPanel({
   }, [clipJobs]);
 
   async function animateScene(layerId: string, tier: VideoClipTier) {
-    if (!(await ensureSaved())) return;
+    // Shown as animating at once: the server first looks at the image to write its motion, a few seconds a second tap must not double.
+    setClipJobs((prev) => ({ ...prev, [layerId]: { jobId: "", status: "PREPARING" } }));
+    const dropPending = () => setClipJobs((prev) => { const next = { ...prev }; delete next[layerId]; return next; });
+    if (!(await ensureSaved())) return dropPending();
     const res = await animateSceneClipAction(projectId, layerId, tier);
-    if (!res.ok) return toast.error(res.error);
+    if (!res.ok) { dropPending(); return toast.error(res.error); }
     setClipJobs((prev) => ({ ...prev, [layerId]: { jobId: res.data.jobId, status: "QUEUED" } }));
     toast.info("Animation lancée — ça peut prendre plusieurs minutes.");
   }
 
   async function cancelAnimate(layerId: string) {
     const job = clipJobs[layerId];
-    if (!job) return;
+    if (!job?.jobId) return;
     setClipJobs((prev) => { const next = { ...prev }; delete next[layerId]; return next; });
     const res = await cancelVideoClipJobAction(job.jobId);
     if (res.ok) { toast.info("Animation annulée, crédits remboursés."); router.refresh(); }
@@ -477,7 +480,7 @@ export function VisualsPanel({
               const animating = Boolean(job);
               const animateCost = layer ? (klingDurationFor(layer.endMs - layer.startMs) === "10" ? videoClipCosts.standardLong : videoClipCosts.standard) : 0;
               return (
-                <div key={i} className="min-w-0">
+                <div key={i} className="relative min-w-0">
                   <button
                     type="button"
                     onClick={() => onSelectScene?.(i)}
@@ -497,28 +500,36 @@ export function VisualsPanel({
                     {layer?.type === "video" && <span className={cn("absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-semibold text-white", isAiSource(layer.source) ? "bg-emerald-500/80" : "bg-black/60")}><Film className="h-2.5 w-2.5" /> {isAiSource(layer.source) ? "Animée" : "Vidéo"}</span>}
                     {animating && (
                       <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/60 text-[10px] text-white">
-                        <Loader2 className="h-4 w-4 animate-spin" /> Animation…
+                        <Loader2 className="h-4 w-4 animate-spin" /> {job?.status === "PREPARING" ? "Préparation…" : "Animation…"}
                       </span>
                     )}
                   </button>
+                  {layer && !animating && (
+                    // Beside the tile button, not inside it: one tap removes, it never also selects the scene.
+                    <button
+                      type="button"
+                      onClick={() => remove(layer.id)}
+                      aria-label={`Retirer l'image ${sceneLabel(i)}`}
+                      className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-red-500/80"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   {layer?.type === "image" && videoClipsConfigured && !animating && (
                     <Button size="sm" variant="secondary" className="mt-1 h-7 w-full gap-1 px-1 text-[11px]" disabled={credits < animateCost} onClick={() => animateScene(layer.id, "standard")}>
                       <Wand2 className="h-3 w-3" /> Animer{animateCost > 0 && <> · {animateCost}</>}
                     </Button>
                   )}
-                  {animating && layer && (
+                  {animating && layer && job?.jobId && (
                     <Button size="sm" variant="ghost" className="mt-1 h-7 w-full px-1 text-[11px] text-red-300" onClick={() => cancelAnimate(layer.id)}>Annuler</Button>
-                  )}
-                  {layer && !animating && (layer.type !== "image" || !videoClipsConfigured) && (
-                    <Button size="sm" variant="ghost" className="mt-1 h-7 w-full px-1 text-[11px] text-muted-foreground" onClick={() => remove(layer.id)}>Retirer</Button>
                   )}
                 </div>
               );
             })}
           </div>
           <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-            {videoClipsConfigured ? "« Animer » transforme l'image en clip vidéo (plusieurs minutes). " : ""}
-            Touche une image pour la choisir : la banque d&apos;images, tes fichiers et la bibliothèque la remplacent. Les réglages fins (retirer, déplacer, zoom) sont dans « Placement et mouvement ».
+            {videoClipsConfigured ? "« Animer » transforme l'image en clip vidéo (plusieurs minutes) ; le mouvement est écrit automatiquement d'après l'image et le texte de la scène. " : ""}
+            Touche une image pour la choisir : la banque d&apos;images, tes fichiers et la bibliothèque la remplacent. Le × la retire (elle reste dans la bibliothèque du projet).
           </p>
         </div>
       )}
@@ -550,7 +561,7 @@ export function VisualsPanel({
             <p className="text-[11px] text-muted-foreground">
               {emptyScenes.length > 0
                 ? "Seules les scènes vides sont créées : celles qui ont déjà une image ne sont jamais touchées."
-                : "Pour changer une seule image : retire-la (« Placement et mouvement »), puis crée à nouveau."}
+                : "Pour changer une seule image : retire-la avec le ×, puis crée à nouveau."}
             </p>
 
             <details className="group rounded-lg border border-white/[0.06] p-2.5">
