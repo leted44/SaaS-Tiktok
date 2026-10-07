@@ -8,11 +8,13 @@ import { generateCarousel } from "@/lib/ai/carousel-generator";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
 import { carouselSlidesSchema, carouselStateFromRow, carouselStateSchema, stripEmoji, needsAiVisual, tooLongForImage, CAROUSEL_TEMPLATES, type CarouselLength, type CarouselState, type CarouselTemplate, SLIDE_LIMITS } from "@/lib/carousel/schema";
-import { copyStockImage, isOwnImage, storeGeneratedImage } from "@/lib/ai/images";
+import { copyStockImage, isOwnImage, readOwnImage, storeGeneratedImage } from "@/lib/ai/images";
 import { withAutoPhotos } from "@/lib/carousel/auto-photos";
 import { aiSource, DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from "@/lib/carousel/art-direction";
 import { DEFAULT_IMAGE_MODEL } from "@/lib/ai/image-models";
 import { asImageModelChoice, coverReference, generateSeries, generateSlideImage, SERIES_BUDGET_MS } from "@/lib/carousel/ai-visuals";
+import { bakedAspect, bakedSlidePrompt } from "@/lib/carousel/baked-slide";
+import { AiImageError, generateImage } from "@/lib/ai/image-generator";
 import { integrations } from "@/lib/env";
 import { castTextFor, projectCast } from "@/lib/characters";
 import { projectSpaceStyle, spaceVisualStyle } from "@/lib/space-style";
@@ -244,7 +246,7 @@ export async function generateCarouselVisualsAction(
     const images = new Map(outcomes.filter((o) => o.image).map((o) => [o.slideId, o]));
     const slides = state.slides.map((s) => {
       const outcome = images.get(s.id);
-      return outcome ? { ...s, image: outcome.image!, draftImage: outcome.draft ?? null } : s;
+      return outcome ? { ...s, image: outcome.image!, draftImage: outcome.draft ?? null, bakedText: false } : s;
     });
     const saved = await prisma.carousel.update({ where: { id: row.id }, data: { slides, visualStyle } });
     return { carousel: toSnapshot(saved), generated, failed: failures.length, tooLong, creditsLeft };
@@ -277,4 +279,58 @@ function toSnapshot(row: CarouselRow): CarouselSnapshot {
   const parsed = carouselStateFromRow(row);
   if (!parsed.success) throw new Error("Ce carrousel est illisible.");
   return { ...parsed.data, version: row.updatedAt.getTime() };
+}
+
+/**
+ * Admin test: slides drawn whole by GPT Image, text included (lib/carousel/
+ * baked-slide) — the closing slide too, which then gets its own picture.
+ * Every slide at once, or just `slideId`. GPT Image 2 at medium quality
+ * unless the admin picked "high"; one call per slide, no credits (admin).
+ * The slides after the cover follow the cover's current image, text and all,
+ * so typography and look carry across the carousel.
+ */
+export async function generateBakedSlidesAction(
+  projectId: string,
+  imageModel?: string,
+  slideId?: string,
+): Promise<ActionResult<{ carousel: CarouselSnapshot; generated: number; failed: number; error: string | null }>> {
+  const started = Date.now();
+  return guard(async () => {
+    const user = await requireDbUser();
+    if (!isAdmin(user.role)) throw new Error("Réservé au compte administrateur.");
+    if (!integrations.gptImages()) throw new Error("GPT Image n'est pas configuré (clé fal.ai manquante).");
+    const row = await prisma.carousel.findFirstOrThrow({ where: { projectId, userId: user.id } });
+    const state = toSnapshot(row);
+    const visualStyle = state.visualStyle ?? (await projectSpaceStyle(user.id, projectId)) ?? DEFAULT_VISUAL_STYLE;
+    const targets = slideId ? state.slides.filter((s) => s.id === slideId) : state.slides;
+    if (!targets.length) throw new Error("Slide introuvable.");
+
+    const model = asImageModelChoice(imageModel) === "gpt-high" ? "gpt-high" : "gpt-medium";
+    const cover = state.slides.find((s) => s.kind === "cover");
+    const [coverImage, cast] = await Promise.all([cover?.image ? readOwnImage(cover.image.url, user.id) : Promise.resolve(null), projectCast(projectId, user.id)]);
+    const accent = state.accent ?? "#FFC21A";
+    const timeLeft = () => started + SERIES_BUDGET_MS - Date.now();
+
+    const outcomes = await Promise.all(
+      targets.map(async (slide) => {
+        const reference = slide.kind === "cover" ? null : coverImage;
+        const prompt = bakedSlidePrompt(slide, { cover, motif: state.visualMotif, style: visualStyle, format: state.format, accent, index: state.slides.indexOf(slide), total: state.slides.length, hasReference: Boolean(reference) });
+        try {
+          const bytes = await generateImage({ prompt, aspectRatio: bakedAspect(state.format), reference, cast, model, timeoutMs: Math.max(10_000, timeLeft() - 3_000) });
+          return { id: slide.id, url: await storeGeneratedImage(user.id, bytes) };
+        } catch (err) {
+          return { id: slide.id, error: err instanceof AiImageError || err instanceof Error ? err.message : "Échec de la génération." };
+        }
+      }),
+    );
+    const done = new Map(outcomes.filter((o): o is { id: string; url: string } => "url" in o).map((o) => [o.id, o.url]));
+    const failed = outcomes.length - done.size;
+    const firstError = outcomes.find((o): o is { id: string; error: string } => "error" in o)?.error ?? null;
+    if (!done.size) throw new Error(firstError ?? "Aucune slide n'a pu être dessinée.");
+
+    const source = aiSource(visualStyle);
+    const slides = state.slides.map((s) => (done.has(s.id) ? { ...s, image: { url: done.get(s.id)!, source }, draftImage: null, bakedText: true } : s));
+    const saved = await prisma.carousel.update({ where: { id: row.id }, data: { slides, visualStyle } });
+    return { carousel: toSnapshot(saved), generated: done.size, failed, error: firstError };
+  });
 }

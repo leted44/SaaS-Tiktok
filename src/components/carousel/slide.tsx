@@ -156,6 +156,14 @@ export function headlineWords(title: string, emphasis: string): { text: string; 
 
 export function CarouselSlideView({ slide, index, total, step, format, tokens, handle, imageUrl, closingImageUrl }: Props) {
   const { width, height } = FORMAT_SIZE[format];
+  // Drawn whole by the image model, text included (lib/carousel/baked-slide): the picture is the slide.
+  if (slide.bakedText && imageUrl) {
+    return (
+      <div style={{ display: "flex", width, height, background: tokens.background }}>
+        <img src={imageUrl} alt="" width={width} height={height} style={{ width, height, objectFit: "cover" }} />
+      </div>
+    );
+  }
   const padding = slidePadding(format);
   /**
    * TikTok draws its own UI over a posted photo — caption, username, the

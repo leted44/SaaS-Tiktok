@@ -47,7 +47,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
   const coverImageUrl = state.slides.find((s) => s.kind === "cover")?.image?.url;
   // Read from storage, not fetched from the public URL: see slideImageSrc.
   const slide = state.slides[i];
-  const inBand = slide.kind === "content" && imageLayout(slide.kind, state.template) === "band";
+  const inBand = !slide.bakedText && slide.kind === "content" && imageLayout(slide.kind, state.template) === "band";
   const [imageSrc, closingSrc] = await Promise.all([
     slideImageSrc(slide.image?.url, session.user.id).then((src) => (inBand ? cropForBand(src, bandBox(state.format)) : src)),
     state.slides[i].kind === "cta" ? slideImageSrc(coverImageUrl, session.user.id) : Promise.resolve(null),

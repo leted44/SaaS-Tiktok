@@ -22,7 +22,7 @@ import { ImageModelPicker, useAdminImageModel } from "@/components/shared/image-
 import { ReviewCard } from "@/components/shared/review-card";
 import { CharacterReference, type CharacterReferenceState } from "@/components/shared/character-reference";
 import type { ReviewReport, ReviewTally } from "@/lib/ai/review-report";
-import { generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
+import { generateBakedSlidesAction, generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
 import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, IMAGE_PROMPT_MAX, SHARE_TO_MAX, VISUAL_MOTIF_MAX, SLIDE_LIMITS, fullBleedTemplate, IMAGE_SLIDE_LIMITS, imageAspect, imageLayout, imageOrigin, imageSceneOf, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
 import { composeImagePrompt, type VisualStyle } from "@/lib/carousel/art-direction";
@@ -159,6 +159,8 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scriptKey]);
   const [visualsBusy, setVisualsBusy] = useState(false);
+  /** The baked-text drawing in progress: "all", a slide id, or null. */
+  const [baking, setBaking] = useState<string | null>(null);
   const [filling, setFilling] = useState(false);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<null | "share" | "download" | "zip">(null);
@@ -246,7 +248,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
     setVersion(snapshot.version);
     setCredits(res.data.creditsLeft);
     setState((prev) =>
-      prev ? { ...prev, visualStyle: snapshot.visualStyle, slides: prev.slides.map((s) => (images.has(s.id) ? { ...s, image: images.get(s.id)!.image ?? null, draftImage: images.get(s.id)!.draftImage ?? null } : s)) } : withoutVersion(snapshot),
+      prev ? { ...prev, visualStyle: snapshot.visualStyle, slides: prev.slides.map((s) => (images.has(s.id) ? { ...s, image: images.get(s.id)!.image ?? null, draftImage: images.get(s.id)!.draftImage ?? null, bakedText: images.get(s.id)!.bakedText ?? false } : s)) } : withoutVersion(snapshot),
     );
     const { generated, failed, tooLong } = res.data;
     toast.success(
@@ -255,6 +257,34 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
         (tooLong ? ` · ${tooLong} slide${tooLong > 1 ? "s" : ""} trop longue${tooLong > 1 ? "s" : ""} pour une image` : ""),
     );
     return true;
+  }
+
+  /**
+   * Admin test: the slides drawn by GPT Image with their text in them
+   * (lib/carousel/baked-slide). The text is saved first — the server draws
+   * what it has stored — and only the images come back, as with requestVisuals.
+   */
+  async function bake(slideId?: string) {
+    if (!state) return;
+    setBaking(slideId ?? "all");
+    try {
+      if (!(await ensureSaved())) return;
+      const res = await generateBakedSlidesAction(projectId, imageModel, slideId);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      const snapshot = res.data.carousel;
+      const drawn = new Map(snapshot.slides.filter((s) => s.bakedText).map((s) => [s.id, s]));
+      lastSaved.current = JSON.stringify(withoutVersion(snapshot));
+      setVersion(snapshot.version);
+      setState((prev) => (prev ? { ...prev, visualStyle: snapshot.visualStyle, slides: prev.slides.map((s) => (drawn.has(s.id) ? { ...s, image: drawn.get(s.id)!.image, draftImage: null, bakedText: true } : s)) } : withoutVersion(snapshot)));
+      const { generated, failed, error } = res.data;
+      if (failed) toast.warning(`${generated} slide${generated > 1 ? "s" : ""} dessinée${generated > 1 ? "s" : ""}, ${failed} en échec${error ? ` : ${error}` : ""}`);
+      else toast.success(slideId ? "Slide dessinée avec son texte" : `${generated} slides dessinées avec leur texte`);
+    } finally {
+      setBaking(null);
+    }
   }
 
   async function generateVisuals(mode: "missing" | "all") {
@@ -428,7 +458,9 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   }
 
   const set = (patch: Partial<CarouselState>) => setState((s) => (s ? { ...s, ...patch } : s));
-  const patchSlide = (id: string, patch: Partial<CarouselSlide>) => setState((s) => (s ? { ...s, slides: s.slides.map((x) => (x.id === id ? { ...x, ...patch } : x)) } : s));
+  // A new image is a plain picture: it no longer carries the slide's text (see bakedText).
+  const patchSlide = (id: string, patch: Partial<CarouselSlide>) =>
+    setState((s) => (s ? { ...s, slides: s.slides.map((x) => (x.id === id ? { ...x, ...patch, ...("image" in patch && !("bakedText" in patch) ? { bakedText: false } : {}) } : x)) } : s));
   const removeSlide = (id: string) => setState((s) => (s ? { ...s, slides: s.slides.filter((x) => x.id !== id) } : s));
   const moveSlide = (id: string, dir: -1 | 1) =>
     setState((s) => {
@@ -753,6 +785,18 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                 </ImageModelPicker>
               )}
 
+              {admin && (
+                <div className="rounded-lg border border-amber-300/25 bg-amber-300/[0.06] p-3">
+                  <p className="text-xs font-semibold text-amber-200">Test admin · texte dans l&apos;image</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                    GPT Image dessine chaque slide avec son texte, comme ton carrousel ChatGPT (dernière slide comprise). Rendu « campagne pub », mais le texte n&apos;est plus modifiable : une correction = redessiner la slide. {imageModel === "gpt-high" ? "Qualité haute" : "Qualité moyenne"} · ≈ {imageModel === "gpt-high" ? "0,15" : "0,04"} $ par slide, {state.slides.length} slides.
+                  </p>
+                  <Button size="sm" variant="secondary" className="mt-2 w-full" loading={baking === "all"} disabled={baking !== null || visualsBusy} onClick={() => bake()}>
+                    <Wand2 /> Dessiner tout le carrousel avec le texte
+                  </Button>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label>Direction artistique <span className="font-normal normal-case text-muted-foreground">· le style des images IA</span></Label>
                 <StylePicker value={style} onChange={(v) => set({ visualStyle: v })} />
@@ -847,6 +891,8 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                     if (!state.visualStyle) set({ visualStyle: generatedStyle });
                   }}
                   onChange={(patch) => patchSlide(s.id, patch)}
+                  onBake={admin ? () => bake(s.id) : undefined}
+                  baking={baking === s.id || baking === "all"}
                   onRemove={() => removeSlide(s.id)}
                   onMove={(dir) => moveSlide(s.id, dir)}
                 />
@@ -917,7 +963,7 @@ function Counter({ value, max }: { value: string; max: number }) {
 }
 
 /** One slide. Limits come from what the layout can hold — tight for a band photo, the full room for a full-bleed one — so a slide within them never overflows. */
-function SlideEditor({ imageModel, anchorId, projectId, slide, template, label, canDelete, canMoveUp, canMoveDown, aiImageCost, aiImagesConfigured, credits, ensureSaved, gemini, onGenerated, onChange, onRemove, onMove }: {
+function SlideEditor({ imageModel, anchorId, projectId, slide, template, label, canDelete, canMoveUp, canMoveDown, aiImageCost, aiImagesConfigured, credits, ensureSaved, gemini, onGenerated, onChange, onBake, baking, onRemove, onMove }: {
   imageModel?: ImageModelChoice;
   anchorId: string;
   projectId: string;
@@ -935,6 +981,9 @@ function SlideEditor({ imageModel, anchorId, projectId, slide, template, label, 
   gemini: { prompt: string; cast: boolean } | null;
   onGenerated: (style: VisualStyle, creditsLeft: number) => void;
   onChange: (patch: Partial<CarouselSlide>) => void;
+  /** Admin test: draw this slide with its text in the image (see bake). */
+  onBake?: () => void;
+  baking?: boolean;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
 }) {
@@ -956,6 +1005,19 @@ function SlideEditor({ imageModel, anchorId, projectId, slide, template, label, 
         </div>
       </div>
       <div className="space-y-2">
+        {onBake && (slide.bakedText ? (
+          <div className="space-y-1.5 rounded-lg border border-amber-300/25 bg-amber-300/[0.06] p-2">
+            <p className="text-[11px] text-amber-200">Texte dessiné dans l&apos;image : une modification ci-dessous ne s&apos;affiche qu&apos;après « Redessiner ».</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              <Button size="sm" variant="secondary" className="h-7 text-[11px]" loading={baking} disabled={baking} onClick={onBake}>Redessiner</Button>
+              <Button size="sm" variant="ghost" className="h-7 text-[11px]" disabled={baking} onClick={() => onChange({ bakedText: false, image: null, draftImage: null })}>Revenir au texte modifiable</Button>
+            </div>
+          </div>
+        ) : (
+          <Button size="sm" variant="ghost" className="h-7 w-full text-[11px] text-amber-200" loading={baking} disabled={baking} onClick={onBake}>
+            <Wand2 /> Dessiner cette slide avec son texte (GPT, test admin)
+          </Button>
+        ))}
         <div className="space-y-1">
           <div className="flex items-center justify-between"><Label className="text-[11px]">{slide.kind === "cover" ? "Étiquette" : "Étiquette (facultatif)"}</Label><Counter value={slide.kicker} max={limit.kicker} /></div>
           <Input value={slide.kicker} maxLength={limit.kicker} className="h-8 text-xs" onChange={(e) => onChange({ kicker: e.target.value })} />
