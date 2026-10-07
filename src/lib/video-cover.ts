@@ -36,13 +36,40 @@ export const COVER_FONTS = {
   barlow: { label: "Condensée", family: "Barlow Condensed", weight: 900, upper: true, scale: 1.02, lineHeight: 1.04, gap: 0.2 },
   inter: { label: "Moderne", family: "Inter", weight: 800, upper: false, scale: 0.74, lineHeight: 1.08, gap: 0.26 },
   playfair: { label: "Élégante", family: "Playfair Display", weight: 700, upper: false, scale: 0.8, lineHeight: 1.1, gap: 0.26 },
+  montserrat: { label: "Géométrique", family: "Montserrat", weight: 900, upper: true, scale: 0.72, lineHeight: 1.1, gap: 0.24 },
+  fine: { label: "Fine", family: "Inter", weight: 600, upper: false, scale: 0.72, lineHeight: 1.12, gap: 0.26 },
 } as const;
 export type CoverFont = keyof typeof COVER_FONTS;
 export const COVER_FONT_IDS = Object.keys(COVER_FONTS) as CoverFont[];
 
-/** Light colours only: the title sits on a darkened band of the image, where a dark colour would vanish. */
-export const COVER_COLORS = ["#FFFFFF", "#FFF1D6", "#FFD23F", "#FF8A3D", "#FF7AB6", "#5CE1E6", "#7CFF8A"] as const;
+/** Title colours. The band behind the title follows: dark under a light title, light under black. */
+export const COVER_COLORS = ["#FFFFFF", "#111111", "#FFF1D6", "#FFD23F", "#FF8A3D", "#FF7AB6", "#5CE1E6", "#7CFF8A", "#7C3AED"] as const;
 export const isCoverColor = (value: string | null | undefined): value is string => /^#[0-9a-fA-F]{6}$/.test(value ?? "");
+/** A title colour dark enough to need a light band behind it. */
+export function isDarkInk(hex: string): boolean {
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b < 90;
+}
+
+/** How the letters stand off the picture. */
+export const COVER_EFFECTS = ["shadow", "outline", "glow", "box"] as const;
+export type CoverEffect = (typeof COVER_EFFECTS)[number];
+
+/**
+ * Ready-made looks, named and coloured like the caption styles of the
+ * Sous-titres tab so a cover can match its video's captions. Picking one sets
+ * the face, both colours and the effect; each can then be changed on its own.
+ */
+export const COVER_STYLES = [
+  { id: "hormozi", label: "Hormozi", font: "montserrat", color: "#FFFFFF", word: "#F59E0B", effect: "outline" },
+  { id: "karaoke", label: "Karaoké", font: "inter", color: "#FFFFFF", word: "#7C3AED", effect: "outline" },
+  { id: "minimal", label: "Minimaliste", font: "fine", color: "#FFFFFF", word: "#FFFFFF", effect: "shadow" },
+  { id: "neon", label: "Néon", font: "montserrat", color: "#F0FDFF", word: "#22D3EE", effect: "glow" },
+  { id: "boxed", label: "Encadré", font: "montserrat", color: "#FFFFFF", word: "#7C3AED", effect: "box" },
+  { id: "editorial", label: "Éditorial", font: "playfair", color: "#FFFFFF", word: "#FBBF24", effect: "shadow" },
+  { id: "punchy", label: "Mot par mot", font: "anton", color: "#FFFFFF", word: "#FFD23F", effect: "outline" },
+] as const satisfies readonly { id: string; label: string; font: CoverFont; color: string; word: string; effect: CoverEffect }[];
 
 export const coverTitleSchema = z.object({ title: z.string(), emphasis: z.string().default("") });
 export type CoverTitle = z.infer<typeof coverTitleSchema>;

@@ -7,7 +7,7 @@ import { loadCarouselFonts } from "@/lib/carousel/fonts";
 import { installBundledEmoji } from "@/lib/carousel/emoji";
 import { luminance } from "@/lib/carousel/templates";
 import { slideImageSrc } from "@/lib/ai/images";
-import { COVER_FONT_IDS, COVER_POSITIONS, COVER_SIZE, COVER_TITLE_MAX, coverFileName, isCoverColor, type CoverFont, type CoverPosition } from "@/lib/video-cover";
+import { COVER_EFFECTS, COVER_FONT_IDS, COVER_POSITIONS, COVER_SIZE, COVER_TITLE_MAX, coverFileName, isCoverColor, type CoverEffect, type CoverFont, type CoverPosition } from "@/lib/video-cover";
 
 // Reads the bundled font files from disk.
 export const runtime = "nodejs";
@@ -45,11 +45,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const imageSrc = await slideImageSrc(query.get("img"), session.user.id);
   const font: CoverFont = (COVER_FONT_IDS as string[]).includes(query.get("font") ?? "") ? (query.get("font") as CoverFont) : "anton";
   const color = isCoverColor(query.get("fg")) ? query.get("fg")! : "#FFFFFF";
+  const effect: CoverEffect = (COVER_EFFECTS as readonly string[]).includes(query.get("fx") ?? "") ? (query.get("fx") as CoverEffect) : "shadow";
   // The coloured word: the colour picked, or the account's accent when it reads over an image.
   const accent = isCoverColor(query.get("hl")) ? query.get("hl")! : luminance(project.workspace.accentColor) > 0.25 ? project.workspace.accentColor : FALLBACK_ACCENT;
 
   const fonts = await loadCarouselFonts();
-  return new ImageResponse(<VideoCoverView imageSrc={imageSrc} title={title} emphasis={emphasis} position={position} accent={accent} color={color} font={font} />, {
+  return new ImageResponse(<VideoCoverView imageSrc={imageSrc} title={title} emphasis={emphasis} position={position} accent={accent} color={color} font={font} effect={effect} />, {
     ...COVER_SIZE,
     fonts,
     headers: {

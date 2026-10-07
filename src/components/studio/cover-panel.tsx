@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Section } from "@/components/ui/section";
 import { cn } from "@/lib/utils";
-import { COVER_COLORS, COVER_FONTS, COVER_FONT_IDS, COVER_POSITIONS, COVER_POSITION_LABELS, COVER_TITLE_MAX, GRID_VISIBLE, type CoverFont, type CoverPosition, type CoverTitle } from "@/lib/video-cover";
+import { COVER_COLORS, COVER_FONTS, COVER_FONT_IDS, COVER_POSITIONS, COVER_POSITION_LABELS, COVER_STYLES, COVER_TITLE_MAX, GRID_VISIBLE, type CoverEffect, type CoverFont, type CoverPosition, type CoverTitle } from "@/lib/video-cover";
 
 /** The faces are only bundled for the image renderer: the buttons show a close system face, as the carousel's template picker does. */
 const BUTTON_FACE: Record<CoverFont, string> = {
@@ -14,7 +14,11 @@ const BUTTON_FACE: Record<CoverFont, string> = {
   barlow: "'Arial Narrow Bold', 'Arial Narrow', Impact, sans-serif",
   inter: "inherit",
   playfair: "Georgia, 'Times New Roman', serif",
+  montserrat: "'Arial Black', Arial, sans-serif",
+  fine: "inherit",
 };
+
+const EFFECT_LABELS: Record<CoverEffect, string> = { shadow: "Ombre", outline: "Contour", glow: "Lumineux", box: "Encadré" };
 
 export interface CoverImageChoice {
   src: string;
@@ -33,6 +37,8 @@ export function CoverPanel({ projectId, images, titles }: { projectId: string; i
   const [emphasis, setEmphasis] = useState(titles[0]?.emphasis ?? "");
   const [position, setPosition] = useState<CoverPosition>("bottom");
   const [font, setFont] = useState<CoverFont>("anton");
+  const [effect, setEffect] = useState<CoverEffect>("shadow");
+  const [styleId, setStyleId] = useState<string | null>(null);
   const [color, setColor] = useState<string>(COVER_COLORS[0]);
   /** Empty: the account's accent colour. */
   const [wordColor, setWordColor] = useState("");
@@ -50,9 +56,20 @@ export function CoverPanel({ projectId, images, titles }: { projectId: string; i
   }, [title, emphasis]);
 
   const url = useMemo(() => {
-    const q = new URLSearchParams({ img, title: settled.title, em: settled.emphasis, pos: position, font, fg: color, ...(wordColor ? { hl: wordColor } : {}) });
+    const q = new URLSearchParams({ img, title: settled.title, em: settled.emphasis, pos: position, font, fg: color, fx: effect, ...(wordColor ? { hl: wordColor } : {}) });
     return `/api/projects/${projectId}/cover?${q.toString()}`;
-  }, [projectId, img, settled, position, font, color, wordColor]);
+  }, [projectId, img, settled, position, font, color, wordColor, effect]);
+
+  /** A ready-made look: face, both colours and effect at once — each stays adjustable below. */
+  function applyStyle(id: string) {
+    const st = COVER_STYLES.find((x) => x.id === id);
+    if (!st) return;
+    setStyleId(id);
+    setFont(st.font);
+    setColor(st.color);
+    setWordColor(st.word);
+    setEffect(st.effect);
+  }
 
   if (!images.length) {
     return (
@@ -138,11 +155,39 @@ export function CoverPanel({ projectId, images, titles }: { projectId: string; i
           </div>
 
           <div>
+            <Label className="text-xs">Style d&apos;écriture</Label>
+            <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+              {COVER_STYLES.map((st) => (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => applyStyle(st.id)}
+                  className={cn("truncate rounded-lg border bg-[#1a1220] px-2 py-2 text-sm", st.id === styleId ? "border-primary ring-1 ring-primary/40" : "border-white/10")}
+                  style={{ fontFamily: BUTTON_FACE[st.font], fontWeight: COVER_FONTS[st.font].weight, textTransform: COVER_FONTS[st.font].upper ? "uppercase" : "none", color: st.color, textShadow: st.effect === "glow" ? `0 0 8px ${st.word}` : undefined }}
+                >
+                  {st.effect === "box" ? <span className="rounded px-1" style={{ background: st.word }}>{st.label}</span> : <span style={{ color: st.word === st.color ? st.color : st.word }}>{st.label}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <Label className="text-xs">Police</Label>
             <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
               {COVER_FONT_IDS.map((f) => (
                 <button key={f} type="button" onClick={() => setFont(f)} className={cn("truncate rounded-lg border px-2 py-1.5 text-sm", f === font ? "border-primary bg-primary/15" : "border-white/10 bg-white/[0.03]")} style={{ fontFamily: BUTTON_FACE[f], fontWeight: COVER_FONTS[f].weight }}>
                   {COVER_FONTS[f].label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs">Effet</Label>
+            <div className="mt-1.5 grid grid-cols-4 gap-1.5">
+              {(Object.keys(EFFECT_LABELS) as CoverEffect[]).map((fx) => (
+                <button key={fx} type="button" onClick={() => setEffect(fx)} className={cn("truncate rounded-lg border px-1 py-1.5 text-xs", fx === effect ? "border-primary bg-primary/15" : "border-white/10 bg-white/[0.03]")}>
+                  {EFFECT_LABELS[fx]}
                 </button>
               ))}
             </div>

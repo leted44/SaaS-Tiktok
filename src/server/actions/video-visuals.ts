@@ -107,8 +107,13 @@ export async function generateProjectVisualsAiAction(
     const { layers, filled: ctaFilled } = withCta(drawn);
 
     const currentCaptionStyle = captionStyleSchema.safeParse(project.captionStyle).success ? captionStyleSchema.parse(project.captionStyle) : null;
+    // The captions still on the account's default look: the owner has not styled them yet.
+    // Styled ones are the owner's and are never replaced — a first image used to swap them
+    // for the visual style's preset, which read as settings lost.
+    const sameLook = (a: object, b: object) => JSON.stringify({ ...a, enabled: true }, Object.keys(a).sort()) === JSON.stringify({ ...b, enabled: true }, Object.keys(b).sort());
+    const untouched = !currentCaptionStyle || sameLook(currentCaptionStyle, captionStyleSchema.parse(presetStyle(project.workspace.captionPreset, project.workspace.captionPosition)));
     // The look follows the style; whether captions show at all stays the owner's choice.
-    const captionStyle = isFirstStyle ? { ...presetStyle(CAPTION_PRESET_FOR_VISUAL_STYLE[visualStyle], currentCaptionStyle?.position), enabled: currentCaptionStyle?.enabled ?? true } : undefined;
+    const captionStyle = isFirstStyle && untouched ? { ...presetStyle(CAPTION_PRESET_FOR_VISUAL_STYLE[visualStyle], currentCaptionStyle?.position), enabled: currentCaptionStyle?.enabled ?? true } : undefined;
 
     await prisma.project.update({ where: { id: projectId }, data: { visualLayers: layers, visualStyle, ...(captionStyle ? { captionStyle } : {}) } });
     revalidatePath(`/studio/${projectId}`);

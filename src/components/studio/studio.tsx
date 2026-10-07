@@ -83,6 +83,15 @@ export function Studio(props: StudioProps) {
     return () => clearTimeout(t);
   }, [dirty, saveNow]);
 
+  // A reload or a closed tab in the second before the autosave would drop the last change:
+  // the browser asks first while something is still unsaved.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
   const activeScript = scripts.find((s) => s.id === activeScriptId) ?? scripts[0] ?? null;
 
   // Live composition props: server-built base + client-side editor overrides.
@@ -200,7 +209,8 @@ export function Studio(props: StudioProps) {
     { value: "script", label: "Script", icon: FileText, done: Boolean(activeScript) },
     { value: "audio", label: "Voix", icon: Mic2, done: Boolean(voiceover?.audioUrl) && voiceover?.voiceId === state.voiceId },
     { value: "visuals", label: "Visuels", icon: Layers, done: liveProps.scenes.length > 0 && liveProps.scenes.every((_, i) => state.visualLayers.some((l) => l.sceneIndex === i)) },
-    { value: "captions", label: "Sous-titres", icon: Captions, done: false },
+    // Captions are ready once there is a voice to time them on, or once they are switched off.
+    { value: "captions", label: "Sous-titres", icon: Captions, done: state.captionStyle.enabled === false || Boolean(voiceover?.audioUrl) },
     { value: "export", label: "Export", icon: Film, done: Boolean(readyRender) },
   ];
 
