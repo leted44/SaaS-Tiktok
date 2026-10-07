@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  AlertTriangle, ArrowLeft, Captions, Check, Clapperboard, Copy, FileText, Image as ImageIcon, Layers, Loader2, Lock, Mic2, Monitor, Music2, Palette, Pause, Play, Save, Smartphone, Square, Wand2,
+  AlertTriangle, ArrowLeft, Captions, Clapperboard, Copy, FileText, Image as ImageIcon, Layers, Loader2, Lock, Mic2, Monitor, Music2, Palette, Pause, Play, Save, Smartphone, Square, Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import { BackgroundControls } from "@/components/studio/background-controls";
 import { saveTemplateAction, templateFromProjectAction } from "@/server/actions/autopilot";
 import { useVoicePreview } from "@/lib/tts/use-voice-preview";
 import { VoiceTonePicker } from "@/components/studio/voice-tone";
+import { VoiceList } from "@/components/shared/voice-list";
 import { LANGUAGE_LABELS, languageLabel } from "@/lib/tts/voices";
 import { RESOLUTIONS, ASPECTS, ASPECT_LABELS, TONES, TONE_LABELS, describeTemplate, sampleText, templateCost, templatePreviewProps, voiceLanguage, type Resolution, type TemplateInput } from "@/lib/autopilot/template-shared";
 import type { CaptionStyle } from "@/lib/validations";
@@ -148,16 +149,6 @@ export function TemplateEditor({ templateId, initial, isOnlyTemplate, copiedFrom
     router.refresh();
   }
 
-  const voiceGroups = useMemo(() => {
-    const groups: { language: string; items: VoiceOption[] }[] = [];
-    for (const v of voices) {
-      const g = groups.find((x) => x.language === v.language);
-      if (g) g.items.push(v);
-      else groups.push({ language: v.language, items: [v] });
-    }
-    return groups;
-  }, [voices]);
-
   const saveButton = (
     <Button variant="gradient" className="w-full" loading={saving} onClick={save}>
       <Save /> {templateId ? "Enregistrer le modèle" : "Créer le modèle"}
@@ -268,34 +259,7 @@ export function TemplateEditor({ templateId, initial, isOnlyTemplate, copiedFrom
             {langMismatch && (
               <p className="mb-3 flex gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-200"><AlertTriangle className="h-3.5 w-3.5 shrink-0" /> Cette voix est {languageLabel(voiceLang).toLowerCase()} et tes vidéos sont en {languageLabel(t.language).toLowerCase()} : l'accent sera étranger.</p>
             )}
-            <div className="max-h-[360px] space-y-1.5 overflow-y-auto pr-1">
-              {voiceGroups.map((g) => (
-                <div key={g.language}>
-                  <p className="mb-1 mt-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground first:mt-0">{languageLabel(g.language)}<span className="h-px flex-1 bg-white/[0.06]" /></p>
-                  <div className="space-y-1.5">
-                    {g.items.map((v) => {
-                      const locked = v.premium && !plan.premiumVoices;
-                      const selected = t.voiceId === v.id;
-                      return (
-                        <div key={v.id} className={cn("flex items-center gap-2 rounded-lg border p-2 transition", selected ? "border-primary/60 bg-primary/10" : "border-white/10 hover:border-white/20")}>
-                          <button type="button" disabled={locked} onClick={() => set("voiceId", v.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:opacity-50">
-                            <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-xs font-bold text-white", v.gender === "female" ? "bg-gradient-to-br from-pink-500 to-purple-600" : "bg-gradient-to-br from-indigo-500 to-cyan-500")}>{v.name[0]}</span>
-                            <span className="min-w-0">
-                              <span className="block truncate text-sm font-medium">{v.name} {locked && <Lock className="inline h-3 w-3" />}</span>
-                              <span className="block truncate text-[11px] text-muted-foreground">{v.style}</span>
-                            </span>
-                            {selected && <Check className="ml-auto h-4 w-4 shrink-0 text-brand-300" />}
-                          </button>
-                          <Button size="icon-sm" variant={preview.playing === v.id ? "default" : "ghost"} aria-label={`Écouter ${v.name}`} disabled={preview.loadingId === v.id} onClick={() => preview.toggle(v.id)}>
-                            {preview.loadingId === v.id ? <Loader2 className="animate-spin" /> : preview.playing === v.id ? <Pause /> : <Play />}
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <VoiceList voices={voices} value={t.voiceId} onChange={(id) => set("voiceId", id)} premiumAllowed={plan.premiumVoices} preview={preview} />
             <div className="mt-4 space-y-1.5">
               <Label>Ton de la voix</Label>
               <VoiceTonePicker value={t.voiceStability} onChange={(v) => set("voiceStability", v)} />

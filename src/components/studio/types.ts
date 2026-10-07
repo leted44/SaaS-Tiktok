@@ -1,4 +1,4 @@
-import type { VideoLook } from "@/lib/space-kit";
+import type { CoverSettingsData, VideoLook } from "@/lib/space-kit";
 import type { CoverTitle } from "@/lib/video-cover";
 import type { CaptionStyle, VisualLayer, VisualPoolItem, BackgroundStyle, Scene } from "@/lib/validations";
 import type { ShortVideoProps } from "@/lib/render/props";
@@ -37,6 +37,10 @@ export interface StudioProject {
   postedPlatforms: string[];
   /** The character sheet its AI images are drawn with (lib/characters). */
   characterReference: CharacterReferenceState;
+  /** Its own cover settings, null until first changed. */
+  coverSettings: CoverSettingsData | null;
+  /** The voice's tone to read with: its own, else its last voice-over's, else its space's. */
+  voiceStability: number;
   /** Its space's saved look (lib/space-kit) and voice; null outside a space. */
   spaceLook: { spaceName: string; voiceId: string | null; look: VideoLook | null } | null;
 }

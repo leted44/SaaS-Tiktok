@@ -27,6 +27,14 @@ export const coverLookSchema = z.object({
 });
 export type CoverLook = z.infer<typeof coverLookSchema>;
 
+/** One video's own cover: its look plus its picture and words (Project.coverSettings). */
+export const coverSettingsSchema = coverLookSchema.extend({
+  img: z.string().max(2000),
+  title: z.string().max(120),
+  emphasis: z.string().max(60),
+});
+export type CoverSettingsData = z.infer<typeof coverSettingsSchema>;
+
 export const videoLookSchema = z.object({
   captionStyle: captionStyleSchema,
   backgroundStyle: backgroundStyleSchema,

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
@@ -99,6 +100,27 @@ export async function clearSpaceLookAction(spaceId: string, part: "video" | "car
     const space = await ownedSpace(user.id, spaceId);
     const kit = readSpaceKit(space.kit);
     await writeKit(space.id, { ...kit, [part]: null });
+    return undefined;
+  });
+}
+
+const editedLookSchema = z.object({
+  voiceId: z.string().min(1).max(80).nullable(),
+  video: videoLookSchema.omit({ savedAt: true, fromProjectId: true }),
+  carousel: carouselLookSchema.omit({ savedAt: true, fromProjectId: true }),
+});
+
+/** The whole look, set from the space's own page (Espaces → Régler le rendu): both halves and the voice. */
+export async function saveSpaceLookAction(spaceId: string, input: unknown): Promise<ActionResult<undefined>> {
+  return guard(async () => {
+    const user = await requireUser();
+    const space = await ownedSpace(user.id, spaceId);
+    const parsed = editedLookSchema.safeParse(input);
+    if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Réglages invalides.");
+    const savedAt = new Date().toISOString();
+    const { voiceId, video, carousel } = parsed.data;
+    await writeKit(space.id, { video: { ...video, savedAt, fromProjectId: null }, carousel: { ...carousel, savedAt, fromProjectId: null } }, { voiceId });
+    revalidatePath(`/spaces/${space.id}/rendu`);
     return undefined;
   });
 }

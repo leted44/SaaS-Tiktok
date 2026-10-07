@@ -5,7 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Clapperboard, GalleryHorizontalEnd, ImagePlus, Lightbulb, Mic2, Palette, Pencil, Plus, X } from "lucide-react";
+import { Clapperboard, GalleryHorizontalEnd, ImagePlus, Lightbulb, Mic2, Palette, Pencil, Plus, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SpaceManagerDialog } from "@/components/projects/space-manager-dialog";
 import { TONE_LABELS, type Tone } from "@/lib/autopilot/template-shared";
@@ -84,9 +84,9 @@ export function SpacesBoard({ spaces, voices, sheetGeneration, initialEdit }: { 
 
 /**
  * The space's look (lib/space-kit) on its card: what every new video and
- * carousel of it starts with. It is set from a post — the studio's and the
- * carousel editor's « Rendu de l'espace » — where every setting can be seen
- * as it will come out.
+ * carousel of it starts with. Set on its own page (/spaces/[id]/rendu), or
+ * taken from a post with the studio's and carousel editor's « Rendu de
+ * l'espace ».
  */
 function SpaceLook({ spaceId, look }: { spaceId: string; look: SpaceLookView }) {
   const router = useRouter();
@@ -105,7 +105,10 @@ function SpaceLook({ spaceId, look }: { spaceId: string; look: SpaceLookView }) 
   ];
   return (
     <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
-      <p className="flex items-center gap-1.5 text-xs font-semibold"><Palette className="h-3.5 w-3.5" /> Rendu de l&apos;espace</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-xs font-semibold"><Palette className="h-3.5 w-3.5" /> Rendu de l&apos;espace</p>
+        <Button asChild variant="secondary" size="sm" className="h-7 px-2.5 text-[11px]"><Link href={`/spaces/${spaceId}/rendu`}><SlidersHorizontal /> Régler</Link></Button>
+      </div>
       <div className="mt-2 space-y-2">
         {rows.map(({ part, label, icon: Icon, saved, href }) => (
           <div key={part} className="text-[11px]">
@@ -125,7 +128,7 @@ function SpaceLook({ spaceId, look }: { spaceId: string; look: SpaceLookView }) 
                 {saved.projectId && <Link href={href(saved.projectId)} className="px-1 py-0.5 text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">Voir le modèle</Link>}
               </div>
             ) : (
-              <p className="mt-0.5 text-muted-foreground/80">Pas encore réglé : ouvre un{part === "carousel" ? "" : "e"} {part === "carousel" ? "carrousel" : "vidéo"} de l&apos;espace, règle-l{part === "carousel" ? "e" : "a"}, puis « Rendu de l&apos;espace » → Enregistrer.</p>
+              <p className="mt-0.5 text-muted-foreground/80">Pas encore réglé : touche « Régler » pour choisir {part === "carousel" ? "le modèle, le format et la couleur" : "la voix, les sous-titres, la musique et la couverture"}.</p>
             )}
           </div>
         ))}

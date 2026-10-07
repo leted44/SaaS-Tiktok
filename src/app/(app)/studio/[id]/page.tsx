@@ -15,7 +15,7 @@ import { fallbackSocialCopy, socialCopySchema } from "@/lib/social/captions";
 import { presetStyle } from "@/lib/captions/presets";
 import { DEFAULT_VISUAL_STYLE, VISUAL_STYLES } from "@/lib/carousel/art-direction";
 import { coverTitlesSchema } from "@/lib/video-cover";
-import { readSpaceKit } from "@/lib/space-kit";
+import { coverSettingsSchema, readSpaceKit } from "@/lib/space-kit";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +39,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
     // A project with no style yet opens on its space's (lib/space-style) — the one the server will also use.
     spaceVisualStyle(user.id, project.spaceId),
   ]);
+  const spaceVideoLook = project.space ? readSpaceKit(project.space.kit).video : null;
   // Same rule as the project cards: a carousel, and nothing video-specific made yet.
   const carouselOnly = Boolean(carousel) && !activeVoiceover && project.renderJobs.length === 0 && parseJson(visualLayersSchema, project.visualLayers, []).length === 0;
 
@@ -77,7 +78,9 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         postedAt: project.postedAt?.toISOString() ?? null,
         postedPlatforms: project.postedPlatforms,
         characterReference: { own: project.characterImage, space: project.space?.characterImage ?? null, spaceName: project.space?.name ?? null, spaceId: project.spaceId },
-        spaceLook: project.space ? { spaceName: project.space.name, voiceId: project.space.voiceId, look: readSpaceKit(project.space.kit).video } : null,
+        spaceLook: project.space ? { spaceName: project.space.name, voiceId: project.space.voiceId, look: spaceVideoLook } : null,
+        coverSettings: parseJson(coverSettingsSchema.nullable(), project.coverSettings, null),
+        voiceStability: project.voiceStability ?? activeVoiceover?.stability ?? spaceVideoLook?.voiceStability ?? 0.5,
       }}
       scripts={project.scripts.map((s) => ({
         id: s.id,

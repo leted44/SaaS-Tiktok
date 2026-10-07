@@ -16,7 +16,7 @@ import { countWords } from "@/lib/utils";
 import { POST_PLATFORMS } from "@/lib/projects/progress";
 import { deleteUnusedKeys, keysIn } from "@/lib/storage-cleanup";
 import { assertCharacterSheet, sheetText } from "@/lib/characters";
-import { readSpaceKit, videoLookColumns } from "@/lib/space-kit";
+import { coverSettingsSchema, readSpaceKit, videoLookColumns } from "@/lib/space-kit";
 
 export async function createProject(input: unknown): Promise<ActionResult<{ id: string }>> {
   return guard(async () => {
@@ -234,6 +234,24 @@ export async function setProjectCharacterImageAction(projectId: string, url: str
     if (!count) throw new Error("Ce projet n'existe plus.");
     revalidatePath(`/studio/${projectId}`);
     revalidatePath(`/studio/${projectId}/carousel`);
+    return undefined;
+  });
+}
+
+/**
+ * What the studio keeps outside the composition: the cover's settings and the
+ * voice's tone. Saved as they change, so reopening a video finds them as left.
+ */
+export async function saveStudioExtrasAction(projectId: string, input: { cover: unknown; voiceStability: number }): Promise<ActionResult<undefined>> {
+  return guard(async () => {
+    const user = await requireUser();
+    const cover = coverSettingsSchema.safeParse(input.cover);
+    const tone = Number.isFinite(input.voiceStability) ? Math.min(1, Math.max(0, input.voiceStability)) : null;
+    const { count } = await prisma.project.updateMany({
+      where: { id: projectId, userId: user.id },
+      data: { coverSettings: cover.success ? cover.data : Prisma.DbNull, voiceStability: tone },
+    });
+    if (!count) throw new Error("Ce projet n'existe plus.");
     return undefined;
   });
 }

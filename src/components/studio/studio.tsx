@@ -21,7 +21,7 @@ import { VisualsPanel } from "@/components/studio/visuals-panel";
 import { AudioPanel } from "@/components/studio/audio-panel";
 import { ExportPanel } from "@/components/studio/export-panel";
 import { FormatSwitcher } from "@/components/studio/format-switcher";
-import { saveEditorState, renameProject, unmarkProjectPosted } from "@/server/actions/projects";
+import { saveEditorState, saveStudioExtrasAction, renameProject, unmarkProjectPosted } from "@/server/actions/projects";
 import { POST_PLATFORM_LABELS, type PostPlatform } from "@/lib/projects/progress";
 import { getTrack } from "@/lib/music/library";
 import type { EditorState, StudioProps } from "@/components/studio/types";
@@ -169,8 +169,22 @@ export function Studio(props: StudioProps) {
 
   // The space's look (lib/space-kit): the cover and the voice's tone start from it, and it can be saved from here.
   const [spaceLook, setSpaceLook] = useState<VideoLook | null>(project.spaceLook?.look ?? null);
-  const coverSettings = useCoverSettings({ projectId: project.id, images: cover.images, titles: cover.titles, accountAccent: liveProps.brand.accentColor, initial: spaceLook?.cover });
-  const [voiceStability, setVoiceStability] = useState(spaceLook?.voiceStability ?? 0.5);
+  const coverSettings = useCoverSettings({ projectId: project.id, images: cover.images, titles: cover.titles, accountAccent: liveProps.brand.accentColor, initial: project.coverSettings ?? spaceLook?.cover });
+  const [voiceStability, setVoiceStability] = useState(project.voiceStability);
+
+  // The cover and the voice's tone live outside the composition: saved on their own, as they change.
+  const extras = JSON.stringify({ cover: coverSettings.available ? coverSettings.data : null, voiceStability });
+  const savedExtras = useRef(extras);
+  useEffect(() => {
+    if (extras === savedExtras.current) return;
+    const t = setTimeout(() => {
+      void saveStudioExtrasAction(project.id, JSON.parse(extras)).then((res) => {
+        if (res.ok) savedExtras.current = extras;
+        else toast.error(res.error);
+      });
+    }, 900);
+    return () => clearTimeout(t);
+  }, [extras, project.id]);
 
   /** This video's look becomes its space's — pending edits saved first, so the space gets exactly what is on screen. */
   async function saveSpaceLook(): Promise<boolean> {
@@ -277,6 +291,7 @@ export function Studio(props: StudioProps) {
           )}
           {project.spaceLook && (
             <SpaceLookButton
+              spaceId={project.characterReference.spaceId ?? ""}
               spaceName={project.spaceLook.spaceName}
               kind="video"
               saved={spaceLook ? { savedAt: spaceLook.savedAt, fromThis: spaceLook.fromProjectId === project.id, summary: videoLookSummary(spaceLook, spaceLook.musicName ?? getTrack(spaceLook.musicTrackId)?.name ?? null) } : null}

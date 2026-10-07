@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Palette } from "lucide-react";
+import Link from "next/link";
+import { Check, Palette, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -10,7 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
  * editor alike: save this post's look as its space's, so every new post of the
  * space starts with it, or bring the space's look onto this post.
  */
-export function SpaceLookButton({ spaceName, kind, saved, onSave, onApply }: {
+export function SpaceLookButton({ spaceId, spaceName, kind, saved, onSave, onApply }: {
+  spaceId: string;
   spaceName: string;
   kind: "video" | "carousel";
   /** The space's look for this format, if one is saved: when, from which post, and what it holds. */
@@ -69,6 +71,9 @@ export function SpaceLookButton({ spaceName, kind, saved, onSave, onApply }: {
 
           <Button variant="gradient" loading={saving} onClick={save} className="w-full">
             {!saving && <Palette />} {saved ? `Remplacer par le rendu de ${w.this}` : `Enregistrer le rendu de ${w.this}`}
+          </Button>
+          <Button asChild variant="ghost" size="sm" className="w-full text-xs">
+            <Link href={`/spaces/${spaceId}/rendu`}><SlidersHorizontal /> Tout régler dans l&apos;espace</Link>
           </Button>
         </DialogContent>
       </Dialog>
