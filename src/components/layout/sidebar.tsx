@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { LayoutDashboard, FolderKanban, Sparkles, Mic2, Send, CalendarClock, Palette, CreditCard, Settings, ChevronLeft, X, Zap, Coins, Lightbulb, Shapes } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Sparkles, Mic2, Send, CalendarClock, Palette, CreditCard, Settings, ChevronLeft, X, Zap, Coins, Shapes } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/shared/logo";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -17,7 +17,6 @@ const NAV = [
   { href: "/scripts", label: "Générateur de script", icon: Sparkles },
   { href: "/voices", label: "Voix", icon: Mic2 },
   { href: "/autopilot", label: "Pilote automatique", icon: CalendarClock },
-  { href: "/lessons", label: "Leçons", icon: Lightbulb },
   { href: "/exports", label: "Exports & publication", icon: Send },
   { href: "/brand", label: "Charte de marque", icon: Palette },
 ];

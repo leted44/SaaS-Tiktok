@@ -1,5 +1,6 @@
 "use client";
 
+import { RESULTS_ENABLED } from "@/lib/results/config";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -639,7 +640,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
             <CheckCircle2 /> Marquer publié
           </Button>
         )}
-        {posted && <ResultsButton projectId={projectId} title={projectTitle} format="carousel" platforms={posted.platforms} className="sm:col-span-2" />}
+        {RESULTS_ENABLED && posted && <ResultsButton projectId={projectId} title={projectTitle} format="carousel" platforms={posted.platforms} className="sm:col-span-2" />}
       </div>
       {marking && <MarkPostedDialog projectId={projectId} title={projectTitle} open={marking} onOpenChange={setMarking} />}
 

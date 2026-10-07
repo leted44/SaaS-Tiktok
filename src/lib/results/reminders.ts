@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { RESULTS_ENABLED } from "@/lib/results/config";
 import { sendPush } from "@/lib/push";
 
 /**
@@ -15,6 +16,7 @@ function parisHour(at: Date): number {
 }
 
 export async function remindResults(now = new Date()): Promise<number> {
+  if (!RESULTS_ENABLED) return 0;
   const hour = parisHour(now);
   if (hour < 9 || hour >= 21) return 0;
   const due = await prisma.project.findMany({

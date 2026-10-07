@@ -3,6 +3,7 @@
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { RESULTS_ENABLED } from "@/lib/results/config";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { readResultScreenshots } from "@/lib/ai/results-reader";
@@ -36,6 +37,7 @@ function toSaved(row: { id: string; platform: string; format: string; diagnosis:
 /** The numbers read off up to three screenshots of one post's statistics — shown to the creator to check before saving. */
 export async function readResultScreenshotsAction(projectId: string, form: FormData): Promise<ActionResult<{ platform: string; metrics: PostMetrics; unreadable: string }>> {
   return guard(async () => {
+    if (!RESULTS_ENABLED) throw new Error("L'analyse des résultats est désactivée.");
     const user = await requireUser();
     const format = postFormatSchema.parse(form.get("format"));
     const project = await prisma.project.findFirst({ where: { id: projectId, userId: user.id }, select: { id: true } });
@@ -60,6 +62,7 @@ const saveSchema = z.object({
 /** Saves a post's numbers on one platform and returns its diagnosis; the account's lessons are rewritten in the background. */
 export async function saveResultAction(input: unknown): Promise<ActionResult<SavedResult>> {
   return guard(async () => {
+    if (!RESULTS_ENABLED) throw new Error("L'analyse des résultats est désactivée.");
     const user = await requireUser();
     const data = saveSchema.parse(input);
     if (!Object.values(data.metrics).some((v) => v != null)) throw new Error("Renseigne au moins un chiffre.");
@@ -116,6 +119,7 @@ export async function dismissLessonAction(lessonId: string): Promise<ActionResul
 /** Rewrites a space's lessons now, from all its results. */
 export async function refreshLessonsAction(spaceId: string | null): Promise<ActionResult<{ lessons: number; posts: number }>> {
   return guard(async () => {
+    if (!RESULTS_ENABLED) throw new Error("L'analyse des résultats est désactivée.");
     const user = await requireUser();
     if (spaceId) {
       const space = await prisma.space.findFirst({ where: { id: spaceId, userId: user.id }, select: { id: true } });

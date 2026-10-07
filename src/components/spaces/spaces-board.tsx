@@ -1,5 +1,6 @@
 "use client";
 
+import { RESULTS_ENABLED } from "@/lib/results/config";
 import { useState } from "react";
 import Link from "next/link";
 import { Clapperboard, GalleryHorizontalEnd, ImagePlus, Lightbulb, Mic2, Pencil, Plus } from "lucide-react";
@@ -51,7 +52,7 @@ export function SpacesBoard({ spaces, voices, sheetGeneration, initialEdit }: { 
                 <span className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5"><Mic2 className="h-3 w-3" /> {voiceName(s.voiceId) ?? "Voix par défaut"}</span>
                 {s.tone && <span className="rounded-full border border-white/10 px-2 py-0.5">Ton {TONE_LABELS[s.tone as Tone]?.toLowerCase() ?? s.tone}</span>}
                 {s.language && <span className="rounded-full border border-white/10 px-2 py-0.5">{LANGUAGE_LABELS[s.language] ?? s.language}</span>}
-                <Link href="/lessons" className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 hover:text-foreground"><Lightbulb className="h-3 w-3" /> {s.lessonCount} leçon{s.lessonCount > 1 ? "s" : ""}</Link>
+                {RESULTS_ENABLED && <Link href="/lessons" className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 hover:text-foreground"><Lightbulb className="h-3 w-3" /> {s.lessonCount} leçon{s.lessonCount > 1 ? "s" : ""}</Link>}
               </div>
 
               <div className="mt-auto grid grid-cols-2 gap-2">

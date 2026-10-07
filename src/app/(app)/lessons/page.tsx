@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { RESULTS_ENABLED } from "@/lib/results/config";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/server/queries";
 import { PageHeader } from "@/components/shared/page-header";
@@ -13,6 +15,7 @@ export const dynamic = "force-dynamic";
  * script and carousel of that space follows them.
  */
 export default async function LessonsPage() {
+  if (!RESULTS_ENABLED) notFound();
   const user = await getCurrentUser();
   const [spaces, lessons, counts] = await Promise.all([
     prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, color: true } }),

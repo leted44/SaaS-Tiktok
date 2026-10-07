@@ -1,5 +1,6 @@
 "use client";
 
+import { RESULTS_ENABLED } from "@/lib/results/config";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -232,7 +233,7 @@ export function Studio(props: StudioProps) {
           ) : (
             <Button variant="secondary" size="sm" onClick={() => setMarking(true)}><CheckCircle2 /> Marquer publiée</Button>
           )}
-          {project.postedAt && <ResultsButton projectId={project.id} title={title} format="video" platforms={project.postedPlatforms} />}
+          {RESULTS_ENABLED && project.postedAt && <ResultsButton projectId={project.id} title={title} format="video" platforms={project.postedPlatforms} />}
           {planLimits.autopilot && (
             <Button variant="secondary" size="sm" loading={templating} onClick={saveAsTemplate} title="Enregistrer la voix, les sous-titres, la musique, le fond et le format de cette vidéo comme modèle du pilote automatique">
               {!templating && <Wand2 />} <span className="sm:hidden">Modèle</span><span className="hidden sm:inline">Enregistrer comme modèle</span>

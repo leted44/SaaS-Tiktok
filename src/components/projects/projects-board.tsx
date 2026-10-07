@@ -1,5 +1,6 @@
 "use client";
 
+import { RESULTS_ENABLED } from "@/lib/results/config";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -205,7 +206,7 @@ function ProjectRow({ project: p, showStage, spaces }: { project: ProjectCardDat
                 </DropdownMenuSub>
               )}
               <DropdownMenuSeparator />
-              {p.posted && <DropdownMenuItem onSelect={() => setResultsOpen(true)}><BarChart3 /> Résultats</DropdownMenuItem>}
+              {RESULTS_ENABLED && p.posted && <DropdownMenuItem onSelect={() => setResultsOpen(true)}><BarChart3 /> Résultats</DropdownMenuItem>}
               {p.posted?.manual ? (
                 <DropdownMenuItem onSelect={unmark}><Undo2 /> Retirer « publiée »</DropdownMenuItem>
               ) : !p.posted ? (
@@ -258,7 +259,7 @@ function ProjectRow({ project: p, showStage, spaces }: { project: ProjectCardDat
       </div>
 
       {marking && <MarkPostedDialog projectId={p.id} title={p.title} open={marking} onOpenChange={setMarking} />}
-      {resultsOpen && p.posted && <ResultsDialog projectId={p.id} title={p.title} format={p.format} platforms={p.posted.platforms} open={resultsOpen} onOpenChange={setResultsOpen} />}
+      {RESULTS_ENABLED && resultsOpen && p.posted && <ResultsDialog projectId={p.id} title={p.title} format={p.format} platforms={p.posted.platforms} open={resultsOpen} onOpenChange={setResultsOpen} />}
     </li>
   );
 }

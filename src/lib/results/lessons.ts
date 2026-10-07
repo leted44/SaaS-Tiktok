@@ -1,3 +1,4 @@
+import { RESULTS_ENABLED } from "@/lib/results/config";
 import type { PostResult } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { carouselStateFromRow } from "@/lib/carousel/schema";
@@ -143,6 +144,7 @@ export async function refreshLessons(userId: string, spaceId: string | null): Pr
 
 /** The lessons a new script or carousel of this space follows, or [] while there are none. */
 export async function activeLessons(userId: string, spaceId: string | null | undefined, format: PostFormat) {
+  if (!RESULTS_ENABLED) return [];
   return prisma.accountLesson.findMany({
     where: { userId, spaceId: spaceId ?? null, dismissed: false, OR: [{ format: null }, { format }] },
     orderBy: [{ pinned: "desc" }, { postCount: "desc" }],
