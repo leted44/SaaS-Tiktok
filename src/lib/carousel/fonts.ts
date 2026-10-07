@@ -17,9 +17,15 @@ const FILES = [
   { name: "Anton", weight: 400, file: "Anton-Regular.ttf" },
   // Heavy condensed face of the Encadré template (SIL Open Font License, see BarlowCondensed-OFL.txt).
   { name: "Barlow Condensed", weight: 900, file: "BarlowCondensed-Black.ttf" },
+  // Wide geometric face of the closing slide (SIL Open Font License, see Montserrat-OFL.txt).
+  // Two files per weight: the latin set, then latin-ext for the rarer accents (œ, ÿ…).
+  ...([500, 800, 900] as const).flatMap((weight) => [
+    { name: "Montserrat", weight, file: `Montserrat-latin-${weight}.woff` },
+    { name: "Montserrat", weight, file: `Montserrat-latin-ext-${weight}.woff` },
+  ]),
 ] as const;
 
-export type LoadedFont = { name: string; data: ArrayBuffer; weight: 400 | 600 | 700 | 800 | 900; style: "normal" };
+export type LoadedFont = { name: string; data: ArrayBuffer; weight: 400 | 500 | 600 | 700 | 800 | 900; style: "normal" };
 
 let cache: Promise<LoadedFont[]> | null = null;
 

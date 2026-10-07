@@ -111,15 +111,6 @@ const BOXED_SCRIM = "linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 
  * backdrop, not the point. Tinted with the template's own background so the
  * photo's edges blend into it instead of reading as a hard-edged rectangle.
  */
-/**
- * The closing slide's shade: the cover's photo stays bright where its subject
- * is (the top — see the cover's framing in lib/carousel/art-direction) and
- * darkens only under the text, which sits low like the cover's headline.
- */
-function closingScrim(format: CarouselFormat): string {
-  const from = format === "square" ? 22 : 30;
-  return `linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 14%, rgba(0,0,0,0.08) ${from}%, rgba(0,0,0,0.72) ${from + 22}%, rgba(0,0,0,0.9) 100%)`;
-}
 
 /**
  * The title as words, with the emphasis marked.
@@ -164,6 +155,7 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
       </div>
     );
   }
+  if (slide.kind === "cta") return <ClosingSlide slide={slide} format={format} tokens={tokens} photo={imageUrl ?? closingImageUrl ?? null} ownPhoto={Boolean(imageUrl)} />;
   const padding = slidePadding(format);
   /**
    * TikTok draws its own UI over a posted photo — caption, username, the
@@ -183,12 +175,9 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
   const fullBleed = immersive || boxed;
   // Full-bleed: the cover always, and in Immersive and Encadré every content slide too.
   const bleedPhoto = Boolean(imageUrl) && (slide.kind === "cover" || (fullBleed && slide.kind === "content"));
-  // The closing slide shows the cover's photo again, as bright as on the cover: the last thing
-  // the reader sees is the subject that made them swipe, not a darkened backdrop.
-  const ctaPhoto = slide.kind === "cta" && Boolean(closingImageUrl);
   const coverPhoto = slide.kind === "cover" && bleedPhoto;
   const bandPhoto = slide.kind === "content" && Boolean(imageUrl) && !bleedPhoto;
-  const t = bleedPhoto || ctaPhoto ? onPhoto(tokens) : tokens;
+  const t = bleedPhoto ? onPhoto(tokens) : tokens;
   const editorial = t.id === "editorial" && !coverPhoto;
   // Condensed faces carry far fewer pixels per word at the same size, so they are set larger.
   const faceScale = t.headlineFont === "Anton" ? 1.16 : t.headlineFont === "Barlow Condensed" ? 1.14 : 1;
@@ -310,13 +299,7 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
         {body(slide.body, immersive ? 30 : coverPhoto ? 34 : 44, immersive ? "rgba(255,255,255,0.88)" : t.muted)}
       </div>
     );
-  } else if (slide.kind === "cta") {
-    const closing = <CtaBody slide={slide} t={t} compact={compact} headline={headline} body={body} label={label} />;
-    main = (
-      <div style={col({ flexGrow: 1, justifyContent: ctaPhoto ? "flex-end" : "center", paddingBottom: ctaPhoto ? 40 : 0 })}>
-        {boxed && ctaPhoto ? captionBox(<div key="c" style={col({ marginTop: 22 })}>{closing}</div>) : closing}
-      </div>
-    );
+
   } else if (bleedPhoto) {
     main = (
       <div style={col({ flexGrow: 1, justifyContent: "flex-end", paddingBottom: 36 })}>
@@ -359,11 +342,11 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
 
   return (
     <div style={col({ position: "relative", width, height, paddingTop: padding, paddingLeft: padding, paddingRight: padding, paddingBottom: padding + bottomSafe, background: t.background, color: t.text, fontFamily: "Inter", fontWeight: 400 })}>
-      {bleedPhoto || ctaPhoto ? (
-        <img src={(ctaPhoto ? closingImageUrl : imageUrl)!} alt="" width={width} height={height} style={{ position: "absolute", top: 0, left: 0, width, height, objectFit: "cover" }} />
+      {bleedPhoto ? (
+        <img src={imageUrl!} alt="" width={width} height={height} style={{ position: "absolute", top: 0, left: 0, width, height, objectFit: "cover" }} />
       ) : null}
-      {bleedPhoto || ctaPhoto ? (
-        <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width, height, backgroundImage: ctaPhoto ? closingScrim(format) : boxed ? BOXED_SCRIM : immersive ? immersiveScrim(format) : PHOTO_SCRIM }} />
+      {bleedPhoto ? (
+        <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width, height, backgroundImage: boxed ? BOXED_SCRIM : immersive ? immersiveScrim(format) : PHOTO_SCRIM }} />
       ) : null}
       {t.overlay ? <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width, height, backgroundImage: t.overlay }} /> : null}
 
@@ -393,34 +376,90 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
   );
 }
 
+
+/** 👉 from Twemoji (CC-BY 4.0, see src/assets/emoji/LICENSE.txt): the slide renderer draws no emoji of its own. */
+const POINTER = `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><path fill="#FFDC5D" d="M15.856 31s2.394-.208 3.068-1.792c.697-1.639-.622-2.309-.622-2.309s1.914.059 2.622-1.941c.668-1.885-.958-2.75-.958-2.75s1.871-.307 2.417-2.292C22.842 18.245 21.216 17 21.216 17h12.208c.959 0 2.575-.542 2.576-2.543.002-2-1.659-2.457-2.576-2.457h-20.5c-1 0-1-1 0-1h2.666c3.792 0 6.143-2.038 6.792-2.751.65-.713.979-1.667.734-2.82-.415-1.956-1.92-1.529-3.197-.975-3.078 1.337-7.464 2.254-9.538 2.533C4.523 7.778.006 12.796 0 18.871-.004 25.497 5.298 30.995 11.924 31h3.932z"/></svg>`)}`;
+
+const BOOKMARK = ["m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"];
+
 /**
- * The closing slide: one ask the reader can act on, the moment that gives it
- * a reason, then who to send the post to — named by what that person says,
- * which turns a share into a nudge between friends. No drawn buttons and no
- * follow card: they read as a template and ask for three things at once.
- * Older carousels have no `shareTo`; their whole ask sits in `action`.
+ * The closing slide, set like the owner's reference (a ChatGPT carousel): the
+ * text centred at the top over the dark part of the picture, the subject
+ * bright in the lower part. A wide heavy headline in capitals with a bookmark,
+ * the reason under it, a rule, the share lead in capitals, then 👉 and who to
+ * send it to, their words in bold. Warm ivory text; the carousel's accent only
+ * on the bookmark and the rule. No counter or progress bar on the last slide.
+ *
+ * Its own image (a baked or generated one) fills the slide; otherwise the
+ * cover's photo is lowered by a third, which puts the cover's subject (framed
+ * in its upper part) under the text, and the empty top is faded to the
+ * background.
  */
-function CtaBody({ slide, t, compact, headline, body, label }: {
-  slide: CarouselSlide;
-  t: TemplateTokens;
-  compact: boolean;
-  headline: (text: string, marginTop: number) => ReactNode;
-  body: (text: string, marginTop: number, color: string, scale?: number) => ReactNode;
-  label: (text: string) => ReactNode;
-}) {
+function ClosingSlide({ slide, format, tokens, photo, ownPhoto }: { slide: CarouselSlide; format: CarouselFormat; tokens: TemplateTokens; photo: string | null; ownPhoto: boolean }) {
+  const { width, height } = FORMAT_SIZE[format];
+  const compact = format === "square";
+  const story = format === "story";
+  const ink = photo ? "#FFF6E8" : tokens.text;
+  const base = photo ? "#0E0A08" : tokens.background;
+  const k = compact ? 0.78 : story ? 1 : 0.92;
+  const title = typeset(slide.title.trim());
+  const titleSize = Math.round((title.length <= 18 ? 104 : title.length <= 28 ? 96 : title.length <= 40 ? 84 : 72) * k);
+  // Below the text block (measured on a full closing slide), so no line ever sits on the picture.
+  const shift = ownPhoto ? 0 : Math.round(height * (story ? 0.47 : compact ? 0.53 : 0.55));
   const share = slide.shareTo.trim();
-  const lead = slide.action.trim();
+  const quoteAt = share.indexOf("«");
+  const shareIntro = quoteAt > 0 ? share.slice(0, quoteAt).trim() : "";
+  const shareQuote = quoteAt > 0 ? share.slice(quoteAt).trim() : share;
+  const pad = compact ? 70 : 84;
+
   return (
-    <div style={col({})}>
-      {slide.kicker ? label(slide.kicker) : null}
-      {headline(slide.title, slide.kicker ? 30 : 0)}
-      {body(slide.body, compact ? 20 : 28, t.text, compact ? 0.98 : 1.08)}
-      {lead || share ? <div style={{ display: "flex", marginTop: compact ? 26 : 38, width: 220, height: 3, borderRadius: 2, background: t.accent }} /> : null}
-      {lead ? (
-        <div style={{ display: "flex", marginTop: compact ? 20 : 30, fontSize: share ? (compact ? 30 : 36) : compact ? 32 : 40, fontWeight: 800, lineHeight: 1.25, letterSpacing: share ? 1.5 : 0, textTransform: share ? "uppercase" : "none", color: t.text }}>{typeset(lead)}</div>
+    <div style={col({ position: "relative", width, height, background: base, color: ink, fontFamily: "Montserrat", fontWeight: 500, alignItems: "center", paddingTop: Math.round(height * (story ? 0.07 : 0.075)), paddingLeft: pad, paddingRight: pad })}>
+      {photo ? <img src={photo} alt="" width={width} height={height} style={{ position: "absolute", top: shift, left: 0, width, height, objectFit: "cover" }} /> : null}
+      {photo ? (
+        <div
+          style={{
+            display: "flex",
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width,
+            height,
+            backgroundImage: ownPhoto
+              ? "linear-gradient(180deg, rgba(14,10,8,0.82) 0%, rgba(14,10,8,0.55) 38%, rgba(14,10,8,0) 58%)"
+              : `linear-gradient(180deg, ${base} 0px, ${base} ${shift + 2}px, rgba(14,10,8,0.6) ${shift + Math.round(height * 0.06)}px, rgba(14,10,8,0) ${shift + Math.round(height * 0.18)}px)`,
+          }}
+        />
       ) : null}
+
+      <div style={row({ flexWrap: "wrap", justifyContent: "center", alignItems: "flex-end", columnGap: Math.round(titleSize * 0.26), fontWeight: 900, fontSize: titleSize, lineHeight: 1.08, letterSpacing: -1, textTransform: "uppercase", textAlign: "center" })}>
+        {title.split(" ").filter(Boolean).map((word, i) => (
+          <div key={i} style={{ display: "flex" }}>{word}</div>
+        ))}
+        <div style={{ display: "flex", marginBottom: Math.round(titleSize * 0.1) }}>
+          <svg width={Math.round(titleSize * 0.62)} height={Math.round(titleSize * 0.78)} viewBox="5 3 14 18">
+            <path d={BOOKMARK[0]} fill={tokens.accent} />
+          </svg>
+        </div>
+      </div>
+
+      {slide.body.trim() ? (
+        <div style={{ display: "flex", marginTop: Math.round(26 * k), fontSize: Math.round(42 * k), lineHeight: 1.3, textAlign: "center", justifyContent: "center" }}>{typeset(slide.body.trim())}</div>
+      ) : null}
+
+      {slide.action.trim() || share ? <div style={{ display: "flex", marginTop: Math.round(44 * k), width: Math.round(width * 0.3), height: 4, borderRadius: 2, background: tokens.accent }} /> : null}
+
+      {slide.action.trim() ? (
+        <div style={{ display: "flex", marginTop: Math.round(40 * k), fontSize: Math.round(46 * k), fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", textAlign: "center" }}>{typeset(slide.action.trim())}</div>
+      ) : null}
+
       {share ? (
-        <div style={{ display: "flex", marginTop: compact ? 10 : 14, fontSize: compact ? 40 : 50, fontWeight: 800, lineHeight: 1.2, color: t.accent }}>{typeset(share)}</div>
+        <div style={col({ marginTop: Math.round(18 * k), alignItems: "center" })}>
+          <div style={row({ alignItems: "center", gap: Math.round(16 * k), fontSize: Math.round(46 * k), lineHeight: 1.25 })}>
+            <img src={POINTER} alt="" width={Math.round(52 * k)} height={Math.round(52 * k)} />
+            {shareIntro ? <div style={{ display: "flex" }}>{typeset(shareIntro)}</div> : <div style={{ display: "flex", fontWeight: 800 }}>{typeset(shareQuote)}</div>}
+          </div>
+          {shareIntro ? <div style={{ display: "flex", marginTop: Math.round(6 * k), fontSize: Math.round(50 * k), fontWeight: 800, lineHeight: 1.22, textAlign: "center", justifyContent: "center" }}>{typeset(shareQuote)}</div> : null}
+        </div>
       ) : null}
     </div>
   );
