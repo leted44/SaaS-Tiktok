@@ -14,7 +14,7 @@ import { enqueueRender } from "@/server/actions/renders";
 import { RENDER_STEPS } from "@/lib/render/queue";
 import { summarizeRenderError } from "@/lib/render/errors";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
-import { CoverPanel, type CoverImageChoice } from "@/components/studio/cover-panel";
+import { CoverDownloadButton, CoverPanel, useCoverSettings, type CoverImageChoice } from "@/components/studio/cover-panel";
 import type { CoverTitle } from "@/lib/video-cover";
 import type { SocialCopy } from "@/lib/social/captions";
 import type { StudioRender, StudioProps, RenderTimingsView } from "@/components/studio/types";
@@ -32,7 +32,7 @@ interface Props {
   socialCopy: SocialCopy | null;
   hashtags: string[];
   aiConfigured: boolean;
-  cover: { images: CoverImageChoice[]; titles: CoverTitle[] };
+  cover: { images: CoverImageChoice[]; titles: CoverTitle[]; accent: string };
 }
 
 type Live = { status: string; progress: number; step: string; stepLabel: string; outputUrl: string | null; thumbnailUrl: string | null; error: string | null };
@@ -44,6 +44,7 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
   const activeRender = renders.find((r) => r.status === "QUEUED" || r.status === "PROCESSING") ?? null;
   const [live, setLive] = useState<Live | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
+  const coverSettings = useCoverSettings({ projectId, images: cover.images, titles: cover.titles, accountAccent: cover.accent });
 
   useEffect(() => {
     if (!activeRender) { setLive(null); return; }
@@ -157,6 +158,7 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
           <Button asChild size="lg" variant="gradient" className="mt-3 w-full">
             <a href={ready.outputUrl!} download target="_blank" rel="noreferrer"><Download /> Télécharger la vidéo</a>
           </Button>
+          {coverSettings.available && <CoverDownloadButton cover={coverSettings} className="mt-2" />}
           <p className="mt-2 text-[11px] text-muted-foreground">Elle s&apos;enregistre dans les téléchargements de ton téléphone. Si elle s&apos;ouvre dans un lecteur à la place, utilise le bouton de téléchargement du lecteur (⋮ ou ⤓).</p>
         </div>
       )}
@@ -167,7 +169,7 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
         </Section>
       )}
 
-      <CoverPanel projectId={projectId} images={cover.images} titles={cover.titles} />
+      <CoverPanel cover={coverSettings} images={cover.images} titles={cover.titles} />
 
       {!activeRender && (ready ? (
         <Section title="Nouvelle version" icon={Film} summary="Après une modification">

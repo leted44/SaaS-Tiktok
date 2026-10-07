@@ -10,7 +10,7 @@ import { COVER_BLOCK, COVER_FONTS, COVER_SIZE, coverTitleSize, isDarkInk, type C
  * The band follows the ink: dark under a light title, light under a black
  * one, so either reads on any picture.
  */
-export function VideoCoverView({ imageSrc, title, emphasis, position, accent, color, font, effect }: {
+export function VideoCoverView({ imageSrc, title, emphasis, position, accent, color, font, effect, family }: {
   imageSrc: string | null;
   title: string;
   emphasis: string;
@@ -19,6 +19,8 @@ export function VideoCoverView({ imageSrc, title, emphasis, position, accent, co
   color: string;
   font: CoverFont;
   effect: CoverEffect;
+  /** The CSS family to set the face with — the browser preview's, whose loaded fonts have their own names. */
+  family?: string;
 }) {
   const face = COVER_FONTS[font];
   const { width, height } = COVER_SIZE;
@@ -52,7 +54,7 @@ export function VideoCoverView({ imageSrc, title, emphasis, position, accent, co
     justifyContent: "center",
     columnGap: Math.round(size * face.gap),
     rowGap: effect === "box" ? Math.round(size * 0.12) : 0,
-    fontFamily: face.family,
+    fontFamily: family ?? face.family,
     fontWeight: face.weight,
     fontSize: size,
     lineHeight,

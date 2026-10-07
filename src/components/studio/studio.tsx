@@ -160,8 +160,8 @@ export function Studio(props: StudioProps) {
       seen.add(p.src);
       images.push({ src: p.src, label: p.label?.trim() || "Bibliothèque" });
     }
-    return { images: images.slice(0, 16), titles: activeScript ? coverTitleSuggestions(activeScript) : [] };
-  }, [state.visualLayers, state.visualPool, liveProps.scenes.length, activeScript]);
+    return { images: images.slice(0, 16), titles: activeScript ? coverTitleSuggestions(activeScript) : [], accent: liveProps.brand.accentColor };
+  }, [state.visualLayers, state.visualPool, liveProps.scenes.length, liveProps.brand.accentColor, activeScript]);
 
   const patch = useCallback(<K extends keyof EditorState>(k: K, v: EditorState[K]) => setState((s) => ({ ...s, [k]: v })), []);
 
