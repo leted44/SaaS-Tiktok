@@ -7,7 +7,7 @@ import { parseJson, scenesSchema } from "@/lib/validations";
 import { generateCarousel } from "@/lib/ai/carousel-generator";
 import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
-import { carouselSlidesSchema, carouselStateFromRow, carouselStateSchema, stripEmoji, needsAiVisual, tooLongForImage, CAROUSEL_TEMPLATES, type CarouselLength, type CarouselState, type CarouselTemplate, SLIDE_LIMITS } from "@/lib/carousel/schema";
+import { carouselSlidesSchema, carouselStateFromRow, carouselStateSchema, stripEmoji, tidyEmoji, needsAiVisual, SHARE_TO_MAX, tooLongForImage, CAROUSEL_TEMPLATES, type CarouselLength, type CarouselState, type CarouselTemplate, SLIDE_LIMITS } from "@/lib/carousel/schema";
 import { copyStockImage, isOwnImage, readOwnImage, storeGeneratedImage } from "@/lib/ai/images";
 import { withAutoPhotos } from "@/lib/carousel/auto-photos";
 import { aiSource, DEFAULT_VISUAL_STYLE, VISUAL_STYLES, type VisualStyle } from "@/lib/carousel/art-direction";
@@ -125,8 +125,9 @@ export async function saveCarouselAction(projectId: string, input: unknown): Pro
           image,
           kicker: stripEmoji(s.kicker).slice(0, limit.kicker),
           title: stripEmoji(s.title).slice(0, limit.title),
-          body: stripEmoji(s.body).slice(0, limit.body),
-          action: s.kind === "cta" ? stripEmoji(s.action).slice(0, limit.action) : "",
+          body: tidyEmoji(s.body).slice(0, limit.body),
+          action: s.kind === "cta" ? tidyEmoji(s.action).slice(0, limit.action) : "",
+          shareTo: s.kind === "cta" ? tidyEmoji(s.shareTo).slice(0, SHARE_TO_MAX) : "",
           emphasis: stripEmoji(s.emphasis).trim(),
           imagePrompt: stripEmoji(s.imagePrompt).trim(),
         };

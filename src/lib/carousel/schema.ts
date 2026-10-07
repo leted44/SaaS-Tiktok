@@ -179,10 +179,19 @@ export function carouselStateFromRow(row: { template: string; format: string; ha
 }
 
 /**
- * The slide fonts carry no emoji glyphs, so an emoji in the text renders as an
- * empty box. The AI is told not to use them; this removes any that slip
- * through, or that a user types.
+ * Titles, labels and image briefs carry no emoji: a picture inside a
+ * headline breaks its rhythm, and an image model reads it as something to
+ * draw. Removes any that slip through, or that a user types.
  */
+/**
+ * Text where emoji are welcome (a slide's body, the closing lines): drawn
+ * from the bundled Twemoji (lib/carousel/emoji). Only the invisible joiners
+ * that pile up around them, and doubled spaces, are tidied.
+ */
+export function tidyEmoji(text: string): string {
+  return text.replace(/\u{FE0F}{2,}/gu, "\u{FE0F}").replace(/[ \t]{2,}/g, " ").trim();
+}
+
 export function stripEmoji(text: string): string {
   return text
     .replace(/\p{Extended_Pictographic}/gu, "")

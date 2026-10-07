@@ -3,7 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod/v4";
 import { nanoid } from "nanoid";
 import { env } from "@/lib/env";
-import { CONTENT_SLIDES, IMAGE_PROMPT_MAX, IMAGE_SLIDE_LIMITS, SHARE_TO_MAX, SLIDE_LIMITS, VISUAL_MOTIF_MAX, imageLayout, stripEmoji, type CarouselLength, type CarouselSlide, type CarouselTemplate } from "@/lib/carousel/schema";
+import { CONTENT_SLIDES, IMAGE_PROMPT_MAX, IMAGE_SLIDE_LIMITS, SHARE_TO_MAX, SLIDE_LIMITS, VISUAL_MOTIF_MAX, imageLayout, stripEmoji, tidyEmoji, type CarouselLength, type CarouselSlide, type CarouselTemplate } from "@/lib/carousel/schema";
 import { anthropicErrorMessage } from "@/lib/ai/anthropic-errors";
 import { INNER_SETTING, NO_INVENTED_EXPERIENCE, accountConceptLine, characterSheetLine } from "@/lib/ai/writing-rules";
 import { ART_DIRECTIONS, type VisualLayout, type VisualStyle } from "@/lib/carousel/art-direction";
@@ -116,7 +116,7 @@ Rules you always apply:
 - Payoff first: the first content slide gives the answer the cover promises, stated plainly. Most readers stop after 3 or 4 slides, so an answer kept for the end is never read. Then prove it, explain why, say what to do.
 - The last content slide ends on a short question the reader can answer in one word or a number (e.g. «Toi, c'est 1 ou 2 ?»): it is the last slide most readers still see, and a one-word answer is the comment people actually write.
 - The last slide asks for ONE thing — usually the save — and gives it a reason: the concrete moment the reader will need this. Then it says who to send it to, named by what that person says or does. A share aimed at one recognisable friend is the share people actually make; «partage à quelqu'un» is not. Never three asks at once, never «lien en bio».
-- No emoji anywhere — the slide fonts cannot draw them. No hashtags. No numbering in titles — the design numbers the slides.
+- Emoji only where they help the eye scan, never as decoration: one at the start of each item of a list in a body (one item per line, e.g. «🍌 1 banane mûre»), or one that carries a meaning (✅ / ❌ for right and wrong, ⏱️ for a duration). At most one per line, none in titles, cover lines or labels, and a slide without a list usually has none. No hashtags. No numbering in titles — the design numbers the slides.
 - Keep the script's language, its tone, and its way of addressing the reader (tu or vous).
 - Respect every length limit. A slide that runs long is cut off in the image.
 - Never invent a promise the script does not make — a result in a fixed number of days or weeks, a guaranteed outcome, a health benefit. Bold hooks are welcome; a claim a reader can easily prove false costs the account its credibility.
@@ -200,8 +200,9 @@ function getClient(): Anthropic {
  * overflows is cut off in the rendered image — so anything over the limit is
  * trimmed here, at the last full word, rather than trusted.
  */
-export function fit(text: string, max: number): string {
-  const clean = stripEmoji(text).replace(/#\w+/g, "").replace(/\s{2,}/g, " ").trim();
+export function fit(text: string, max: number, opts: { emoji?: boolean } = {}): string {
+  // Line breaks survive in text that may hold a list (a body); everything else is one line.
+  const clean = (opts.emoji ? tidyEmoji(text).replace(/#\w+/g, "").replace(/[ \t]{2,}/g, " ") : stripEmoji(text).replace(/#\w+/g, "").replace(/\s{2,}/g, " ")).trim();
   if (clean.length <= max) return clean;
   const cut = clean.slice(0, max - 1);
   const space = cut.lastIndexOf(" ");
@@ -293,7 +294,7 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
         kicker: "",
         title,
         emphasis: emphasisIn(title, s.emphasis),
-        body: fit(s.body, contentLimits.body),
+        body: fit(s.body, contentLimits.body, { emoji: true }),
         imageQuery: fit(s.imageQuery, 80),
         imagePrompt: brief(s.imagePrompt),
       };
@@ -304,9 +305,9 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
       kicker: "",
       title: ctaTitle,
       emphasis: emphasisIn(ctaTitle, out.ctaEmphasis ?? ""),
-      body: fit(out.ctaBody ?? "", L.cta.body),
-      action: fit(out.ctaAction ?? "", L.cta.action),
-      shareTo: fit(out.ctaShareTo ?? "", SHARE_TO_MAX),
+      body: fit(out.ctaBody ?? "", L.cta.body, { emoji: true }),
+      action: fit(out.ctaAction ?? "", L.cta.action, { emoji: true }),
+      shareTo: fit(out.ctaShareTo ?? "", SHARE_TO_MAX, { emoji: true }),
       imageQuery: "",
       imagePrompt: "",
       image: null,

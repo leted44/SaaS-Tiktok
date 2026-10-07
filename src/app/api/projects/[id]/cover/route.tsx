@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { VideoCoverView } from "@/components/studio/video-cover";
 import { loadCarouselFonts } from "@/lib/carousel/fonts";
+import { installBundledEmoji } from "@/lib/carousel/emoji";
 import { luminance } from "@/lib/carousel/templates";
 import { slideImageSrc } from "@/lib/ai/images";
 import { COVER_FONT_IDS, COVER_POSITIONS, COVER_SIZE, COVER_TITLE_MAX, coverFileName, isCoverColor, type CoverFont, type CoverPosition } from "@/lib/video-cover";
@@ -11,6 +12,9 @@ import { COVER_FONT_IDS, COVER_POSITIONS, COVER_SIZE, COVER_TITLE_MAX, coverFile
 // Reads the bundled font files from disk.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// An emoji typed in the title is drawn from the app's own files (lib/carousel/emoji).
+installBundledEmoji();
 
 /** The accent when the account's own is too dark to read over an image. */
 const FALLBACK_ACCENT = "#FFD23F";

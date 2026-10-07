@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
   // bundler cannot see — list them so they are copied into that function.
   outputFileTracingIncludes: {
     "/api/carousels/[projectId]/slides/[index]": ["./src/assets/fonts/**", "./src/assets/emoji/**"],
-    "/api/projects/[id]/cover": ["./src/assets/fonts/**"],
+    "/api/projects/[id]/cover": ["./src/assets/fonts/**", "./src/assets/emoji/**"],
     // With the local render engine, this route bundles src/remotion at request
     // time, and those sources import across src/ through the "@" alias.
     "/api/jobs/process": ["./src/**", "./tsconfig.json"],

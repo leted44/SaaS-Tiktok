@@ -6,12 +6,16 @@ import { bandBox, CarouselSlideView } from "@/components/carousel/slide";
 import { cropForBand } from "@/lib/carousel/band-crop";
 import { resolveTemplate } from "@/lib/carousel/templates";
 import { loadCarouselFonts } from "@/lib/carousel/fonts";
+import { installBundledEmoji } from "@/lib/carousel/emoji";
 import { slideImageSrc } from "@/lib/ai/images";
 import { carouselStateFromRow, imageLayout, slideFileName, FORMAT_SIZE } from "@/lib/carousel/schema";
 
 // Reads the bundled font files from disk.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// The emoji of the slides are drawn from the app's own files, not a CDN (lib/carousel/emoji).
+installBundledEmoji();
 
 /**
  * One slide of a carousel, as the PNG that gets posted.
