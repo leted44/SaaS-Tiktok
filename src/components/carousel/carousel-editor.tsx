@@ -34,6 +34,7 @@ import { FormatSwitcher } from "@/components/studio/format-switcher";
 import { CarouselDesignControls } from "@/components/carousel/design-controls";
 import { SpaceLookButton } from "@/components/shared/space-look-button";
 import { saveCarouselLookAction } from "@/server/actions/space-kit";
+import { rewriteCarouselBriefsAction } from "@/server/actions/brief-rewrite";
 import { carouselLookSummary, type CarouselLook } from "@/lib/space-kit";
 import type { SocialCopy } from "@/lib/social/captions";
 import { MarkPostedDialog } from "@/components/projects/mark-posted-dialog";
@@ -123,6 +124,9 @@ function lengthOf(slides: CarouselState["slides"]): CarouselLength {
 export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured, posted, admin, review, characterReference, defaultStyle, scriptStart, spaceLook: space }: Props) {
   const [marking, setMarking] = useState(false);
   const [unmarking, setUnmarking] = useState(false);
+  const [rewriting, setRewriting] = useState(false);
+  /** The slides' image prompts a rewrite replaced, to put back. */
+  const [previousPrompts, setPreviousPrompts] = useState<Record<string, string> | null>(null);
   async function unmarkPosted() {
     setUnmarking(true);
     const res = await unmarkProjectPosted(projectId);
@@ -497,6 +501,26 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       return { ...s, slides };
     });
 
+  async function rewriteBriefs() {
+    if (!state) return;
+    setRewriting(true);
+    // The editor's own state is the truth the autosave writes: save first so the server reads the same slides.
+    if (dirty && (await persist(state)) === null) return setRewriting(false);
+    const res = await rewriteCarouselBriefsAction(projectId);
+    setRewriting(false);
+    if (!res.ok) return toast.error(res.error);
+    setPreviousPrompts(Object.fromEntries(state.slides.filter((s) => s.id in res.data.prompts).map((s) => [s.id, s.imagePrompt])));
+    setState((prev) => (prev ? { ...prev, slides: prev.slides.map((s) => (s.id in res.data.prompts ? { ...s, imagePrompt: res.data.prompts[s.id] } : s)) } : prev));
+    toast.success("Descriptions réécrites. « Refaire » les images voulues pour les redessiner.");
+  }
+
+  function restoreBriefs() {
+    if (!previousPrompts) return;
+    setState((prev) => (prev ? { ...prev, slides: prev.slides.map((s) => (s.id in previousPrompts ? { ...s, imagePrompt: previousPrompts[s.id] } : s)) } : prev));
+    setPreviousPrompts(null);
+    toast.success("Anciennes descriptions remises.");
+  }
+
   const header = (
     <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
       <div>
@@ -762,6 +786,22 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                   Il s'applique à la prochaine génération : les images déjà créées ne changent pas tant que tu ne les régénères pas.
                 </p>
               </div>
+              {admin && (
+                <div className="rounded-lg border border-amber-300/25 bg-amber-300/[0.06] p-3">
+                  <p className="text-xs font-semibold text-amber-200">Test admin · descriptions d&apos;image des slides</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                    Les descriptions d&apos;image sont écrites une fois avec le texte : changer le fil conducteur ne les touche pas. Ce bouton les réécrit toutes d&apos;après le fil conducteur actuel (un lieu différent par slide). Textes inchangés. Un appel Claude, quelques centimes. Ensuite, « Refaire » les images voulues.
+                  </p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <Button size="sm" variant="secondary" loading={rewriting} disabled={rewriting || busy !== null || !state.visualMotif.trim()} onClick={rewriteBriefs}>
+                      <Wand2 /> Réécrire les descriptions d&apos;image
+                    </Button>
+                    {previousPrompts && (
+                      <Button size="sm" variant="ghost" onClick={restoreBriefs}>Revenir aux anciennes descriptions</Button>
+                    )}
+                  </div>
+                </div>
+              )}
               <CharacterReference projectId={projectId} initial={characterReference} generate={{ description: state.visualMotif, cost: aiImageCost, enabled: aiImagesConfigured }} />
 
               {pendingVisuals > 0 ? (

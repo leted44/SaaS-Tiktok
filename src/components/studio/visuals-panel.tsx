@@ -25,6 +25,7 @@ import { geminiPrompt } from "@/lib/ai/gemini-prompt";
 import { ctaCopyOf, ctaSceneIndex } from "@/lib/pipeline/cta-image";
 import { CopyForGemini } from "@/components/shared/copy-for-gemini";
 import { generateProjectVisualsAiAction } from "@/server/actions/video-visuals";
+import { restoreVideoBriefsAction, rewriteVideoBriefsAction, type VideoBriefs } from "@/server/actions/brief-rewrite";
 import { animateSceneClipAction, cancelVideoClipJobAction } from "@/server/actions/video-clips";
 import type { VideoClipTier } from "@/lib/ai/video-clip-generator";
 import { ImageModelPicker, useAdminImageModel } from "@/components/shared/image-model-picker";
@@ -107,6 +108,27 @@ export function VisualsPanel({
   /** The scene being drawn on its own (a tile's own "Créer" / "Refaire"), so only its tile shows the wait. */
   const [sceneBusy, setSceneBusy] = useState<number | null>(null);
   const [imageModel, setImageModel] = useAdminImageModel(admin);
+  const [rewriting, setRewriting] = useState(false);
+  const [previousBriefs, setPreviousBriefs] = useState<VideoBriefs | null>(null);
+
+  async function rewriteBriefs() {
+    setRewriting(true);
+    const res = await rewriteVideoBriefsAction(projectId);
+    setRewriting(false);
+    if (!res.ok) return toast.error(res.error);
+    setPreviousBriefs(res.data.previous);
+    toast.success(`${res.data.changed} descriptions réécrites. « Refaire » les images voulues pour les redessiner.`);
+    router.refresh();
+  }
+
+  async function restoreBriefs() {
+    if (!previousBriefs) return;
+    const res = await restoreVideoBriefsAction(projectId, previousBriefs);
+    if (!res.ok) return toast.error(res.error);
+    setPreviousBriefs(null);
+    toast.success("Anciennes descriptions remises.");
+    router.refresh();
+  }
   const [assets, setAssets] = useState<Asset[]>([]);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [uploading, setUploading] = useState<{ name: string; done: number; total: number; fraction: number; phase: "converting" | "uploading" } | null>(null);
@@ -670,6 +692,20 @@ export function VisualsPanel({
                     onChange={(e) => onMotifChange(e.target.value)}
                   />
                   <p className="text-[11px] text-muted-foreground">Écrit automatiquement avec le script. L&apos;apparence des personnages vient de l&apos;image de référence ; ce texte décrit surtout le décor commun.</p>
+                  {admin && (
+                    <div className="rounded-lg border border-amber-300/25 bg-amber-300/[0.06] p-3">
+                      <p className="text-xs font-semibold text-amber-200">Admin · descriptions d&apos;image des scènes</p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Les descriptions de scène sont écrites une fois avec le script : changer le fil conducteur ne les touche pas. Ce bouton les réécrit toutes d&apos;après le fil conducteur actuel (un lieu différent par scène). Texte parlé inchangé, voix off conservée. Un appel Claude, quelques centimes. Ensuite, « Refaire » les images voulues.</p>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <Button size="sm" variant="secondary" loading={rewriting} disabled={rewriting || !visualMotif.trim()} onClick={rewriteBriefs}>
+                          <Wand2 /> Réécrire les descriptions d&apos;image
+                        </Button>
+                        {previousBriefs && (
+                          <Button size="sm" variant="ghost" onClick={restoreBriefs}>Revenir aux anciennes descriptions</Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 {admin && <ImageModelPicker value={imageModel} onChange={setImageModel} note="Visible par toi seul ; tes clients sont sur Nano Banana 2. Le même choix que dans le carrousel : « Mélange » garde Pro pour la 1re scène, qui fixe le style des suivantes." />}
               </div>
