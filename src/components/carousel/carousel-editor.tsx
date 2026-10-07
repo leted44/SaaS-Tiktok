@@ -24,7 +24,7 @@ import { CharacterReference, type CharacterReferenceState } from "@/components/s
 import type { ReviewReport, ReviewTally } from "@/lib/ai/review-report";
 import { generateCarouselAction, generateCarouselVisualsAction, generateSlideImageAction, importCarouselImageAction, fillCarouselPhotosAction, saveCarouselAction, type CarouselSnapshot } from "@/server/actions/carousels";
 import { uploadAsset } from "@/lib/assets/upload-client";
-import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, IMAGE_PROMPT_MAX, VISUAL_MOTIF_MAX, SLIDE_LIMITS, fullBleedTemplate, IMAGE_SLIDE_LIMITS, imageAspect, imageLayout, imageOrigin, imageSceneOf, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
+import { CAROUSEL_FORMATS, CAROUSEL_TEMPLATES, CONTENT_SLIDES, FORMAT_SIZE, IMAGE_PROMPT_MAX, SHARE_TO_MAX, VISUAL_MOTIF_MAX, SLIDE_LIMITS, fullBleedTemplate, IMAGE_SLIDE_LIMITS, imageAspect, imageLayout, imageOrigin, imageSceneOf, limitsFor, needsAiVisual, slideFileName, zipFileName, tooLongForImage, type CarouselLength, type CarouselSlide, type CarouselState, type CarouselTemplate } from "@/lib/carousel/schema";
 import { composeImagePrompt, type VisualStyle } from "@/lib/carousel/art-direction";
 import { geminiPrompt } from "@/lib/ai/gemini-prompt";
 import { CopyForGemini } from "@/components/shared/copy-for-gemini";
@@ -69,8 +69,8 @@ interface Props {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const withoutVersion = (s: CarouselSnapshot): CarouselState => ({ template: s.template, format: s.format, handle: s.handle, slides: s.slides, visualStyle: s.visualStyle, visualMotif: s.visualMotif, accent: s.accent });
-/** See slideUrl. 2: images read from storage instead of their public URL. 3: per-slide keys. */
-const RENDER_REVISION = 3;
+/** See slideUrl. 2: images read from storage instead of their public URL. 3: per-slide keys. 4: the closing slide redesigned. */
+const RENDER_REVISION = 4;
 
 /**
  * A short fingerprint of everything one slide's image is drawn from, in a
@@ -445,7 +445,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       if (!s) return s;
       const ctaAt = s.slides.findIndex((x) => x.kind === "cta");
       const slides = [...s.slides];
-      slides.splice(ctaAt < 0 ? slides.length : ctaAt, 0, { id: nanoid(8), kind: "content", kicker: "", title: "Nouvelle idée", body: "", action: "", imageQuery: "", imagePrompt: "", emphasis: "", image: null });
+      slides.splice(ctaAt < 0 ? slides.length : ctaAt, 0, { id: nanoid(8), kind: "content", kicker: "", title: "Nouvelle idée", body: "", action: "", shareTo: "", imageQuery: "", imagePrompt: "", emphasis: "", image: null });
       return { ...s, slides };
     });
 
@@ -957,11 +957,11 @@ function SlideEditor({ imageModel, anchorId, projectId, slide, template, label, 
       </div>
       <div className="space-y-2">
         <div className="space-y-1">
-          <div className="flex items-center justify-between"><Label className="text-[11px]">{slide.kind === "content" ? "Étiquette (facultatif)" : "Étiquette"}</Label><Counter value={slide.kicker} max={limit.kicker} /></div>
+          <div className="flex items-center justify-between"><Label className="text-[11px]">{slide.kind === "cover" ? "Étiquette" : "Étiquette (facultatif)"}</Label><Counter value={slide.kicker} max={limit.kicker} /></div>
           <Input value={slide.kicker} maxLength={limit.kicker} className="h-8 text-xs" onChange={(e) => onChange({ kicker: e.target.value })} />
         </div>
         <div className="space-y-1">
-          <div className="flex items-center justify-between"><Label className="text-[11px]">Titre</Label><Counter value={slide.title} max={limit.title} /></div>
+          <div className="flex items-center justify-between"><Label className="text-[11px]">{slide.kind === "cta" ? "L'action (une seule)" : "Titre"}</Label><Counter value={slide.title} max={limit.title} /></div>
           <Textarea value={slide.title} maxLength={limit.title} rows={2} className="font-medium" onChange={(e) => onChange({ title: e.target.value })} />
         </div>
         <div className="space-y-1">
@@ -972,7 +972,7 @@ function SlideEditor({ imageModel, anchorId, projectId, slide, template, label, 
           <Input value={slide.emphasis} maxLength={60} className="h-8 text-xs" placeholder="1 à 3 mots copiés du titre" onChange={(e) => onChange({ emphasis: e.target.value })} />
         </div>
         <div className="space-y-1">
-          <div className="flex items-center justify-between"><Label className="text-[11px]">Texte</Label><Counter value={slide.body} max={limit.body} /></div>
+          <div className="flex items-center justify-between"><Label className="text-[11px]">{slide.kind === "cta" ? "La raison (le moment où on en aura besoin)" : "Texte"}</Label><Counter value={slide.body} max={limit.body} /></div>
           <Textarea value={slide.body} maxLength={limit.body} rows={slide.kind === "cta" ? 2 : 3} onChange={(e) => onChange({ body: e.target.value })} />
         </div>
         {overflowsBand && (
@@ -981,10 +981,16 @@ function SlideEditor({ imageModel, anchorId, projectId, slide, template, label, 
           </p>
         )}
         {slide.kind === "cta" && (
-          <div className="space-y-1">
-            <div className="flex items-center justify-between"><Label className="text-[11px] text-brand-300">Appel à l'action</Label><Counter value={slide.action} max={limit.action} /></div>
-            <Textarea value={slide.action} maxLength={limit.action} rows={2} placeholder="Ex. : Commente « GO » et je t'envoie la méthode complète." onChange={(e) => onChange({ action: e.target.value })} />
-            <p className="text-[10px] text-muted-foreground">Affiché dans l'encadré avec les boutons Enregistre · Partage · Commente, au-dessus de ton compte.</p>
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <div className="flex items-center justify-between"><Label className="text-[11px] text-brand-300">Avant le destinataire</Label><Counter value={slide.action} max={limit.action} /></div>
+              <Input value={slide.action} maxLength={limit.action} className="h-8 text-xs" placeholder="Et envoie-la à :" onChange={(e) => onChange({ action: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between"><Label className="text-[11px] text-brand-300">À qui l&apos;envoyer</Label><Counter value={slide.shareTo} max={SHARE_TO_MAX} /></div>
+              <Textarea value={slide.shareTo} maxLength={SHARE_TO_MAX} rows={2} placeholder="la personne qui dit « Manger sain = manger triste. »" onChange={(e) => onChange({ shareTo: e.target.value })} />
+            </div>
+            <p className="text-[10px] text-muted-foreground">Sous un trait, en couleur : une personne précise, désignée par ce qu&apos;elle dit ou fait. C&apos;est ce qui fait partager.</p>
           </div>
         )}
         {slide.kind !== "cta" && (

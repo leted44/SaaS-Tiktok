@@ -3,7 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod/v4";
 import { nanoid } from "nanoid";
 import { env } from "@/lib/env";
-import { CONTENT_SLIDES, IMAGE_PROMPT_MAX, IMAGE_SLIDE_LIMITS, SLIDE_LIMITS, VISUAL_MOTIF_MAX, imageLayout, stripEmoji, type CarouselLength, type CarouselSlide, type CarouselTemplate } from "@/lib/carousel/schema";
+import { CONTENT_SLIDES, IMAGE_PROMPT_MAX, IMAGE_SLIDE_LIMITS, SHARE_TO_MAX, SLIDE_LIMITS, VISUAL_MOTIF_MAX, imageLayout, stripEmoji, type CarouselLength, type CarouselSlide, type CarouselTemplate } from "@/lib/carousel/schema";
 import { anthropicErrorMessage } from "@/lib/ai/anthropic-errors";
 import { INNER_SETTING, NO_INVENTED_EXPERIENCE, accountConceptLine, characterSheetLine } from "@/lib/ai/writing-rules";
 import { ART_DIRECTIONS, type VisualLayout, type VisualStyle } from "@/lib/carousel/art-direction";
@@ -81,14 +81,26 @@ function carouselFields(contentLimits: { title: number; body: number }, length: 
         }),
       )
       .describe(slideCount),
-    ctaKicker: z.string().describe("A 1 to 3 word label for the closing slide, e.g. 'À toi de jouer', 'En résumé'. 32 characters maximum."),
-    ctaTitle: z.string().describe("The closing headline: one concrete takeaway or first action the reader can do today. 70 characters maximum."),
+    ctaTitle: z
+      .string()
+      .describe(
+        "The closing ask as a short imperative headline: ONE action, the one the script's call to action asks for — usually save it («Enregistre cette recette.», «Garde ce post pour lundi.»), or follow for the next one. Never a takeaway, a tip or a summary: the last content slide already carried the last idea. 50 characters maximum.",
+      ),
     ctaEmphasis: z.string().describe(EMPHASIS),
-    ctaBody: z.string().describe("One short sentence that makes the takeaway stick. 140 characters maximum."),
+    ctaBody: z
+      .string()
+      .describe(
+        "Why to do it: the concrete moment the reader will need this, one they recognise from their own life, said with a smile («Tu me remercieras quand l'envie de chocolat frappera à 22h.», «Pour le jour où ton genou recommence à tirer.»). One sentence, 120 characters maximum. Never a promised result.",
+      ),
     ctaAction: z
       .string()
       .describe(
-        "The explicit engagement ask, adapted from the script's call to action: invite a comment with the one-word answer to the question the last content slide asked, a share with someone who needs it, or a follow for what comes next. Direct and specific, never 'link in bio'. 90 characters maximum.",
+        "The share lead, a few words ending with a colon, with the pronoun that agrees with what is shared: «Et envoie-la à :» for une recette, «Et envoie-le à :» for un conseil or un post. 30 characters maximum.",
+      ),
+    ctaShareTo: z
+      .string()
+      .describe(
+        "Who to send it to, named by what that person says or does, so the reader instantly thinks of one real friend — their words in French quotes when they say something: «la personne qui dit « Manger sain = manger triste. »», «ton pote qui saute toujours le petit-déj», «celle qui dit qu'elle n'a pas le temps de s'étirer». Teasing and warm, never mocking a body or a health condition. 100 characters maximum.",
       ),
   });
 }
@@ -103,7 +115,7 @@ Rules you always apply:
 - Bodies are concrete: a mechanism, a number, an example, a precise action. No filler, no motivational fluff.
 - Payoff first: the first content slide gives the answer the cover promises, stated plainly. Most readers stop after 3 or 4 slides, so an answer kept for the end is never read. Then prove it, explain why, say what to do.
 - The last content slide ends on a short question the reader can answer in one word or a number (e.g. «Toi, c'est 1 ou 2 ?»): it is the last slide most readers still see, and a one-word answer is the comment people actually write.
-- The last slide ends on one explicit ask — comment a keyword, share, or follow — adapted from the script's own call to action. It is the moment the reader decides what to do next: never waste it.
+- The last slide asks for ONE thing — usually the save — and gives it a reason: the concrete moment the reader will need this. Then it says who to send it to, named by what that person says or does. A share aimed at one recognisable friend is the share people actually make; «partage à quelqu'un» is not. Never three asks at once, never «lien en bio».
 - No emoji anywhere — the slide fonts cannot draw them. No hashtags. No numbering in titles — the design numbers the slides.
 - Keep the script's language, its tone, and its way of addressing the reader (tu or vous).
 - Respect every length limit. A slide that runs long is cut off in the image.
@@ -249,7 +261,7 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
   if (!out) throw unreadable();
 
   const L = SLIDE_LIMITS;
-  const none = { action: "", image: null };
+  const none = { action: "", shareTo: "", image: null };
   const brief = (text: string) => stripEmoji(text).replace(/\s+/g, " ").trim().slice(0, IMAGE_PROMPT_MAX);
   // The creator's pick wins over whatever the model wrote, so a chosen cover is never paraphrased.
   const coverTitle = fit(input.coverHeadline?.trim() || out.coverTitle, L.cover.title);
@@ -289,11 +301,12 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
     {
       id: nanoid(8),
       kind: "cta",
-      kicker: fit(out.ctaKicker ?? "", L.cta.kicker),
+      kicker: "",
       title: ctaTitle,
       emphasis: emphasisIn(ctaTitle, out.ctaEmphasis ?? ""),
       body: fit(out.ctaBody ?? "", L.cta.body),
       action: fit(out.ctaAction ?? "", L.cta.action),
+      shareTo: fit(out.ctaShareTo ?? "", SHARE_TO_MAX),
       imageQuery: "",
       imagePrompt: "",
       image: null,

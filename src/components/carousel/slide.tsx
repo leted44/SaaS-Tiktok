@@ -45,7 +45,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
  * headline filling the slide the way a designer would set it by hand.
  */
 export function headlineSize(text: string, kind: CarouselSlide["kind"], format: CarouselFormat): number {
-  const scale = { cover: [118, 70, 22, 90], cta: [88, 60, 18, 70], content: [80, 54, 22, 110] }[kind];
+  const scale = { cover: [118, 70, 22, 90], cta: [124, 78, 14, 50], content: [80, 54, 22, 110] }[kind];
   const [max, min, from, to] = scale;
   const t = clamp((text.length - from) / (to - from), 0, 1);
   const factor = format === "square" ? 0.86 : format === "story" ? 1.06 : 1;
@@ -71,9 +71,6 @@ function Icon({ path, size, color }: { path: string[]; size: number; color: stri
 }
 
 const ARROW = ["M5 12h14", "m12 5 7 7-7 7"];
-const BOOKMARK = ["m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"];
-const SEND = ["m22 2-7 20-4-9-9-4Z", "M22 2 11 13"];
-const COMMENT = ["M7.9 20A9 9 0 1 0 4 16.1L2 22Z"];
 
 /** Photo band height on a content slide, per format — a third of the slide, give or take. */
 const BAND_HEIGHT: Record<CarouselFormat, number> = { portrait: 470, story: 760, square: 330 };
@@ -114,8 +111,14 @@ const BOXED_SCRIM = "linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 
  * backdrop, not the point. Tinted with the template's own background so the
  * photo's edges blend into it instead of reading as a hard-edged rectangle.
  */
-function closingScrim(): string {
-  return "linear-gradient(180deg, rgba(11,9,7,0.86) 0%, rgba(11,9,7,0.93) 45%, rgba(11,9,7,0.97) 100%)";
+/**
+ * The closing slide's shade: the cover's photo stays bright where its subject
+ * is (the top — see the cover's framing in lib/carousel/art-direction) and
+ * darkens only under the text, which sits low like the cover's headline.
+ */
+function closingScrim(format: CarouselFormat): string {
+  const from = format === "square" ? 22 : 30;
+  return `linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 14%, rgba(0,0,0,0.08) ${from}%, rgba(0,0,0,0.72) ${from + 22}%, rgba(0,0,0,0.9) 100%)`;
 }
 
 /**
@@ -172,10 +175,12 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
   const fullBleed = immersive || boxed;
   // Full-bleed: the cover always, and in Immersive and Encadré every content slide too.
   const bleedPhoto = Boolean(imageUrl) && (slide.kind === "cover" || (fullBleed && slide.kind === "content"));
-  const ctaBackdrop = fullBleed && slide.kind === "cta" && Boolean(closingImageUrl);
+  // The closing slide shows the cover's photo again, as bright as on the cover: the last thing
+  // the reader sees is the subject that made them swipe, not a darkened backdrop.
+  const ctaPhoto = slide.kind === "cta" && Boolean(closingImageUrl);
   const coverPhoto = slide.kind === "cover" && bleedPhoto;
   const bandPhoto = slide.kind === "content" && Boolean(imageUrl) && !bleedPhoto;
-  const t = bleedPhoto ? onPhoto(tokens) : tokens;
+  const t = bleedPhoto || ctaPhoto ? onPhoto(tokens) : tokens;
   const editorial = t.id === "editorial" && !coverPhoto;
   // Condensed faces carry far fewer pixels per word at the same size, so they are set larger.
   const faceScale = t.headlineFont === "Anton" ? 1.16 : t.headlineFont === "Barlow Condensed" ? 1.14 : 1;
@@ -298,7 +303,12 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
       </div>
     );
   } else if (slide.kind === "cta") {
-    main = <CtaBody slide={slide} t={t} compact={compact} handle={handle} headline={headline} body={body} label={label} />;
+    const closing = <CtaBody slide={slide} t={t} compact={compact} headline={headline} body={body} label={label} />;
+    main = (
+      <div style={col({ flexGrow: 1, justifyContent: ctaPhoto ? "flex-end" : "center", paddingBottom: ctaPhoto ? 40 : 0 })}>
+        {boxed && ctaPhoto ? captionBox(<div key="c" style={col({ marginTop: 22 })}>{closing}</div>) : closing}
+      </div>
+    );
   } else if (bleedPhoto) {
     main = (
       <div style={col({ flexGrow: 1, justifyContent: "flex-end", paddingBottom: 36 })}>
@@ -341,17 +351,11 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
 
   return (
     <div style={col({ position: "relative", width, height, paddingTop: padding, paddingLeft: padding, paddingRight: padding, paddingBottom: padding + bottomSafe, background: t.background, color: t.text, fontFamily: "Inter", fontWeight: 400 })}>
-      {bleedPhoto || ctaBackdrop ? (
-        <img
-          src={(imageUrl ?? closingImageUrl)!}
-          alt=""
-          width={width}
-          height={height}
-          style={{ position: "absolute", top: 0, left: 0, width, height, objectFit: "cover", opacity: ctaBackdrop ? 0.5 : 1 }}
-        />
+      {bleedPhoto || ctaPhoto ? (
+        <img src={(ctaPhoto ? closingImageUrl : imageUrl)!} alt="" width={width} height={height} style={{ position: "absolute", top: 0, left: 0, width, height, objectFit: "cover" }} />
       ) : null}
-      {bleedPhoto || ctaBackdrop ? (
-        <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width, height, backgroundImage: ctaBackdrop ? closingScrim() : boxed ? BOXED_SCRIM : immersive ? immersiveScrim(format) : PHOTO_SCRIM }} />
+      {bleedPhoto || ctaPhoto ? (
+        <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width, height, backgroundImage: ctaPhoto ? closingScrim(format) : boxed ? BOXED_SCRIM : immersive ? immersiveScrim(format) : PHOTO_SCRIM }} />
       ) : null}
       {t.overlay ? <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width, height, backgroundImage: t.overlay }} /> : null}
 
@@ -382,61 +386,33 @@ export function CarouselSlideView({ slide, index, total, step, format, tokens, h
 }
 
 /**
- * The closing slide.
- *
- * A takeaway alone ends the carousel politely and wastes the one moment the
- * reader has finished and is deciding what to do next. So the slide makes the
- * ask explicit twice over: the three gestures the algorithms reward, drawn as
- * the buttons the reader is about to press, then the account to follow.
+ * The closing slide: one ask the reader can act on, the moment that gives it
+ * a reason, then who to send the post to — named by what that person says,
+ * which turns a share into a nudge between friends. No drawn buttons and no
+ * follow card: they read as a template and ask for three things at once.
+ * Older carousels have no `shareTo`; their whole ask sits in `action`.
  */
-function CtaBody({ slide, t, compact, handle, headline, body, label }: {
+function CtaBody({ slide, t, compact, headline, body, label }: {
   slide: CarouselSlide;
   t: TemplateTokens;
   compact: boolean;
-  handle: string | null;
   headline: (text: string, marginTop: number) => ReactNode;
   body: (text: string, marginTop: number, color: string, scale?: number) => ReactNode;
   label: (text: string) => ReactNode;
 }) {
-  const ask = slide.action || "Enregistre ce post pour le retrouver au bon moment.";
-  const initial = (handle ?? "").replace(/[^\p{L}\p{N}]/gu, "").charAt(0).toUpperCase();
-  const actions = [
-    { icon: BOOKMARK, label: "Enregistre" },
-    { icon: SEND, label: "Partage" },
-    { icon: COMMENT, label: "Commente" },
-  ];
-
+  const share = slide.shareTo.trim();
+  const lead = slide.action.trim();
   return (
-    <div style={col({ flexGrow: 1, justifyContent: "center" })}>
+    <div style={col({})}>
       {slide.kicker ? label(slide.kicker) : null}
-      {headline(slide.title, slide.kicker ? 32 : 0)}
-      {body(slide.body, 24, t.muted, compact ? 0.9 : 1)}
-
-      <div style={col({ marginTop: compact ? 36 : 52, padding: compact ? 28 : 36, borderRadius: 32, background: t.surface })}>
-        <div style={row({ justifyContent: "space-between" })}>
-          {actions.map((a) => (
-            <div key={a.label} style={row({ alignItems: "center", gap: 14 })}>
-              <div style={row({ width: compact ? 52 : 64, height: compact ? 52 : 64, borderRadius: 999, alignItems: "center", justifyContent: "center", background: t.accent })}>
-                <Icon path={a.icon} size={compact ? 26 : 30} color={t.onAccent} />
-              </div>
-              <div style={{ display: "flex", fontSize: compact ? 24 : 28, fontWeight: 600, color: t.text }}>{a.label}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: "flex", marginTop: compact ? 20 : 28, fontSize: compact ? 26 : 30, fontWeight: 600, lineHeight: 1.3, color: t.text }}>{typeset(ask)}</div>
-      </div>
-
-      {handle ? (
-        <div style={row({ marginTop: compact ? 28 : 40, alignItems: "center", gap: 22 })}>
-          <div style={row({ width: compact ? 72 : 88, height: compact ? 72 : 88, borderRadius: 999, alignItems: "center", justifyContent: "center", background: t.accent, color: t.onAccent, fontSize: compact ? 34 : 40, fontWeight: 800 })}>
-            {initial || "@"}
-          </div>
-          <div style={col({ flexGrow: 1 })}>
-            <div style={{ display: "flex", fontSize: compact ? 28 : 32, fontWeight: 800, color: t.text }}>{handle}</div>
-            <div style={{ display: "flex", marginTop: 4, fontSize: compact ? 22 : 24, color: t.muted }}>Abonne-toi pour la suite</div>
-          </div>
-          <div style={row({ padding: compact ? "14px 26px" : "16px 32px", borderRadius: 999, background: t.accent, color: t.onAccent, fontSize: compact ? 24 : 27, fontWeight: 600 })}>Suivre</div>
-        </div>
+      {headline(slide.title, slide.kicker ? 30 : 0)}
+      {body(slide.body, compact ? 20 : 28, t.text, compact ? 0.98 : 1.08)}
+      {lead || share ? <div style={{ display: "flex", marginTop: compact ? 26 : 38, width: 220, height: 3, borderRadius: 2, background: t.accent }} /> : null}
+      {lead ? (
+        <div style={{ display: "flex", marginTop: compact ? 20 : 30, fontSize: share ? (compact ? 30 : 36) : compact ? 32 : 40, fontWeight: 800, lineHeight: 1.25, letterSpacing: share ? 1.5 : 0, textTransform: share ? "uppercase" : "none", color: t.text }}>{typeset(lead)}</div>
+      ) : null}
+      {share ? (
+        <div style={{ display: "flex", marginTop: compact ? 10 : 14, fontSize: compact ? 40 : 50, fontWeight: 800, lineHeight: 1.2, color: t.accent }}>{typeset(share)}</div>
       ) : null}
     </div>
   );

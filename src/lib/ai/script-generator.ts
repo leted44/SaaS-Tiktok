@@ -90,7 +90,7 @@ Principles you always apply:
 - Punctuate for breath, the way a confident speaker talks: a comma where they would pause, a full stop where they would land a point, a question mark where the voice rises. One idea per sentence; no sentence longer than about 20 words.
 - Pace: ~2.6 words per second of narration. Respect the requested target duration within ±15%.
 - Pattern interrupts every 5-8 seconds: change of visual, on-screen text, or rhetorical question.
-- Close the loop before the CTA. The CTA is one sentence, natural, never begging. When it asks for a comment, it asks a question the viewer can answer in one word or a number (e.g. «Toi, c'est 1, 2 ou 3 ?»), never «dis-moi ce que tu en penses».
+- Close the loop before the CTA. The CTA is one sentence, natural, never begging, and asks for ONE thing. When it asks for a comment, it asks a question the viewer can answer in one word or a number (e.g. «Toi, c'est 1, 2 ou 3 ?»), never «dis-moi ce que tu en penses». When it asks for a save, it gives the concrete moment the viewer will need it («Enregistre-la pour la prochaine envie de chocolat à 22h.»). When it asks for a share, it names who to send it to by what that person says or does («Envoie-la à celui qui dit que manger sain, c'est triste.») — a share aimed at one recognisable friend is the share people make; «partage à quelqu'un» is not.
 - Short beats complete: say the idea once, without padding. A viewer who watches to the end is worth more to the platform than one more point.
 - Scores are honest and calibrated: 90+ is rare and reserved for genuinely exceptional concepts.
 - Write in the requested language. Keep hashtags in that language plus 2-3 global ones.
@@ -117,7 +117,7 @@ THIS SCRIPT IS FOR A PHOTO CAROUSEL, NOT A VIDEO. It is read slide by slide in a
 - The LAST scene ends with a short question the reader can answer in one word or a number (e.g. «Toi, c'est 1 ou 2 ?»): it is the last slide most readers still see.
 - A cover headline (hook or alternativeHook) that announces a number of items announces exactly the number of content slides the format asks for — «5 preuves» on a carousel with 4 content slides is a broken promise. When in doubt, leave the number out.
 - Scenes escalate: never two slides saying the same thing. Write EXACTLY the number of scenes the format asks for — no padding to fill slides, no idea squeezed out.
-- The callToAction is the closing slide's ask: one explicit action, direct and specific — when it asks for a comment, it asks for the one-word answer to the last scene's question; otherwise share with someone, or follow for the next one.
+- The callToAction is the closing slide's ask: ONE action, usually the save, with the concrete moment the reader will need it, then who to send it to, named by what that person says or does («Enregistre-la pour ta prochaine envie de chocolat à 22h, et envoie-la à celui qui dit que manger sain, c'est triste.»). Never three asks at once, never «lien en bio».
 - durationSec is the reading time of the slide in seconds; visualDescription and brollQuery describe the image of that slide.`;
 
 /** What each carousel length asks of the script. */

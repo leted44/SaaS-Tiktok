@@ -4,6 +4,8 @@ import { slugify } from "@/lib/utils";
 /** Room for a full image brief (subject, action, setting, composition) and for the series bible (cast and world). */
 export const IMAGE_PROMPT_MAX = 1000;
 export const VISUAL_MOTIF_MAX = 500;
+/** The closing slide's share target, a line under the divider. */
+export const SHARE_TO_MAX = 110;
 import { VISUAL_STYLES, aiSource, isAiSource, type VisualLayout, type VisualStyle } from "@/lib/carousel/art-direction";
 
 /**
@@ -19,8 +21,10 @@ export const carouselSlideSchema = z.object({
   kicker: z.string().max(40).default(""),
   title: z.string().max(110),
   body: z.string().max(320).default(""),
-  /** Last slide only: the explicit ask — follow, comment a keyword, share. */
+  /** Last slide only: the share lead under the divider («Et envoie-la à :») — on older carousels, the whole ask. */
   action: z.string().max(90).default(""),
+  /** Last slide only: who to send it to, named by what they say or do («la personne qui dit « Manger sain = manger triste. »»). */
+  shareTo: z.string().max(SHARE_TO_MAX).default(""),
   /** Search words for a matching photo, written by the AI. Pre-fills the image search. */
   imageQuery: z.string().max(80).default(""),
   /** The scene an AI visual depicts for this slide — written by the AI, editable. Style and framing are added separately. */
@@ -35,6 +39,12 @@ export const carouselSlideSchema = z.object({
   image: z.object({ url: z.string().min(1).max(600), source: z.string().max(600).optional() }).nullable().default(null),
   /** The AI's first drawing, kept when its automatic correction replaced it — the correction is not always better, so the owner can go back. */
   draftImage: z.object({ url: z.string().min(1).max(600), source: z.string().max(600).optional() }).nullable().optional(),
+  /**
+   * Admin test: the image was drawn by GPT Image with the slide's text in it
+   * (lib/carousel/baked-slide). The slide is then that image alone — nothing
+   * is printed over it — and a text edit needs the image redrawn.
+   */
+  bakedText: z.boolean().optional(),
   /** Stock photos the user took off this slide — "Remplir" never proposes them again. */
   rejectedImages: z.array(z.string().max(600)).max(40).optional(),
 });
