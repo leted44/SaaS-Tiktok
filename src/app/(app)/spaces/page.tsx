@@ -19,7 +19,7 @@ export default async function SpacesPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="mx-auto max-w-7xl">
-      <PageHeader title="Espaces" description="Un espace par compte ou par thème : son sujet, ses personnages et sa voix s'appliquent à chaque vidéo et chaque carrousel créé dedans." />
+      <PageHeader title="Espaces" description="Un espace par compte ou par thème : son sujet, ses personnages, sa voix et son rendu (sous-titres, musique, style des images, couverture, modèle de carrousel) s'appliquent à chaque vidéo et chaque carrousel créé dedans." />
       <SpacesBoard
         spaces={spaces.map((s) => ({ ...s, lessonCount: lessonsBySpace[s.id] ?? 0 }))}
         voices={voices}

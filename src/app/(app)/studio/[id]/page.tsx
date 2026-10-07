@@ -15,6 +15,7 @@ import { fallbackSocialCopy, socialCopySchema } from "@/lib/social/captions";
 import { presetStyle } from "@/lib/captions/presets";
 import { DEFAULT_VISUAL_STYLE, VISUAL_STYLES } from "@/lib/carousel/art-direction";
 import { coverTitlesSchema } from "@/lib/video-cover";
+import { readSpaceKit } from "@/lib/space-kit";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +77,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         postedAt: project.postedAt?.toISOString() ?? null,
         postedPlatforms: project.postedPlatforms,
         characterReference: { own: project.characterImage, space: project.space?.characterImage ?? null, spaceName: project.space?.name ?? null, spaceId: project.spaceId },
+        spaceLook: project.space ? { spaceName: project.space.name, voiceId: project.space.voiceId, look: readSpaceKit(project.space.kit).video } : null,
       }}
       scripts={project.scripts.map((s) => ({
         id: s.id,

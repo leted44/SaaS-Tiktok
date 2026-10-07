@@ -52,11 +52,14 @@ interface Props {
   beatSync: boolean;
   musicBpm: number | null;
   onBeatSyncChange: (v: boolean) => void;
+  /** The voice's tone, kept by the studio so the space's look (lib/space-kit) can set and save it. */
+  stability: number;
+  onStabilityChange: (v: number) => void;
 }
 
 export function AudioPanel(p: Props) {
   const router = useRouter();
-  const [stability, setStability] = useState(0.5);
+  const { stability, onStabilityChange: setStability } = p;
   const [loading, setLoading] = useState(false);
   // The preview endpoint caps the sample at 300 characters.
   const preview = useVoicePreview(p.previewText.trim().slice(0, 280) || VOICE_PREVIEW_TEXT);

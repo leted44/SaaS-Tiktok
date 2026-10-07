@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { spaceVisualStyle } from "@/lib/space-style";
 import { DEFAULT_VISUAL_STYLE } from "@/lib/carousel/art-direction";
+import { readSpaceKit } from "@/lib/space-kit";
 import { getProjectForCarousel, getReviewTally, readReviewReport } from "@/server/queries";
 import { CarouselEditor } from "@/components/carousel/carousel-editor";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
@@ -28,7 +29,7 @@ export default async function CarouselPage({ params }: { params: Promise<{ id: s
   const { project, user, activeScript } = data;
   const admin = isAdmin(user.role);
   const review = admin && activeScript ? readReviewReport(activeScript.reviewReport) : null;
-  const [reviewTally, inheritedStyle] = await Promise.all([review ? getReviewTally(user.id, "carousel") : null, spaceVisualStyle(user.id, project.spaceId)]);
+  const [reviewTally, inheritedStyle] = await Promise.all([review ? getReviewTally(user.id, "carousel") : null, spaceVisualStyle(user.id, project.spaceId, "carousel")]);
 
   const stored = project.carousel ? carouselStateFromRow(project.carousel) : null;
 
@@ -66,6 +67,7 @@ export default async function CarouselPage({ params }: { params: Promise<{ id: s
       review={review ? { report: review, tally: reviewTally } : null}
       defaultStyle={inheritedStyle ?? DEFAULT_VISUAL_STYLE}
       characterReference={{ own: project.characterImage, space: project.space?.characterImage ?? null, spaceName: project.space?.name ?? null, spaceId: project.spaceId }}
+      spaceLook={project.space ? { spaceName: project.space.name, look: readSpaceKit(project.space.kit).carousel } : null}
       scriptStart={{ topic: project.topic ?? project.title, niche: project.niche, language: project.language, cost: admin ? 0 : CREDIT_COSTS.SCRIPT_GENERATION }}
     />
   );

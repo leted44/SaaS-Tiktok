@@ -14,7 +14,7 @@ import { enqueueRender } from "@/server/actions/renders";
 import { RENDER_STEPS } from "@/lib/render/queue";
 import { summarizeRenderError } from "@/lib/render/errors";
 import { SocialCopyBlock } from "@/components/studio/social-copy";
-import { CoverDownloadButton, CoverPanel, useCoverSettings, type CoverImageChoice } from "@/components/studio/cover-panel";
+import { CoverDownloadButton, CoverPanel, type CoverImageChoice, type CoverSettings } from "@/components/studio/cover-panel";
 import type { CoverTitle } from "@/lib/video-cover";
 import type { SocialCopy } from "@/lib/social/captions";
 import type { StudioRender, StudioProps, RenderTimingsView } from "@/components/studio/types";
@@ -32,7 +32,7 @@ interface Props {
   socialCopy: SocialCopy | null;
   hashtags: string[];
   aiConfigured: boolean;
-  cover: { images: CoverImageChoice[]; titles: CoverTitle[]; accent: string };
+  cover: { images: CoverImageChoice[]; titles: CoverTitle[]; settings: CoverSettings };
 }
 
 type Live = { status: string; progress: number; step: string; stepLabel: string; outputUrl: string | null; thumbnailUrl: string | null; error: string | null };
@@ -44,7 +44,7 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
   const activeRender = renders.find((r) => r.status === "QUEUED" || r.status === "PROCESSING") ?? null;
   const [live, setLive] = useState<Live | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
-  const coverSettings = useCoverSettings({ projectId, images: cover.images, titles: cover.titles, accountAccent: cover.accent });
+  const coverSettings = cover.settings;
 
   useEffect(() => {
     if (!activeRender) { setLive(null); return; }

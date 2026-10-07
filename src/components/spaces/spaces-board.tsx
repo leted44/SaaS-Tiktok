@@ -3,14 +3,18 @@
 import { RESULTS_ENABLED } from "@/lib/results/config";
 import { useState } from "react";
 import Link from "next/link";
-import { Clapperboard, GalleryHorizontalEnd, ImagePlus, Lightbulb, Mic2, Pencil, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Clapperboard, GalleryHorizontalEnd, ImagePlus, Lightbulb, Mic2, Palette, Pencil, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SpaceManagerDialog } from "@/components/projects/space-manager-dialog";
 import { TONE_LABELS, type Tone } from "@/lib/autopilot/template-shared";
 import { LANGUAGE_LABELS } from "@/lib/tts/voices";
 import type { SpaceOption } from "@/lib/spaces";
+import type { SpaceLookView } from "@/server/queries";
+import { clearSpaceLookAction } from "@/server/actions/space-kit";
 
-type SpaceCard = SpaceOption & { publishedCount: number; lessonCount: number };
+type SpaceCard = SpaceOption & { publishedCount: number; lessonCount: number; look: SpaceLookView };
 
 /**
  * The spaces as cards: what each one makes its posts with (subject,
@@ -55,6 +59,8 @@ export function SpacesBoard({ spaces, voices, sheetGeneration, initialEdit }: { 
                 {RESULTS_ENABLED && <Link href="/lessons" className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 hover:text-foreground"><Lightbulb className="h-3 w-3" /> {s.lessonCount} leçon{s.lessonCount > 1 ? "s" : ""}</Link>}
               </div>
 
+              <SpaceLook spaceId={s.id} look={s.look} />
+
               <div className="mt-auto grid grid-cols-2 gap-2">
                 <Button asChild variant="gradient" size="sm"><Link href={`/scripts?space=${s.id}`}><Clapperboard /> Nouvelle vidéo</Link></Button>
                 <Button asChild variant="secondary" size="sm"><Link href={`/scripts?space=${s.id}&format=carousel`}><GalleryHorizontalEnd /> Nouveau carrousel</Link></Button>
@@ -73,5 +79,57 @@ export function SpacesBoard({ spaces, voices, sheetGeneration, initialEdit }: { 
 
       <SpaceManagerDialog spaces={spaces} voices={voices} open={focus !== null} onOpenChange={(v) => { if (!v) setFocus(null); }} sheetGeneration={sheetGeneration} focus={focus} />
     </>
+  );
+}
+
+/**
+ * The space's look (lib/space-kit) on its card: what every new video and
+ * carousel of it starts with. It is set from a post — the studio's and the
+ * carousel editor's « Rendu de l'espace » — where every setting can be seen
+ * as it will come out.
+ */
+function SpaceLook({ spaceId, look }: { spaceId: string; look: SpaceLookView }) {
+  const router = useRouter();
+  const [clearing, setClearing] = useState<"video" | "carousel" | null>(null);
+  async function clear(part: "video" | "carousel") {
+    setClearing(part);
+    const res = await clearSpaceLookAction(spaceId, part);
+    setClearing(null);
+    if (!res.ok) return toast.error(res.error);
+    toast.success("Rendu retiré : les nouveaux posts repartent des réglages par défaut.");
+    router.refresh();
+  }
+  const rows = [
+    { part: "video" as const, label: "Vidéos", icon: Clapperboard, saved: look.video, href: (id: string) => `/studio/${id}` },
+    { part: "carousel" as const, label: "Carrousels", icon: GalleryHorizontalEnd, saved: look.carousel, href: (id: string) => `/studio/${id}/carousel` },
+  ];
+  return (
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
+      <p className="flex items-center gap-1.5 text-xs font-semibold"><Palette className="h-3.5 w-3.5" /> Rendu de l&apos;espace</p>
+      <div className="mt-2 space-y-2">
+        {rows.map(({ part, label, icon: Icon, saved, href }) => (
+          <div key={part} className="text-[11px]">
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1 text-muted-foreground"><Icon className="h-3 w-3" /> {label}</span>
+              {saved && (
+                <button type="button" disabled={clearing === part} onClick={() => clear(part)} className="inline-flex items-center gap-0.5 text-muted-foreground transition hover:text-foreground disabled:opacity-50" aria-label={`Retirer le rendu des ${label.toLowerCase()}`}>
+                  <X className="h-3 w-3" /> Retirer
+                </button>
+              )}
+            </div>
+            {saved ? (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {saved.summary.map((t) => (
+                  <span key={t} className="rounded-full border border-white/10 px-2 py-0.5">{t}</span>
+                ))}
+                {saved.projectId && <Link href={href(saved.projectId)} className="px-1 py-0.5 text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">Voir le modèle</Link>}
+              </div>
+            ) : (
+              <p className="mt-0.5 text-muted-foreground/80">Pas encore réglé : ouvre un{part === "carousel" ? "" : "e"} {part === "carousel" ? "carrousel" : "vidéo"} de l&apos;espace, règle-l{part === "carousel" ? "e" : "a"}, puis « Rendu de l&apos;espace » → Enregistrer.</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

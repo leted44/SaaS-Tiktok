@@ -1,4 +1,6 @@
 import { cache } from "react";
+import { carouselLookSummary, readSpaceKit, videoLookSummary } from "@/lib/space-kit";
+import { getTrack } from "@/lib/music/library";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
@@ -54,7 +56,7 @@ export async function getProjectForStudio(projectId: string) {
     where: { id: projectId, userId: user.id },
     include: {
       workspace: true,
-      space: { select: { name: true, characterImage: true } },
+      space: { select: { name: true, characterImage: true, kit: true, voiceId: true } },
       scripts: { orderBy: { version: "desc" } },
       voiceovers: { orderBy: { createdAt: "desc" }, take: 5 },
       renderJobs: { orderBy: { createdAt: "desc" }, take: 5 },
@@ -71,7 +73,7 @@ export async function getProjectForCarousel(projectId: string) {
   const user = await getCurrentUser();
   const project = await prisma.project.findFirst({
     where: { id: projectId, userId: user.id },
-    include: { workspace: true, space: { select: { name: true, characterImage: true } }, scripts: { orderBy: { version: "desc" } }, carousel: true },
+    include: { workspace: true, space: { select: { name: true, characterImage: true, kit: true, voiceId: true } }, scripts: { orderBy: { version: "desc" } }, carousel: true },
   });
   if (!project) return null;
   const activeScript = project.scripts.find((s) => s.id === project.activeScriptId) ?? project.scripts[0] ?? null;
@@ -125,16 +127,30 @@ export async function getScriptsLibrary() {
  * and published counts, the voices the editor offers, and what drawing a
  * character sheet costs this account.
  */
+/** A space's saved look (lib/space-kit) as its card shows it. */
+export interface SpaceLookView {
+  video: { summary: string[]; savedAt: string; projectId: string | null } | null;
+  carousel: { summary: string[]; savedAt: string; projectId: string | null } | null;
+}
+
+function spaceLookView(value: unknown): SpaceLookView {
+  const kit = readSpaceKit(value);
+  return {
+    video: kit.video ? { summary: videoLookSummary(kit.video, kit.video.musicName ?? getTrack(kit.video.musicTrackId)?.name ?? null), savedAt: kit.video.savedAt, projectId: kit.video.fromProjectId } : null,
+    carousel: kit.carousel ? { summary: carouselLookSummary(kit.carousel), savedAt: kit.carousel.savedAt, projectId: kit.carousel.fromProjectId } : null,
+  };
+}
+
 export async function getSpacesData() {
   const [user, workspace] = await Promise.all([getCurrentUser(), getCurrentWorkspace()]);
   const plan = effectivePlanDef(user);
   const [rows, published, customVoice] = await Promise.all([
-    prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, color: true, language: true, tone: true, voiceId: true, brief: true, characterImage: true, _count: { select: { projects: true } } } }),
+    prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, color: true, language: true, tone: true, voiceId: true, brief: true, characterImage: true, kit: true, _count: { select: { projects: true } } } }),
     prisma.project.groupBy({ by: ["spaceId"], where: { userId: user.id, postedAt: { not: null }, spaceId: { not: null } }, _count: { _all: true } }),
     plan.voiceCloning ? prisma.customVoice.findUnique({ where: { userId: user.id }, select: { name: true } }) : null,
   ]);
   const publishedBySpace = new Map(published.map((p) => [p.spaceId, p._count._all]));
-  const spaces: (SpaceOption & { publishedCount: number })[] = rows.map((s) => ({
+  const spaces: (SpaceOption & { publishedCount: number; look: SpaceLookView })[] = rows.map((s) => ({
     id: s.id,
     name: s.name,
     color: s.color,
@@ -145,6 +161,7 @@ export async function getSpacesData() {
     characterImage: s.characterImage,
     projectCount: s._count.projects,
     publishedCount: publishedBySpace.get(s.id) ?? 0,
+    look: spaceLookView(s.kit),
   }));
   const voices = [
     ...(customVoice ? [customVoiceDefinition(customVoice.name)] : []),

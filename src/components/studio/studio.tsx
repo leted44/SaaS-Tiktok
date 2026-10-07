@@ -30,6 +30,10 @@ import { DEFAULT_PREVIEW_PROPS } from "@/lib/render/props";
 import { alignLayersToScenes, applyBeatSync, timelineOffsetMs } from "@/lib/render/beat-grid";
 import { cn } from "@/lib/utils";
 import { coverTitleSuggestions } from "@/lib/video-cover";
+import { useCoverSettings } from "@/components/studio/cover-panel";
+import { SpaceLookButton } from "@/components/shared/space-look-button";
+import { saveVideoLookAction } from "@/server/actions/space-kit";
+import { videoLookColumns, videoLookSummary, type VideoLook } from "@/lib/space-kit";
 
 export function Studio(props: StudioProps) {
   const { carouselOnly, project, scripts, activeScriptId, reviewTally, voiceover, renders, previewProps, user, planLimits, voices, customVoice, tracks, integrations } = props;
@@ -160,8 +164,36 @@ export function Studio(props: StudioProps) {
       seen.add(p.src);
       images.push({ src: p.src, label: p.label?.trim() || "Bibliothèque" });
     }
-    return { images: images.slice(0, 16), titles: activeScript ? coverTitleSuggestions(activeScript) : [], accent: liveProps.brand.accentColor };
-  }, [state.visualLayers, state.visualPool, liveProps.scenes.length, liveProps.brand.accentColor, activeScript]);
+    return { images: images.slice(0, 16), titles: activeScript ? coverTitleSuggestions(activeScript) : [] };
+  }, [state.visualLayers, state.visualPool, liveProps.scenes.length, activeScript]);
+
+  // The space's look (lib/space-kit): the cover and the voice's tone start from it, and it can be saved from here.
+  const [spaceLook, setSpaceLook] = useState<VideoLook | null>(project.spaceLook?.look ?? null);
+  const coverSettings = useCoverSettings({ projectId: project.id, images: cover.images, titles: cover.titles, accountAccent: liveProps.brand.accentColor, initial: spaceLook?.cover });
+  const [voiceStability, setVoiceStability] = useState(spaceLook?.voiceStability ?? 0.5);
+
+  /** This video's look becomes its space's — pending edits saved first, so the space gets exactly what is on screen. */
+  async function saveSpaceLook(): Promise<boolean> {
+    if (!(await saveNow())) return false;
+    const res = await saveVideoLookAction(project.id, { cover: coverSettings.available ? coverSettings.look : null, voiceStability });
+    if (!res.ok) {
+      toast.error(res.error);
+      return false;
+    }
+    setSpaceLook(res.data.look);
+    toast.success("Rendu enregistré : chaque nouvelle vidéo de l'espace démarrera avec.");
+    return true;
+  }
+
+  /** The space's look onto this video: captions, background, music, voice and tone, art direction, cover. Saved by the autosave. */
+  function applySpaceLook() {
+    if (!spaceLook) return;
+    const spaceVoice = project.spaceLook?.voiceId ?? null;
+    setState((s) => ({ ...s, ...videoLookColumns(spaceLook), voiceId: spaceVoice ?? s.voiceId }));
+    if (spaceLook.cover) coverSettings.applyLook(spaceLook.cover);
+    if (spaceLook.voiceStability !== null) setVoiceStability(spaceLook.voiceStability);
+    toast.success("Rendu de l'espace appliqué. Refais la voix off si la voix a changé.");
+  }
 
   const patch = useCallback(<K extends keyof EditorState>(k: K, v: EditorState[K]) => setState((s) => ({ ...s, [k]: v })), []);
 
@@ -242,6 +274,15 @@ export function Studio(props: StudioProps) {
             </Button>
           ) : (
             <Button variant="secondary" size="sm" onClick={() => setMarking(true)}><CheckCircle2 /> Marquer publiée</Button>
+          )}
+          {project.spaceLook && (
+            <SpaceLookButton
+              spaceName={project.spaceLook.spaceName}
+              kind="video"
+              saved={spaceLook ? { savedAt: spaceLook.savedAt, fromThis: spaceLook.fromProjectId === project.id, summary: videoLookSummary(spaceLook, spaceLook.musicName ?? getTrack(spaceLook.musicTrackId)?.name ?? null) } : null}
+              onSave={saveSpaceLook}
+              onApply={applySpaceLook}
+            />
           )}
           {RESULTS_ENABLED && project.postedAt && <ResultsButton projectId={project.id} title={title} format="video" platforms={project.postedPlatforms} />}
           {planLimits.autopilot && (
@@ -382,10 +423,12 @@ export function Studio(props: StudioProps) {
                     onBeatSyncChange={(v) => patch("beatSync", v)}
                     onVolumeChange={(v) => patch("musicVolume", v)}
                     onMusicStartChange={(v) => patch("musicStartMs", v)}
+                    stability={voiceStability}
+                    onStabilityChange={setVoiceStability}
                   />
                 </TabsContent>
                 <TabsContent value="export" className="mt-0">
-                  <ExportPanel projectId={project.id} renders={renders} planLimits={planLimits} credits={user.credits} hasScript={Boolean(activeScript)} hasVoiceover={Boolean(voiceover?.audioUrl)} dirty={dirty} scriptId={activeScript?.id ?? null} socialCopy={activeScript?.socialCopy ?? null} hashtags={activeScript?.hashtags ?? []} aiConfigured={integrations.ai} cover={cover} />
+                  <ExportPanel projectId={project.id} renders={renders} planLimits={planLimits} credits={user.credits} hasScript={Boolean(activeScript)} hasVoiceover={Boolean(voiceover?.audioUrl)} dirty={dirty} scriptId={activeScript?.id ?? null} socialCopy={activeScript?.socialCopy ?? null} hashtags={activeScript?.hashtags ?? []} aiConfigured={integrations.ai} cover={{ ...cover, settings: coverSettings }} />
                 </TabsContent>
               </div>
             </div>

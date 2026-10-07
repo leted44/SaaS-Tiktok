@@ -18,6 +18,7 @@ import { AiImageError, generateImage } from "@/lib/ai/image-generator";
 import { integrations } from "@/lib/env";
 import { castTextFor, projectCast } from "@/lib/characters";
 import { projectSpaceStyle, spaceVisualStyle } from "@/lib/space-style";
+import { readSpaceKit } from "@/lib/space-kit";
 import { activeLessons, lessonsBrief } from "@/lib/results/lessons";
 import { guard, type ActionResult } from "@/server/action-result";
 
@@ -48,19 +49,22 @@ export async function generateCarouselAction(
     const user = await requireDbUser();
     const project = await prisma.project.findFirstOrThrow({
       where: { id: projectId, userId: user.id },
-      include: { workspace: true, space: { select: { brief: true } }, scripts: { orderBy: { version: "desc" } }, carousel: true },
+      include: { workspace: true, space: { select: { brief: true, kit: true } }, scripts: { orderBy: { version: "desc" } }, carousel: true },
     });
     const script = project.scripts.find((s) => s.id === project.activeScriptId) ?? project.scripts[0];
     if (!script) throw new Error("Générez d'abord un script pour ce projet : le carrousel est écrit à partir de lui.");
+    // A first carousel of a space starts on the space's saved look (lib/space-kit).
+    const look = project.carousel ? null : readSpaceKit(project.space?.kit).carousel;
     const ai = options.visuals === "ai";
     if (ai && !integrations.aiImages()) throw new Error("La génération d'images IA n'est pas configurée.");
 
-    const visualStyle = asStyle(options.visualStyle) ?? asStyle(project.carousel?.visualStyle) ?? (await spaceVisualStyle(user.id, project.spaceId)) ?? DEFAULT_VISUAL_STYLE;
+    const visualStyle = asStyle(options.visualStyle) ?? asStyle(project.carousel?.visualStyle) ?? (await spaceVisualStyle(user.id, project.spaceId, "carousel")) ?? DEFAULT_VISUAL_STYLE;
     // The template this generation will actually use — an existing carousel keeps
-    // its own, a brand new AI one starts on Immersive (see the upsert below), and
-    // anything else falls back to the schema's own default. Text is written and
-    // trimmed to the room THIS template's photo layout actually leaves.
-    const template = asTemplate(project.carousel?.template) ?? (ai ? "immersive" : "minimal");
+    // its own, a brand new one takes its space's, else an AI one starts on Immersive
+    // (see the upsert below), and anything else falls back to the schema's own
+    // default. Text is written and trimmed to the room THIS template's photo layout
+    // actually leaves.
+    const template = asTemplate(project.carousel?.template) ?? look?.template ?? (ai ? "immersive" : "minimal");
     const cost = isAdmin(user.role) ? 0 : CREDIT_COSTS.CAROUSEL;
     const creditsLeft = cost > 0 ? await chargeCredits(user.id, cost, "SCRIPT_GENERATION", "Génération du carrousel") : user.credits;
 
@@ -95,8 +99,16 @@ export async function generateCarouselAction(
 
     const saved = await prisma.carousel.upsert({
       where: { projectId: project.id },
-      // A first carousel made with AI visuals starts on the template designed for them.
-      create: { projectId: project.id, userId: user.id, scriptId: script.id, slides, ...art, ...(ai ? { template: "immersive" } : {}) },
+      // A first carousel starts on its space's look, else, made with AI visuals, on the template designed for them.
+      create: {
+        projectId: project.id,
+        userId: user.id,
+        scriptId: script.id,
+        slides,
+        ...art,
+        template,
+        ...(look ? { format: look.format, accent: look.accent, handle: look.handle } : {}),
+      },
       update: { scriptId: script.id, slides, ...art },
     });
     revalidatePath(`/studio/${project.id}/carousel`);
@@ -180,7 +192,7 @@ export async function generateSlideImageAction(
     if (!slide || slide.kind === "cta") throw new Error("Cette slide n'accepte pas d'image.");
     if (tooLongForImage(slide, state.template)) throw new Error("Raccourcis d'abord le texte de cette slide : l'image prend une partie de la place.");
 
-    const visualStyle = state.visualStyle ?? (await projectSpaceStyle(user.id, projectId)) ?? DEFAULT_VISUAL_STYLE;
+    const visualStyle = state.visualStyle ?? (await projectSpaceStyle(user.id, projectId, "carousel")) ?? DEFAULT_VISUAL_STYLE;
     const [reference, cast] = await Promise.all([slide.kind === "cover" ? null : coverReference(state.slides, visualStyle, user.id), projectCast(projectId, user.id)]);
     const series = { template: state.template, format: state.format, visualMotif: state.visualMotif, visualStyle, cast };
 
@@ -220,7 +232,7 @@ export async function generateCarouselVisualsAction(
     if (!integrations.aiImages()) throw new Error("La génération d'images IA n'est pas configurée.");
     const row = await prisma.carousel.findFirstOrThrow({ where: { projectId, userId: user.id } });
     const state = toSnapshot(row);
-    const visualStyle = state.visualStyle ?? (await projectSpaceStyle(user.id, projectId)) ?? DEFAULT_VISUAL_STYLE;
+    const visualStyle = state.visualStyle ?? (await projectSpaceStyle(user.id, projectId, "carousel")) ?? DEFAULT_VISUAL_STYLE;
 
     const candidates = state.slides.filter((s) => s.kind !== "cta" && (mode === "all" || needsAiVisual(s, visualStyle)));
     const tooLong = candidates.filter((s) => tooLongForImage(s, state.template)).length;
@@ -302,7 +314,7 @@ export async function generateBakedSlidesAction(
     if (!integrations.gptImages()) throw new Error("GPT Image n'est pas configuré (clé fal.ai manquante).");
     const row = await prisma.carousel.findFirstOrThrow({ where: { projectId, userId: user.id } });
     const state = toSnapshot(row);
-    const visualStyle = state.visualStyle ?? (await projectSpaceStyle(user.id, projectId)) ?? DEFAULT_VISUAL_STYLE;
+    const visualStyle = state.visualStyle ?? (await projectSpaceStyle(user.id, projectId, "carousel")) ?? DEFAULT_VISUAL_STYLE;
     const targets = slideId ? state.slides.filter((s) => s.id === slideId) : state.slides;
     if (!targets.length) throw new Error("Slide introuvable.");
 

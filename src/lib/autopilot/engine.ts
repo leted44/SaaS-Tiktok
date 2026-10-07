@@ -1,4 +1,5 @@
 import type { AutopilotItem, AutopilotStatus, Prisma, User } from "@prisma/client";
+import { readSpaceKit, videoLookColumns } from "@/lib/space-kit";
 import { activeLessons, lessonsBrief } from "@/lib/results/lessons";
 import { prisma } from "@/lib/prisma";
 import { generateScriptSchema, voiceoverRequestSchema } from "@/lib/validations";
@@ -273,8 +274,10 @@ async function scriptStep(item: AutopilotItem, user: User): Promise<StepResult> 
 
   let projectId = item.projectId;
   if (!projectId) {
+    // The space's saved look (lib/space-kit) first; the template's own settings then go over it.
+    const space = item.spaceId ? await prisma.space.findUnique({ where: { id: item.spaceId }, select: { kit: true } }) : null;
     const project = await prisma.project.create({
-      data: { userId: user.id, workspaceId: item.workspaceId, spaceId: item.spaceId, title: titleFromTopic(topic), topic, language: applied.language, targetDurationSec: item.targetDurationSec, aspectRatio: applied.aspectRatio },
+      data: { userId: user.id, workspaceId: item.workspaceId, spaceId: item.spaceId, title: titleFromTopic(topic), topic, language: applied.language, targetDurationSec: item.targetDurationSec, aspectRatio: applied.aspectRatio, ...videoLookColumns(readSpaceKit(space?.kit).video) },
     });
     projectId = project.id;
     const { count } = await prisma.autopilotItem.updateMany({ where: stillHere, data: { projectId } });

@@ -16,6 +16,7 @@ import { countWords } from "@/lib/utils";
 import { POST_PLATFORMS } from "@/lib/projects/progress";
 import { deleteUnusedKeys, keysIn } from "@/lib/storage-cleanup";
 import { assertCharacterSheet, sheetText } from "@/lib/characters";
+import { readSpaceKit, videoLookColumns } from "@/lib/space-kit";
 
 export async function createProject(input: unknown): Promise<ActionResult<{ id: string }>> {
   return guard(async () => {
@@ -42,6 +43,8 @@ export async function createProject(input: unknown): Promise<ActionResult<{ id: 
         voiceId: space?.voiceId ?? workspace.defaultVoiceId,
         musicTrackId: workspace.defaultMusicId,
         language: space?.language ?? workspace.defaultLanguage,
+        // The space's saved look (lib/space-kit): captions, background, music, art direction.
+        ...videoLookColumns(readSpaceKit(space?.kit).video),
       },
     });
     revalidatePath("/projects");

@@ -1,4 +1,5 @@
 import type { User, Workspace } from "@prisma/client";
+import { readSpaceKit, videoLookColumns } from "@/lib/space-kit";
 import { nanoid } from "nanoid";
 import { prisma } from "@/lib/prisma";
 import { generateScript } from "@/lib/ai/script-generator";
@@ -65,6 +66,8 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
           aspectRatio: workspace.defaultAspect,
           voiceId: space?.voiceId ?? workspace.defaultVoiceId,
           musicTrackId: workspace.defaultMusicId,
+          // The space's saved look (lib/space-kit): captions, background, music, art direction.
+          ...videoLookColumns(readSpaceKit(space?.kit).video),
         },
       })
     ).id;

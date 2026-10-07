@@ -10,6 +10,7 @@ import { VideoCoverView } from "@/components/studio/video-cover";
 import { COVER_FAMILIES } from "@/components/studio/cover-fonts";
 import { luminance } from "@/lib/carousel/templates";
 import { cn } from "@/lib/utils";
+import type { CoverLook } from "@/lib/space-kit";
 import { COVER_COLORS, COVER_FONTS, COVER_FONT_IDS, COVER_POSITIONS, COVER_POSITION_LABELS, COVER_SIZE, COVER_STYLES, COVER_TITLE_MAX, GRID_VISIBLE, type CoverEffect, type CoverFont, type CoverPosition, type CoverTitle } from "@/lib/video-cover";
 
 const EFFECT_LABELS: Record<CoverEffect, string> = { shadow: "Ombre", outline: "Contour", glow: "Lumineux", box: "Encadré" };
@@ -23,20 +24,41 @@ export interface CoverImageChoice {
 }
 
 /**
- * The cover's settings, kept by the Export tab so they survive the Couverture
- * block being folded, and so the ready card can offer the download too.
+ * The cover's settings, kept by the studio so they survive the Couverture
+ * block being folded or another tab opened, so the ready card can offer the
+ * download too, and so the space's look can be saved from them.
  */
-export function useCoverSettings({ projectId, images, titles, accountAccent }: { projectId: string; images: CoverImageChoice[]; titles: CoverTitle[]; accountAccent: string }) {
+export function useCoverSettings({ projectId, images, titles, accountAccent, initial }: { projectId: string; images: CoverImageChoice[]; titles: CoverTitle[]; accountAccent: string; /** The space's saved cover look (lib/space-kit), to start from. */ initial?: CoverLook | null }) {
   const [img, setImg] = useState(images[0]?.src ?? "");
   const [title, setTitle] = useState(titles[0]?.title ?? "");
   const [emphasis, setEmphasis] = useState(titles[0]?.emphasis ?? "");
-  const [position, setPosition] = useState<CoverPosition>("bottom");
-  const [font, setFont] = useState<CoverFont>("anton");
-  const [effect, setEffect] = useState<CoverEffect>("shadow");
-  const [styleId, setStyleId] = useState<string | null>(null);
-  const [color, setColor] = useState<string>(COVER_COLORS[0]);
+  const [position, setPosition] = useState<CoverPosition>(initial?.position ?? "bottom");
+  const [font, setFont] = useState<CoverFont>(initial?.font ?? "anton");
+  const [effect, setEffect] = useState<CoverEffect>(initial?.effect ?? "shadow");
+  const [styleId, setStyleId] = useState<string | null>(initial?.styleId ?? null);
+  const [color, setColor] = useState<string>(initial?.color ?? COVER_COLORS[0]);
   /** Empty: the account's accent colour. */
-  const [wordColor, setWordColor] = useState("");
+  const [wordColor, setWordColor] = useState(initial?.wordColor ?? "");
+
+  /** The look alone — what the space keeps (lib/space-kit), without this video's picture and words. */
+  const look: CoverLook = { styleId, font, color, wordColor, effect, position };
+  function applyLook(l: CoverLook) {
+    setStyleId(l.styleId);
+    setFont(l.font);
+    setColor(l.color);
+    setWordColor(l.wordColor);
+    setEffect(l.effect);
+    setPosition(l.position);
+  }
+
+  // Kept by the studio across tabs: a script written meanwhile brings the first titles.
+  const firstTitle = titles[0]?.title ?? "";
+  useEffect(() => {
+    if (!firstTitle) return;
+    setTitle((t) => t || firstTitle);
+    setEmphasis((e) => e || (titles[0]?.emphasis ?? ""));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstTitle]);
 
   // A scene redrawn or removed takes its image off the list: fall back to the first one left.
   useEffect(() => {
@@ -64,7 +86,7 @@ export function useCoverSettings({ projectId, images, titles, accountAccent }: {
   return {
     available: images.length > 0,
     img, setImg, title, setTitle, emphasis, setEmphasis, position, setPosition, font, setFont, effect, setEffect,
-    styleId, applyStyle, color, setColor, wordColor, setWordColor, accent, downloadUrl,
+    styleId, applyStyle, color, setColor, wordColor, setWordColor, accent, downloadUrl, look, applyLook,
   };
 }
 

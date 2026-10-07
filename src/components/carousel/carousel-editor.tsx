@@ -31,6 +31,9 @@ import { CopyForGemini } from "@/components/shared/copy-for-gemini";
 import { StylePicker } from "@/components/shared/style-picker";
 import { resolveTemplate } from "@/lib/carousel/templates";
 import { FormatSwitcher } from "@/components/studio/format-switcher";
+import { SpaceLookButton } from "@/components/shared/space-look-button";
+import { saveCarouselLookAction } from "@/server/actions/space-kit";
+import { carouselLookSummary, type CarouselLook } from "@/lib/space-kit";
 import type { SocialCopy } from "@/lib/social/captions";
 import { MarkPostedDialog } from "@/components/projects/mark-posted-dialog";
 import { ResultsButton } from "@/components/results/results-dialog";
@@ -65,6 +68,8 @@ interface Props {
   review: { report: ReviewReport; tally: ReviewTally | null } | null;
   /** What the script of a project without one is written from. */
   scriptStart: { topic: string; niche: string | null; language: string; cost: number };
+  /** Its space's saved carousel look (lib/space-kit); null outside a space. */
+  spaceLook: { spaceName: string; look: CarouselLook | null } | null;
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -123,7 +128,7 @@ function lengthOf(slides: CarouselState["slides"]): CarouselLength {
   return slides.filter((s) => s.kind === "content").length <= CONTENT_SLIDES.short ? "short" : "full";
 }
 
-export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured, posted, admin, review, characterReference, defaultStyle, scriptStart }: Props) {
+export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured, posted, admin, review, characterReference, defaultStyle, scriptStart, spaceLook: space }: Props) {
   const [marking, setMarking] = useState(false);
   const [unmarking, setUnmarking] = useState(false);
   async function unmarkPosted() {
@@ -209,6 +214,25 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
     const t = setTimeout(() => void persist(state), 900);
     return () => clearTimeout(t);
   }, [state, dirty, persist]);
+
+  // The space's look (lib/space-kit): saved from this carousel, or brought onto it.
+  const [spaceLook, setSpaceLook] = useState<CarouselLook | null>(space?.look ?? null);
+  async function saveSpaceLook(): Promise<boolean> {
+    if (state && dirty && (await persist(state)) === null) return false;
+    const res = await saveCarouselLookAction(projectId);
+    if (!res.ok) {
+      toast.error(res.error);
+      return false;
+    }
+    setSpaceLook(res.data.look);
+    toast.success("Rendu enregistré : chaque nouveau carrousel de l'espace démarrera avec.");
+    return true;
+  }
+  function applySpaceLook() {
+    if (!spaceLook) return;
+    setState((s) => (s ? { ...s, template: spaceLook.template, format: spaceLook.format, accent: spaceLook.accent, handle: spaceLook.handle, visualStyle: spaceLook.visualStyle ?? s.visualStyle } : s));
+    toast.success(spaceLook.visualStyle ? "Rendu de l'espace appliqué. « Refaire » les images pour leur donner le style de l'espace." : "Rendu de l'espace appliqué.");
+  }
 
   /**
    * A slide's preview URL is keyed on what that slide renders from, in the
@@ -490,7 +514,18 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
         <h1 className="mt-2 font-display text-2xl font-bold tracking-tight">Carrousel</h1>
         <p className="mt-0.5 truncate text-sm text-muted-foreground">{projectTitle}</p>
       </div>
-      <FormatSwitcher projectId={projectId} active="carousel" />
+      <div className="flex flex-wrap items-center gap-2">
+        {space && state && (
+          <SpaceLookButton
+            spaceName={space.spaceName}
+            kind="carousel"
+            saved={spaceLook ? { savedAt: spaceLook.savedAt, fromThis: spaceLook.fromProjectId === projectId, summary: carouselLookSummary(spaceLook) } : null}
+            onSave={saveSpaceLook}
+            onApply={applySpaceLook}
+          />
+        )}
+        <FormatSwitcher projectId={projectId} active="carousel" />
+      </div>
     </div>
   );
 

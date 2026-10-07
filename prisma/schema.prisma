@@ -365,6 +365,8 @@ model Space {
   characterImage     String? @db.Text
   /// The sheet put into words (lib/ai/cast-reader), for the writers that compose image briefs and never see the image.
   characterSheetText String? @db.Text
+  /// The space's look ("Rendu de l'espace", lib/space-kit): captions, background, music, voice tone, art direction and cover of its videos, template/format/accent/signature of its carousels — saved from a post, applied to every new one.
+  kit                Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
