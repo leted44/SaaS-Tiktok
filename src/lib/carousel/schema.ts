@@ -3,7 +3,7 @@ import { slugify } from "@/lib/utils";
 
 /** Room for a full image brief (subject, action, setting, composition) and for the series bible (cast and world). */
 export const IMAGE_PROMPT_MAX = 1000;
-export const VISUAL_MOTIF_MAX = 500;
+export const VISUAL_MOTIF_MAX = 800;
 /** The closing slide's share target, a line under the divider. */
 export const SHARE_TO_MAX = 110;
 import { VISUAL_STYLES, aiSource, isAiSource, type VisualLayout, type VisualStyle } from "@/lib/carousel/art-direction";

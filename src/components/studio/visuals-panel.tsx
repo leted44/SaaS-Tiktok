@@ -661,10 +661,10 @@ export function VisualsPanel({
               </summary>
               <div className="mt-3 space-y-4">
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between"><Label>Fil conducteur <span className="font-normal normal-case text-muted-foreground">· le décor et qui apparaît</span></Label><span className="text-[11px] text-muted-foreground">{visualMotif.length}/500</span></div>
+                  <div className="flex items-center justify-between"><Label>Fil conducteur <span className="font-normal normal-case text-muted-foreground">· le décor et qui apparaît</span></Label><span className="text-[11px] text-muted-foreground">{visualMotif.length}/800</span></div>
                   <Textarea
                     value={visualMotif}
-                    maxLength={500}
+                    maxLength={800}
                     rows={3}
                     placeholder="Ex. : un homme d'une trentaine d'années, brun, débardeur noir uni, dans une salle de street workout sombre"
                     onChange={(e) => onMotifChange(e.target.value)}

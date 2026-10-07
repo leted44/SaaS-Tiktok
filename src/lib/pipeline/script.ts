@@ -113,7 +113,7 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
       topic: project.topic ?? data.topic,
       niche: project.niche ?? data.niche,
       // The cast and world the scenes' AI images share; a motif the creator already set is never replaced.
-      visualMotif: project.visualMotif?.trim() ? project.visualMotif : result.script.visualMotif.trim().slice(0, 500) || null,
+      visualMotif: project.visualMotif?.trim() ? project.visualMotif : result.script.visualMotif.trim().slice(0, 800) || null,
     },
   });
 
