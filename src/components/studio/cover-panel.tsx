@@ -6,7 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Section } from "@/components/ui/section";
 import { cn } from "@/lib/utils";
-import { COVER_POSITIONS, COVER_POSITION_LABELS, COVER_TITLE_MAX, GRID_VISIBLE, type CoverPosition, type CoverTitle } from "@/lib/video-cover";
+import { COVER_COLORS, COVER_FONTS, COVER_FONT_IDS, COVER_POSITIONS, COVER_POSITION_LABELS, COVER_TITLE_MAX, GRID_VISIBLE, type CoverFont, type CoverPosition, type CoverTitle } from "@/lib/video-cover";
+
+/** The faces are only bundled for the image renderer: the buttons show a close system face, as the carousel's template picker does. */
+const BUTTON_FACE: Record<CoverFont, string> = {
+  anton: "Impact, 'Arial Narrow Bold', 'Arial Narrow', sans-serif",
+  barlow: "'Arial Narrow Bold', 'Arial Narrow', Impact, sans-serif",
+  inter: "inherit",
+  playfair: "Georgia, 'Times New Roman', serif",
+};
 
 export interface CoverImageChoice {
   src: string;
@@ -24,6 +32,10 @@ export function CoverPanel({ projectId, images, titles }: { projectId: string; i
   const [title, setTitle] = useState(titles[0]?.title ?? "");
   const [emphasis, setEmphasis] = useState(titles[0]?.emphasis ?? "");
   const [position, setPosition] = useState<CoverPosition>("bottom");
+  const [font, setFont] = useState<CoverFont>("anton");
+  const [color, setColor] = useState<string>(COVER_COLORS[0]);
+  /** Empty: the account's accent colour. */
+  const [wordColor, setWordColor] = useState("");
 
   // A scene redrawn or removed takes its image off the list: fall back to the first one left.
   useEffect(() => {
@@ -38,9 +50,9 @@ export function CoverPanel({ projectId, images, titles }: { projectId: string; i
   }, [title, emphasis]);
 
   const url = useMemo(() => {
-    const q = new URLSearchParams({ img, title: settled.title, em: settled.emphasis, pos: position });
+    const q = new URLSearchParams({ img, title: settled.title, em: settled.emphasis, pos: position, font, fg: color, ...(wordColor ? { hl: wordColor } : {}) });
     return `/api/projects/${projectId}/cover?${q.toString()}`;
-  }, [projectId, img, settled, position]);
+  }, [projectId, img, settled, position, font, color, wordColor]);
 
   if (!images.length) {
     return (
@@ -55,16 +67,18 @@ export function CoverPanel({ projectId, images, titles }: { projectId: string; i
   return (
     <Section title="Couverture" icon={ImageIcon} summary="Image + titre">
       <p className="mb-3 text-xs text-muted-foreground">Une image de la vidéo avec un titre accrocheur, à importer comme couverture : c&apos;est elle qui s&apos;affiche sur ta grille de profil. Gratuit.</p>
-      <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
-        <div className="relative mx-auto w-[180px] overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]" style={{ aspectRatio: "9 / 16" }}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        <div className="flex justify-center sm:block">
+        <div className="relative w-[min(52vw,210px)] shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] sm:w-[200px]" style={{ aspectRatio: "9 / 16" }}>
           <div className="absolute inset-0 animate-pulse bg-white/[0.03]" />
           <img key={url} src={url} alt="Aperçu de la couverture" className="absolute inset-0 h-full w-full" />
           {/* What a profile grid keeps of the cover: the title has to sit between these lines. */}
           <div className="pointer-events-none absolute inset-x-0 border-t border-dashed border-white/50" style={{ top: `${GRID_VISIBLE.top * 100}%` }} />
           <div className="pointer-events-none absolute inset-x-0 border-t border-dashed border-white/50" style={{ top: `${GRID_VISIBLE.bottom * 100}%` }} />
         </div>
+        </div>
 
-        <div className="space-y-3">
+        <div className="min-w-0 flex-1 space-y-3">
           <div>
             <Label className="text-xs">Image</Label>
             <div className="mt-1.5 flex gap-2 overflow-x-auto pb-1">
@@ -123,6 +137,20 @@ export function CoverPanel({ projectId, images, titles }: { projectId: string; i
             </div>
           </div>
 
+          <div>
+            <Label className="text-xs">Police</Label>
+            <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+              {COVER_FONT_IDS.map((f) => (
+                <button key={f} type="button" onClick={() => setFont(f)} className={cn("truncate rounded-lg border px-2 py-1.5 text-sm", f === font ? "border-primary bg-primary/15" : "border-white/10 bg-white/[0.03]")} style={{ fontFamily: BUTTON_FACE[f], fontWeight: COVER_FONTS[f].weight }}>
+                  {COVER_FONTS[f].label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <Swatches label="Couleur du titre" value={color} onChange={setColor} />
+          <Swatches label="Couleur du mot" value={wordColor} onChange={setWordColor} auto />
+
           <a href={`${url}&download=1`} download className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-white/10 text-sm font-semibold hover:bg-white/15">
             <Download className="h-4 w-4" /> Télécharger la couverture
           </a>
@@ -132,5 +160,24 @@ export function CoverPanel({ projectId, images, titles }: { projectId: string; i
         </div>
       </div>
     </Section>
+  );
+}
+
+/** A row of colour dots; `auto` adds a first dot standing for the account's accent colour (value ""). */
+function Swatches({ label, value, onChange, auto }: { label: string; value: string; onChange: (v: string) => void; auto?: boolean }) {
+  return (
+    <div>
+      <Label className="text-xs">{label}</Label>
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        {auto && (
+          <button type="button" onClick={() => onChange("")} className={cn("h-7 rounded-full border px-2 text-[11px]", value === "" ? "border-primary bg-primary/15" : "border-white/10 bg-white/[0.03]")}>
+            Auto
+          </button>
+        )}
+        {COVER_COLORS.map((c) => (
+          <button key={c} type="button" aria-label={c} onClick={() => onChange(c)} className={cn("h-7 w-7 rounded-full border-2", c === value ? "border-primary ring-2 ring-primary/40" : "border-white/15")} style={{ background: c }} />
+        ))}
+      </div>
+    </div>
   );
 }

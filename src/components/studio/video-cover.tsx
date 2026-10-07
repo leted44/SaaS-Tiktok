@@ -1,17 +1,18 @@
 import { headlineWords } from "@/components/carousel/slide";
-import { COVER_BLOCK, COVER_SIZE, coverTitleSize, type CoverPosition } from "@/lib/video-cover";
+import { COVER_BLOCK, COVER_FONTS, COVER_SIZE, coverTitleSize, type CoverFont, type CoverPosition } from "@/lib/video-cover";
 
 /**
  * The video's cover as `next/og` draws it (see /api/projects/[id]/cover): the
  * image edge to edge, a soft shade behind the title only, and the title in
- * the carousel's poster face — white capitals, the surprising word in the
- * accent colour, flat and shadowed like the rest so it reads on any image.
+ * face and colour picked for it, the surprising word in its own colour, flat
+ * and shadowed like the rest so it reads on any image.
  */
-export function VideoCoverView({ imageSrc, title, emphasis, position, accent }: { imageSrc: string | null; title: string; emphasis: string; position: CoverPosition; accent: string }) {
+export function VideoCoverView({ imageSrc, title, emphasis, position, accent, color, font }: { imageSrc: string | null; title: string; emphasis: string; position: CoverPosition; accent: string; color: string; font: CoverFont }) {
+  const face = COVER_FONTS[font];
   const { width, height } = COVER_SIZE;
   const block = COVER_BLOCK[position];
-  const size = coverTitleSize(title);
-  const lineHeight = 1.18;
+  const size = Math.round(coverTitleSize(title) * face.scale);
+  const lineHeight = face.lineHeight;
   const pct = (y: number) => `${Math.max(0, Math.min(100, (y / height) * 100)).toFixed(1)}%`;
   // Darkens only around the title, so the image keeps its light everywhere else.
   const scrim = `linear-gradient(180deg, rgba(0,0,0,0) ${pct(block.top - 260)}, rgba(0,0,0,0.5) ${pct(block.top + 60)}, rgba(0,0,0,0.5) ${pct(block.top + block.height - 60)}, rgba(0,0,0,0) ${pct(block.top + block.height + 260)})`;
@@ -29,14 +30,15 @@ export function VideoCoverView({ imageSrc, title, emphasis, position, accent }: 
             display: "flex",
             flexWrap: "wrap",
             justifyContent: "center",
-            columnGap: Math.round(size * 0.22),
-            fontFamily: "Anton",
-            fontWeight: 400,
+            columnGap: Math.round(size * face.gap),
+            fontFamily: face.family,
+            fontWeight: face.weight,
             fontSize: size,
             lineHeight,
             letterSpacing: 1,
-            textTransform: "uppercase",
-            color: "#FFFFFF",
+            textTransform: face.upper ? "uppercase" : "none",
+            textAlign: "center",
+            color,
             textShadow: shadow,
           }}
         >

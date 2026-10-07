@@ -30,6 +30,20 @@ export const GRID_VISIBLE = { top: 240 / 1920, bottom: 1680 / 1920 } as const;
 
 export const COVER_TITLE_MAX = 60;
 
+/** The title faces — the ones the carousel already ships (lib/carousel/fonts), each with the settings it reads best at. */
+export const COVER_FONTS = {
+  anton: { label: "Affiche", family: "Anton", weight: 400, upper: true, scale: 1, lineHeight: 1.18, gap: 0.22 },
+  barlow: { label: "Condensée", family: "Barlow Condensed", weight: 900, upper: true, scale: 1.02, lineHeight: 1.04, gap: 0.2 },
+  inter: { label: "Moderne", family: "Inter", weight: 800, upper: false, scale: 0.74, lineHeight: 1.08, gap: 0.26 },
+  playfair: { label: "Élégante", family: "Playfair Display", weight: 700, upper: false, scale: 0.8, lineHeight: 1.1, gap: 0.26 },
+} as const;
+export type CoverFont = keyof typeof COVER_FONTS;
+export const COVER_FONT_IDS = Object.keys(COVER_FONTS) as CoverFont[];
+
+/** Light colours only: the title sits on a darkened band of the image, where a dark colour would vanish. */
+export const COVER_COLORS = ["#FFFFFF", "#FFF1D6", "#FFD23F", "#FF8A3D", "#FF7AB6", "#5CE1E6", "#7CFF8A"] as const;
+export const isCoverColor = (value: string | null | undefined): value is string => /^#[0-9a-fA-F]{6}$/.test(value ?? "");
+
 export const coverTitleSchema = z.object({ title: z.string(), emphasis: z.string().default("") });
 export type CoverTitle = z.infer<typeof coverTitleSchema>;
 export const coverTitlesSchema = z.array(coverTitleSchema);
