@@ -49,8 +49,8 @@ export const ART_DIRECTIONS: Record<VisualStyle, ArtDirection> = {
     label: "Illustration 3D",
     hint: "Film d'animation, chaleureux",
     prompt:
-      "Still from a high-end 3D animated feature film, ultra-detailed. Expressive, appealing characters with clear emotions, set in hyper-realistic surroundings with tactile textures (skin, fabric, metal, food, fibres). Bright, well-exposed animated-film lighting: a warm key light fills the whole scene, the characters and their faces are brightly lit and clearly readable, a glowing rim light separates them from the background, shadows stay soft and full of visible detail, glowing light sources in the setting. The whole background is bathed in warm glowing light and a soft luminous haze, every corner of the frame bright and clearly visible. Luminous warm palette (amber, peach, coral, golden light), subsurface scattering, shallow depth of field.",
-    swatch: ["#3B2418", "#F08A5D", "#FFD6A5"],
+      "Still from a high-end 3D animated feature film, ultra-detailed. Expressive, appealing characters with clear emotions, set in hyper-realistic surroundings with tactile textures (skin, fabric, metal, food, fibres). Bright, well-exposed animated-film lighting: a warm key light fills the whole scene, the characters and their faces are brightly lit and clearly readable, a glowing rim light separates them from the background, shadows stay soft and full of visible detail, glowing light sources in the setting. The whole frame is bright and clearly visible, every corner readable, with a soft luminous haze. Each place keeps its own true, saturated colours — blue-violet nerves, deep crimson blood, pale pink lungs, a kitchen's real woods and tiles, a bedroom's night blues — so two different places never share one colour cast; the warm golden light stays on the characters. Subsurface scattering, shallow depth of field.",
+    swatch: ["#5B4BC4", "#F08A5D", "#FFD6A5"],
   },
   pastel: {
     label: "Doux",
