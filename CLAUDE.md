@@ -25,7 +25,7 @@ Counterparts to check every time:
 
 | Concern | Carousel | Video |
 | --- | --- | --- |
-| Image briefs written by the AI (a setting inside the body is named by its tissue, never its skull or mouth: `INNER_SETTING` in `writing-rules.ts`) | `lib/ai/carousel-generator.ts` (`imageBrief`, `MOTIF`) | `lib/ai/script-generator.ts` (`SCENE_VISUAL_BRIEF`, `visualMotif`) |
+| Image briefs written by the AI (a setting inside the body is named by its tissue, never its skull or mouth: `INNER_SETTING`; each image its own place, never the previous one's, the series bible names a family of places: `SETTING_VARIETY` in `writing-rules.ts`; the series' first image, sent as reference, gives its look, never its setting: `REFERENCE_NOTE` in `image-generator.ts`) | `lib/ai/carousel-generator.ts` (`imageBrief`, `MOTIF`) | `lib/ai/script-generator.ts` (`SCENE_VISUAL_BRIEF`, `visualMotif`) |
 | Opening image (scroll-stopper) | cover brief `coverImagePrompt` (`carousel-generator.ts`) | hook brief `hookVisualDescription` → `Script.hookVisual` (`script-generator.ts`, `pipeline/visuals.ts`) |
 | Prompt composition, art direction, framing | `lib/carousel/art-direction.ts` (layout `bleed`/`band`) | same file (layout `frame`, purpose `video`) |
 | Generation (check + correction off for every model: `AUTO_CORRECTION = false`, one call per image, "Refaire" for another) | `lib/carousel/ai-visuals.ts` → `lib/ai/checked-image.ts` | `lib/pipeline/ai-visuals.ts` → `lib/ai/checked-image.ts` |

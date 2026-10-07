@@ -42,5 +42,14 @@ export function characterSheetLine(text: string | null | undefined): string | nu
  * draw the container they are given. Shared by the video and carousel writers,
  * for the image briefs and the series bible.
  */
+/**
+ * One place per image, never the same one twice in a row. The series bible
+ * used to name ONE shared place, and every scene of a body video came back on
+ * the same glowing neurons or stomach folds, one post after another. Shared by
+ * the video and carousel writers, for the image briefs and the series bible.
+ */
+export const SETTING_VARIETY =
+  "Each image has its own setting, chosen for what its line says, never the same place as the image before it: travel through the topic's world (for the body: a blood vessel, the stomach lining, the neurons, the lungs' alveoli, a single cell up close…) and step out into the everyday place the line is about when it speaks of daily life (the kitchen, the bed at night, the gym, the doctor's office), the recurring characters then in that real place.";
+
 export const INNER_SETTING =
   "Inside the body, name the tissue and structures the camera sees there (neurons, blood vessels, alveoli, muscle fibres, the stomach lining), never the bone or cavity that encloses them (a skull, a rib cage, a mouth, a jaw): image models draw the container itself, bone and teeth, instead of what is inside it.";

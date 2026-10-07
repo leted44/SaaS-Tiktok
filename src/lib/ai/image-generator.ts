@@ -37,7 +37,7 @@ const endpoint = (model: GeminiModel) => `https://generativelanguage.googleapis.
  * photos. The action and framing always come from the new description.
  */
 const REFERENCE_NOTE =
-  "The attached image is the first image of the same series. Keep its art direction exactly — lighting, colour grade, lens, depth of field, texture and mood — so both images unmistakably belong together. If the new scene features the same recurring person or character, keep them identical: same face, hair, skin tone, build and outfit. The action, pose, camera angle and framing come only from the new description below, not from the attached image.";
+  "The attached image is the first image of the same series. Keep its art direction exactly — lighting, colour grade, lens, depth of field, texture and mood — so both images unmistakably belong together. If the new scene features the same recurring person or character, keep them identical: same face, hair, skin tone, build and outfit. The setting, background and props, the action, pose, camera angle and framing come only from the new description below, never from the attached image: a new place is drawn as that new place.";
 
 /**
  * How the account's character sheet is to be used: the creator's own drawing
@@ -47,7 +47,7 @@ const REFERENCE_NOTE =
  */
 
 const REFERENCE_AFTER_CAST_NOTE =
-  "The second attached image is the first image of the same series. Keep its art direction exactly — lighting, colour grade, lens, depth of field, texture and mood — so both images unmistakably belong together. The action, pose, camera angle and framing come only from the new description below, not from either attached image.";
+  "The second attached image is the first image of the same series. Keep its art direction exactly — lighting, colour grade, lens, depth of field, texture and mood — so both images unmistakably belong together. The setting, background and props, the action, pose, camera angle and framing come only from the new description below, never from either attached image: a new place is drawn as that new place.";
 
 interface Options {
   prompt: string;
