@@ -53,22 +53,55 @@ export async function startCloneAction(spaceId: string, photoUrls: string[]): Pr
     // A word that means nothing else, so the model learns it as this one person.
     const trigger = `vsp${nanoid(6).toLowerCase().replace(/[^a-z0-9]/g, "x")}`;
     const { statusUrl, responseUrl } = await startCloneTraining(absoluteUrl(publicUrl(key)), trigger);
-    const clone: CloneState = { status: "training", trigger, photoUrl: urls[0], photos: Object.keys(files).length, statusUrl, responseUrl, loraUrl: null, error: null, startedAt: new Date().toISOString(), readyAt: null };
+    const clone: CloneState = { status: "training", trigger, photoUrl: urls[0], photos: Object.keys(files).length, statusUrl, responseUrl, loraUrl: null, loraBackupUrl: null, error: null, startedAt: new Date().toISOString(), readyAt: null };
     await save(space.id, clone);
     return { clone };
   });
 }
 
-/** Read the training's status from fal and keep it on the space. */
+/** Keep the trained file ourselves: fal's link may expire, and a file in our storage can be downloaded. Null when it could not be copied. */
+async function backupLora(userId: string, clone: CloneState): Promise<string | null> {
+  if (!clone.loraUrl) return null;
+  try {
+    const res = await fetch(clone.loraUrl, { signal: AbortSignal.timeout(120_000) });
+    if (!res.ok) return null;
+    const data = Buffer.from(await res.arrayBuffer());
+    if (data.length === 0 || data.length > 600 * 1024 * 1024) return null;
+    const stored = await putObject(storageKey(userId, "asset", `clone-${clone.trigger}.safetensors`), data, "application/octet-stream");
+    return stored.url;
+  } catch (err) {
+    console.error("[clone] could not copy the trained file to storage:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+/** Read the training's status from fal and keep it on the space; a finished clone not yet copied to our storage is copied. */
 export async function refreshCloneAction(spaceId: string): Promise<ActionResult<{ clone: CloneState | null }>> {
   return guard(async () => {
-    const { space } = await adminSpace(spaceId);
+    const { user, space } = await adminSpace(spaceId);
     const current = readClone(space.clone);
-    if (!current || current.status !== "training") return { clone: current };
+    if (!current) return { clone: null };
+    if (current.status === "ready") {
+      if (current.loraBackupUrl) return { clone: current };
+      const backup = await backupLora(user.id, current);
+      if (!backup) return { clone: current };
+      const clone = { ...current, loraBackupUrl: backup };
+      await save(space.id, clone);
+      return { clone };
+    }
+    if (current.status !== "training") return { clone: current };
     const result = await checkCloneTraining(current);
     if (result.status === "training") return { clone: current };
-    const clone: CloneState = result.status === "ready" ? { ...current, status: "ready", loraUrl: result.loraUrl, readyAt: new Date().toISOString() } : { ...current, status: "failed", error: result.error };
+    let clone: CloneState = result.status === "ready" ? { ...current, status: "ready", loraUrl: result.loraUrl, readyAt: new Date().toISOString() } : { ...current, status: "failed", error: result.error };
+    // The first save keeps the clone usable at once; the copy comes after and never blocks it.
     await save(space.id, clone);
+    if (clone.status === "ready") {
+      const backup = await backupLora(user.id, clone);
+      if (backup) {
+        clone = { ...clone, loraBackupUrl: backup };
+        await save(space.id, clone);
+      }
+    }
     return { clone };
   });
 }

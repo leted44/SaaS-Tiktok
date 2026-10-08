@@ -146,7 +146,7 @@ function spaceLookView(value: unknown): SpaceLookView {
 /** The space's clone (lib/ai/clone) as its card shows it: no fal URLs. */
 function cloneView(value: unknown): CloneView | null {
   const c = readClone(value);
-  return c ? { status: c.status, photos: c.photos, photoUrl: c.photoUrl, error: c.error, startedAt: c.startedAt, readyAt: c.readyAt } : null;
+  return c ? { status: c.status, photos: c.photos, photoUrl: c.photoUrl, error: c.error, startedAt: c.startedAt, readyAt: c.readyAt, trigger: c.trigger, backedUp: Boolean(c.loraBackupUrl) } : null;
 }
 
 export async function getSpacesData() {

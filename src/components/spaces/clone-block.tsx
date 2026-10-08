@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ScanFace, Trash2, Upload } from "lucide-react";
+import { Copy, Download, Loader2, ScanFace, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { uploadAsset } from "@/lib/assets/upload-client";
@@ -17,6 +17,10 @@ export interface CloneView {
   error: string | null;
   startedAt: string;
   readyAt: string | null;
+  /** The word the model learned the person as. */
+  trigger: string;
+  /** The trained file is also kept in the app's storage. */
+  backedUp: boolean;
 }
 
 /**
@@ -31,6 +35,16 @@ export function CloneBlock({ spaceId, clone }: { spaceId: string; clone: CloneVi
   const [sending, setSending] = useState<{ done: number; total: number } | null>(null);
   const [state, setState] = useState(clone);
 
+  // A clone finished but not yet copied to our storage (the copy failed or the page was closed): copy it now.
+  useEffect(() => {
+    if (state?.status !== "ready" || state.backedUp) return;
+    let stopped = false;
+    void refreshCloneAction(spaceId).then((res) => {
+      if (!stopped && res.ok && res.data.clone?.loraBackupUrl) setState((s) => (s ? { ...s, backedUp: true } : s));
+    });
+    return () => { stopped = true; };
+  }, [state?.status, state?.backedUp, spaceId]);
+
   // While a training runs, ask fal where it stands every 30 seconds.
   useEffect(() => {
     if (state?.status !== "training") return;
@@ -40,7 +54,7 @@ export function CloneBlock({ spaceId, clone }: { spaceId: string; clone: CloneVi
       if (stopped || !res.ok || !res.data.clone) return;
       const next = res.data.clone;
       if (next.status !== "training") {
-        setState({ status: next.status, photos: next.photos, photoUrl: next.photoUrl, error: next.error, startedAt: next.startedAt, readyAt: next.readyAt });
+        setState({ status: next.status, photos: next.photos, photoUrl: next.photoUrl, error: next.error, startedAt: next.startedAt, readyAt: next.readyAt, trigger: next.trigger, backedUp: Boolean(next.loraBackupUrl) });
         if (next.status === "ready") toast.success("Ton clone est prêt : les prochaines images IA de cet espace auront ton visage.");
         else toast.error(next.error ?? "L'entraînement a échoué.");
         router.refresh();
@@ -69,7 +83,7 @@ export function CloneBlock({ spaceId, clone }: { spaceId: string; clone: CloneVi
     const res = await startCloneAction(spaceId, urls);
     if (!res.ok) return toast.error(res.error);
     const c = res.data.clone;
-    setState({ status: c.status, photos: c.photos, photoUrl: c.photoUrl, error: null, startedAt: c.startedAt, readyAt: null });
+    setState({ status: c.status, photos: c.photos, photoUrl: c.photoUrl, error: null, startedAt: c.startedAt, readyAt: null, trigger: c.trigger, backedUp: false });
     toast.success("Entraînement lancé. Tu peux quitter la page : il continue sans toi.");
   }
 
@@ -94,9 +108,27 @@ export function CloneBlock({ spaceId, clone }: { spaceId: string; clone: CloneVi
       {state?.status === "training" ? (
         <p className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground"><Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" /> Entraînement en cours sur {state.photos} photos (une dizaine de minutes). Tu peux quitter la page.</p>
       ) : state?.status === "ready" ? (
-        <div className="mt-2 flex items-center gap-2">
-          {state.photoUrl && <img src={state.photoUrl} alt="" className="h-10 w-10 rounded-full object-cover" />}
-          <p className="text-[11px] text-muted-foreground">Prêt depuis le {new Date(state.readyAt ?? state.startedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} · {state.photos} photos. Les images IA de cet espace sont faites avec ton visage. Refais une scène pour juger.</p>
+        <div className="mt-2 space-y-2">
+          <div className="flex items-center gap-2">
+            {state.photoUrl && <img src={state.photoUrl} alt="" className="h-10 w-10 rounded-full object-cover" />}
+            <p className="text-[11px] text-muted-foreground">Prêt depuis le {new Date(state.readyAt ?? state.startedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} · {state.photos} photos. Les images IA de cet espace sont faites avec ton visage. Refais une scène pour juger.</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-black/20 p-2.5">
+            <p className="text-[11px] font-semibold">Le récupérer pour l&apos;utiliser ailleurs</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              Fichier LoRA pour FLUX.1 (fal.ai, ComfyUI, Replicate…). Il ne marche ni dans ChatGPT, ni dans Gemini, ni dans Midjourney. Mot-clé à mettre au début de chaque description :
+            </p>
+            <div className="mt-1.5 flex items-center gap-2">
+              <code className="min-w-0 flex-1 truncate rounded bg-white/[0.06] px-2 py-1 text-[12px]">{state.trigger}</code>
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => { void navigator.clipboard?.writeText(state.trigger).then(() => toast.success("Mot-clé copié.")); }}><Copy /> Copier</Button>
+            </div>
+            <Button asChild size="sm" variant="secondary" className="mt-2 w-full">
+              <a href={`/api/clone/${spaceId}/download`} download><Download /> Télécharger le modèle</a>
+            </Button>
+            <p className="mt-1.5 text-[10px] text-muted-foreground">
+              {state.backedUp ? "Une copie est gardée dans ton stockage : le clone ne disparaît pas si le lien de fal.ai expire." : "Copie dans ton stockage en cours… tant qu'elle n'est pas faite, le fichier ne vient que de fal.ai."} Le fichier contient ton visage : garde-le privé. Licence FLUX.1 [dev] : usage commercial du modèle non autorisé, images produites autorisées (à vérifier sur le site de Black Forest Labs).
+            </p>
+          </div>
         </div>
       ) : (
         <>

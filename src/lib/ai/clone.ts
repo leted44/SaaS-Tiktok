@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { env } from "@/lib/env";
+import { absoluteUrl } from "@/lib/storage";
 import { AiImageError, type GeneratedImage, type ImageAspect } from "@/lib/ai/image-types";
 
 /**
@@ -31,6 +32,8 @@ export const cloneStateSchema = z.object({
   statusUrl: z.string().nullable().default(null),
   responseUrl: z.string().nullable().default(null),
   loraUrl: z.string().nullable().default(null),
+  /** The same file kept in the app's own storage (fal's link may expire); null until copied. */
+  loraBackupUrl: z.string().nullable().default(null),
   error: z.string().nullable().default(null),
   startedAt: z.string(),
   readyAt: z.string().nullable().default(null),
@@ -45,12 +48,14 @@ export function readClone(value: unknown): CloneState | null {
 /** What drawing needs: the trained file and the word it answers to. */
 export interface CloneModel {
   loraUrl: string;
+  /** The copy in the app's storage, tried when fal's own link no longer answers. */
+  backupUrl?: string | null;
   trigger: string;
 }
 
 export function readyClone(value: unknown): CloneModel | null {
   const state = readClone(value);
-  return state?.status === "ready" && state.loraUrl ? { loraUrl: state.loraUrl, trigger: state.trigger } : null;
+  return state?.status === "ready" && state.loraUrl ? { loraUrl: state.loraUrl, backupUrl: state.loraBackupUrl, trigger: state.trigger } : null;
 }
 
 const headers = (): HeadersInit => ({ Authorization: `Key ${env.falApiKey}`, "Content-Type": "application/json" });
@@ -112,10 +117,16 @@ export async function generateWithClone(options: { clone: CloneModel; prompt: st
   const left = () => Math.max(1_000, deadline - Date.now());
   const tooSlow = () => new AiImageError("Le service de génération d'images ne répond pas. Réessaie dans un instant.", "UPSTREAM");
   const prompt = `Photo of ${clone.trigger}. The person in this image is ${clone.trigger}, with exactly ${clone.trigger}'s face, features, skin tone, hair and build.\n${options.prompt}`;
-  const body = { prompt, loras: [{ path: clone.loraUrl, scale: 1 }], image_size: SIZE[aspectRatio], num_inference_steps: 28, guidance_scale: 3.5, num_images: 1, enable_safety_checker: true, output_format: "jpeg" };
+  const bodyFor = (loraUrl: string) => ({ prompt, loras: [{ path: loraUrl, scale: 1 }], image_size: SIZE[aspectRatio], num_inference_steps: 28, guidance_scale: 3.5, num_images: 1, enable_safety_checker: true, output_format: "jpeg" });
+  const post = (loraUrl: string) => fetch(`${env.falQueueUrl}/${DRAW_ENDPOINT}`, { method: "POST", headers: headers(), body: JSON.stringify(bodyFor(loraUrl)), signal: AbortSignal.timeout(left()) });
 
   try {
-    const res = await fetch(`${env.falQueueUrl}/${DRAW_ENDPOINT}`, { method: "POST", headers: headers(), body: JSON.stringify(body), signal: AbortSignal.timeout(left()) });
+    let res = await post(clone.loraUrl);
+    // fal's link to the trained file no longer answers: the copy in our own storage takes over.
+    if ([400, 404, 410, 422].includes(res.status) && clone.backupUrl) {
+      console.error(`[clone] fal refused the LoRA link (${res.status}), using the stored copy`);
+      res = await post(absoluteUrl(clone.backupUrl));
+    }
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       console.error(`[clone] ${res.status} on ${DRAW_ENDPOINT}: ${text.slice(0, 400)}`);
