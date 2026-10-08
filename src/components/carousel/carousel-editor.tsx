@@ -125,6 +125,8 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const [marking, setMarking] = useState(false);
   const [unmarking, setUnmarking] = useState(false);
   const [rewriting, setRewriting] = useState(false);
+  const manyRef = useRef<HTMLInputElement>(null);
+  const [importingMany, setImportingMany] = useState<{ done: number; total: number } | null>(null);
   /** The slides' image prompts a rewrite replaced, to put back. */
   const [previousPrompts, setPreviousPrompts] = useState<Record<string, string> | null>(null);
   async function unmarkPosted() {
@@ -501,6 +503,35 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
       return { ...s, slides };
     });
 
+  /**
+   * Several photos at once, in the order picked: the first on the cover, the
+   * next ones on the slides after it (the closing slide has no image). The
+   * same rule as the video's import; a slide's own « Ma photo » still changes
+   * one photo.
+   */
+  async function importInOrder(files: FileList) {
+    const list = Array.from(files);
+    if (manyRef.current) manyRef.current.value = "";
+    if (!state || !list.length) return;
+    const targets = state.slides.filter((s) => s.kind !== "cta");
+    const urls: string[] = [];
+    // Serial: a phone's upstream is the bottleneck, parallel sends only split it.
+    for (const [i, file] of list.slice(0, targets.length).entries()) {
+      setImportingMany({ done: i, total: Math.min(list.length, targets.length) });
+      try {
+        urls.push((await uploadAsset(await toJpeg(file))).url);
+      } catch (err) {
+        toast.error(`${file.name} : ${err instanceof Error ? err.message : "envoi impossible"}`);
+        urls.push("");
+      }
+    }
+    setImportingMany(null);
+    const byId = new Map(targets.map((s, i) => [s.id, urls[i]]).filter((e): e is [string, string] => Boolean(e[1])));
+    setState((prev) => (prev ? { ...prev, slides: prev.slides.map((s) => (byId.has(s.id) ? { ...s, image: { url: byId.get(s.id)! }, draftImage: null, bakedText: false } : s)) } : prev));
+    const extra = list.length - targets.length;
+    toast.success(`${byId.size} photo${byId.size > 1 ? "s" : ""} placée${byId.size > 1 ? "s" : ""}, de la couverture à la slide ${byId.size}${extra > 0 ? ` · ${extra} de trop, non importée${extra > 1 ? "s" : ""}` : ""}.`);
+  }
+
   async function rewriteBriefs() {
     if (!state) return;
     setRewriting(true);
@@ -803,6 +834,14 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                 </div>
               )}
               <CharacterReference projectId={projectId} initial={characterReference} generate={{ description: state.visualMotif, cost: aiImageCost, enabled: aiImagesConfigured }} />
+
+              <div className="space-y-1">
+                <Button variant="outline" className="w-full" loading={importingMany !== null} disabled={generating || busy !== null} onClick={() => manyRef.current?.click()}>
+                  <Upload /> {importingMany ? `Envoi ${importingMany.done + 1}/${importingMany.total}…` : "Importer mes photos, dans l'ordre"}
+                </Button>
+                <input ref={manyRef} type="file" multiple accept="image/*" className="hidden" onChange={(e) => e.target.files && importInOrder(e.target.files)} />
+                <p className="text-[11px] text-muted-foreground">La 1re photo choisie va sur la couverture, les suivantes sur les slides d&apos;après. Pour en changer une seule : touche la slide dans l&apos;aperçu.</p>
+              </div>
 
               {pendingVisuals > 0 ? (
                 <Button variant="gradient" className="w-full" onClick={() => generateVisuals("missing")} loading={visualsBusy} disabled={generating || filling || busy !== null || credits < pendingVisuals * aiImageCost}>

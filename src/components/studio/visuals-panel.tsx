@@ -231,6 +231,7 @@ export function VisualsPanel({
 
   async function upload(files: FileList | File[]) {
     const list = Array.from(files);
+    const sent: Asset[] = [];
     // Serial on purpose: a phone's upstream is the bottleneck, so uploading in
     // parallel only splits the same bandwidth and makes every file slower.
     for (const [i, original] of list.entries()) {
@@ -242,12 +243,14 @@ export function VisualsPanel({
         track("uploading")(0);
         const asset = await uploadAsset(file, { onProgress: track("uploading") });
         setAssets((a) => [asset, ...a]);
-        addLayer(asset);
+        sent.push(asset);
       } catch (err) {
         toast.error(`${original.name} : ${err instanceof Error ? err.message : "échec de l'envoi"}`);
       }
     }
     setUploading(null);
+    if (fileRef.current) fileRef.current.value = "";
+    if (sent.length) placeInOrder(sent);
   }
 
   /**
@@ -314,6 +317,53 @@ export function VisualsPanel({
     return { id: nanoid(8), type, src, startMs: scene.startMs, endMs: scene.endMs, fit: "cover", kenBurns: type === "video" ? "none" : "in", opacity: 1, sceneIndex: sceneIdx };
   }
 
+  /**
+   * Imported files, in the order they were picked: the first on the selected
+   * scene (the hook when none is), the next ones on the scenes after it. Each
+   * file used to land on that same scene, the next replacing the last, so
+   * five photos left one on the hook and four to place by hand. The CTA keeps
+   * its rule — it shows the last scene's still — unless it is the scene picked;
+   * files beyond the last scene wait in the project's library. One commit for
+   * the lot: separate ones would each start from the same layers and keep
+   * only the last.
+   */
+  function placeInOrder(sent: Asset[]) {
+    const start = selectedScene ?? 0;
+    if (!scenes[start]) {
+      remember(...sent.map((a) => ({ type: a.type === "VIDEO" ? ("video" as const) : ("image" as const), src: a.url, thumbnailUrl: null, label: a.name })));
+      return toast.error("Générez d'abord un script pour que les scènes existent : les fichiers sont dans la bibliothèque.");
+    }
+    const cta = ctaSceneIndex(scenes.length);
+    const slots = start === cta ? [start] : scenes.map((_, i) => i).filter((i) => i >= start && i !== cta);
+    const placed: VisualLayer[] = [];
+    const displaced: (Omit<VisualPoolItem, "id"> & { id?: string })[] = [];
+    const kept: (Omit<VisualPoolItem, "id"> & { id?: string })[] = [];
+    sent.forEach((asset, n) => {
+      const type = asset.type === "VIDEO" ? "video" : "image";
+      kept.push({ type, src: asset.url, thumbnailUrl: null, label: asset.name });
+      const slot = slots[n];
+      if (slot === undefined) return;
+      const layer = buildLayer(asset.url, type, slot);
+      if (!layer) return;
+      displaced.push(...occupantOf(slot));
+      placed.push(layer);
+    });
+    const filled = new Set(placed.map((l) => l.sceneIndex));
+    let next = [...layers.filter((l) => !filled.has(l.sceneIndex)), ...placed];
+    // A CTA still empty follows the last scene, as it does after an AI batch.
+    if (cta !== null && !next.some((l) => l.sceneIndex === cta)) {
+      const copy = ctaCopyOf(next, scenes);
+      if (copy) next = [...next, copy];
+    }
+    remember(...displaced, ...kept);
+    onLayersChange(next);
+    const extra = sent.length - placed.length;
+    const last = placed[placed.length - 1]?.sceneIndex ?? start;
+    const where = placed.length === 1 ? `Visuel ajouté ${sceneLabel(start)}` : `${placed.length} visuels placés : ${sceneName(start)} → ${sceneName(last)}`;
+    toast.success(`${where}${extra > 0 ? ` · ${extra} de plus dans la bibliothèque du projet` : ""}`);
+  }
+
+  /** One imported file, tapped in the list: on the selected scene, replacing what is there. */
   function addLayer(asset: Asset) {
     const sceneIdx = selectedScene ?? 0;
     const type = asset.type === "VIDEO" ? "video" : "image";
@@ -321,7 +371,7 @@ export function VisualsPanel({
     if (!layer) return toast.error("Générez d'abord un script pour que les scènes existent.");
     remember(...occupantOf(sceneIdx), { type, src: asset.url, thumbnailUrl: null, label: asset.name });
     onLayersChange([...layers.filter((l) => l.sceneIndex !== sceneIdx), layer]);
-    toast.success(`B-roll ajouté ${sceneLabel(sceneIdx)}`);
+    toast.success(`Visuel ajouté ${sceneLabel(sceneIdx)}`);
   }
 
   function addStock(result: StockResult) {
@@ -761,6 +811,7 @@ export function VisualsPanel({
           {uploading ? <Loader2 className="h-6 w-6 animate-spin text-brand-300" /> : <Upload className="h-6 w-6 text-brand-300" />}
           <p className="mt-2 text-sm font-medium">Déposez des images ou clips</p>
           <p className="text-[11px] text-muted-foreground">PNG, JPG, WebP, MP4 · jusqu&apos;à 50 Mo</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">Plusieurs à la fois : dans l&apos;ordre choisi, la 1re va sur {sceneName(selectedScene ?? 0) === "Hook" ? "le hook" : sceneName(selectedScene ?? 0).toLowerCase()}, les suivantes sur les scènes d&apos;après.</p>
           {uploading && (
             <div className="mt-3 w-full" onClick={(e) => e.stopPropagation()}>
               <Progress value={Math.round(uploading.fraction * 100)} className="h-1.5" indicatorClassName="bg-brand-gradient" />
