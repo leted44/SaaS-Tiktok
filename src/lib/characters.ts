@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { isOwnImage, readOwnImage } from "@/lib/ai/images";
 import type { GeneratedImage } from "@/lib/ai/image-generator";
 import { describeCharacterSheet } from "@/lib/ai/cast-reader";
+import { readClone, readyClone } from "@/lib/ai/clone";
+import type { CastImage } from "@/lib/ai/image-types";
 
 /**
  * The character sheet ("Image de référence") a project's AI images are drawn
@@ -20,10 +22,23 @@ export async function assertCharacterSheet(url: string, userId: string): Promise
   }
 }
 
-/** The sheet's bytes, ready to hand to the image model, or null when the project has none (or it can no longer be read). */
-export async function projectCast(projectId: string, userId: string): Promise<GeneratedImage | null> {
-  const project = await prisma.project.findFirst({ where: { id: projectId, userId }, select: { characterImage: true, space: { select: { characterImage: true } } } });
-  const url = project ? characterImageUrl(project) : null;
+/**
+ * The sheet's bytes, ready to hand to the image model, or null when the
+ * project has none (or it can no longer be read). A space with a trained
+ * clone (lib/ai/clone) and no sheet of the project's own hands over one of
+ * the creator's photos carrying the clone: the image generator then draws
+ * with it (lib/ai/image-generator).
+ */
+export async function projectCast(projectId: string, userId: string): Promise<CastImage | null> {
+  const project = await prisma.project.findFirst({ where: { id: projectId, userId }, select: { characterImage: true, space: { select: { characterImage: true, clone: true } } } });
+  if (!project) return null;
+  const clone = project.characterImage ? null : readyClone(project.space?.clone);
+  if (clone) {
+    const photo = readClone(project.space?.clone)?.photoUrl;
+    const image = photo ? await readOwnImage(photo, userId) : null;
+    return { data: image?.data ?? Buffer.alloc(0), mimeType: image?.mimeType ?? "image/jpeg", clone };
+  }
+  const url = characterImageUrl(project);
   return url ? readOwnImage(url, userId) : null;
 }
 

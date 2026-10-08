@@ -7,6 +7,11 @@ export interface GeneratedImage {
   mimeType: string;
 }
 
+/** The account's character sheet, or — for a space with a trained clone (lib/ai/clone) — the clone that draws its person. */
+export interface CastImage extends GeneratedImage {
+  clone?: { loraUrl: string; trigger: string } | null;
+}
+
 export class AiImageError extends Error {
   constructor(message: string, public code: "NOT_CONFIGURED" | "REFUSED" | "UPSTREAM" | "RATE_LIMITED" | "UNAVAILABLE") {
     super(message);

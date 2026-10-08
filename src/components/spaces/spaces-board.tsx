@@ -13,15 +13,16 @@ import { LANGUAGE_LABELS } from "@/lib/tts/voices";
 import type { SpaceOption } from "@/lib/spaces";
 import type { SpaceLookView } from "@/server/queries";
 import { clearSpaceLookAction } from "@/server/actions/space-kit";
+import { CloneBlock, type CloneView } from "@/components/spaces/clone-block";
 
-type SpaceCard = SpaceOption & { publishedCount: number; lessonCount: number; look: SpaceLookView };
+type SpaceCard = SpaceOption & { publishedCount: number; lessonCount: number; look: SpaceLookView; clone: CloneView | null };
 
 /**
  * The spaces as cards: what each one makes its posts with (subject,
  * characters, voice) at a glance, and the two ways to start a post in it.
  * Editing opens the same form the Projets page used to hide behind "Gérer".
  */
-export function SpacesBoard({ spaces, voices, sheetGeneration, initialEdit }: { spaces: SpaceCard[]; voices: { id: string; name: string }[]; sheetGeneration: { cost: number; enabled: boolean }; initialEdit: string | null }) {
+export function SpacesBoard({ spaces, voices, admin, sheetGeneration, initialEdit }: { spaces: SpaceCard[]; voices: { id: string; name: string }[]; admin: boolean; sheetGeneration: { cost: number; enabled: boolean }; initialEdit: string | null }) {
   const [focus, setFocus] = useState<string | null>(initialEdit);
   const voiceName = (id: string | null) => (id ? (voices.find((v) => v.id === id)?.name ?? null) : null);
 
@@ -60,6 +61,7 @@ export function SpacesBoard({ spaces, voices, sheetGeneration, initialEdit }: { 
               </div>
 
               <SpaceLook spaceId={s.id} look={s.look} />
+              {admin && <CloneBlock spaceId={s.id} clone={s.clone} />}
 
               <div className="mt-auto grid grid-cols-2 gap-2">
                 <Button asChild variant="gradient" size="sm"><Link href={`/scripts?space=${s.id}`}><Clapperboard /> Nouvelle vidéo</Link></Button>

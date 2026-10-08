@@ -1,4 +1,6 @@
 import { cache } from "react";
+import { readClone } from "@/lib/ai/clone";
+import type { CloneView } from "@/components/spaces/clone-block";
 import { carouselLookSummary, readSpaceKit, videoLookSummary } from "@/lib/space-kit";
 import { getTrack } from "@/lib/music/library";
 import { Prisma } from "@prisma/client";
@@ -141,16 +143,22 @@ function spaceLookView(value: unknown): SpaceLookView {
   };
 }
 
+/** The space's clone (lib/ai/clone) as its card shows it: no fal URLs. */
+function cloneView(value: unknown): CloneView | null {
+  const c = readClone(value);
+  return c ? { status: c.status, photos: c.photos, photoUrl: c.photoUrl, error: c.error, startedAt: c.startedAt, readyAt: c.readyAt } : null;
+}
+
 export async function getSpacesData() {
   const [user, workspace] = await Promise.all([getCurrentUser(), getCurrentWorkspace()]);
   const plan = effectivePlanDef(user);
   const [rows, published, customVoice] = await Promise.all([
-    prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, color: true, language: true, tone: true, voiceId: true, brief: true, characterImage: true, kit: true, _count: { select: { projects: true } } } }),
+    prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, color: true, language: true, tone: true, voiceId: true, brief: true, characterImage: true, kit: true, clone: true, _count: { select: { projects: true } } } }),
     prisma.project.groupBy({ by: ["spaceId"], where: { userId: user.id, postedAt: { not: null }, spaceId: { not: null } }, _count: { _all: true } }),
     plan.voiceCloning ? prisma.customVoice.findUnique({ where: { userId: user.id }, select: { name: true } }) : null,
   ]);
   const publishedBySpace = new Map(published.map((p) => [p.spaceId, p._count._all]));
-  const spaces: (SpaceOption & { publishedCount: number; look: SpaceLookView })[] = rows.map((s) => ({
+  const spaces: (SpaceOption & { publishedCount: number; look: SpaceLookView; clone: CloneView | null })[] = rows.map((s) => ({
     id: s.id,
     name: s.name,
     color: s.color,
@@ -162,10 +170,11 @@ export async function getSpacesData() {
     projectCount: s._count.projects,
     publishedCount: publishedBySpace.get(s.id) ?? 0,
     look: spaceLookView(s.kit),
+    clone: cloneView(s.clone),
   }));
   const voices = [
     ...(customVoice ? [customVoiceDefinition(customVoice.name)] : []),
     ...sortVoices(VOICES, workspace.defaultLanguage, plan.premiumVoices),
   ].map((v) => ({ id: v.id, name: v.id === CUSTOM_VOICE_ID ? `${v.name} (ta voix)` : v.name }));
-  return { user, spaces, voices, sheetGeneration: { cost: isAdmin(user.role) ? 0 : CREDIT_COSTS.AI_IMAGE, enabled: integrations.aiImages() } };
+  return { user, admin: isAdmin(user.role), spaces, voices, sheetGeneration: { cost: isAdmin(user.role) ? 0 : CREDIT_COSTS.AI_IMAGE, enabled: integrations.aiImages() } };
 }

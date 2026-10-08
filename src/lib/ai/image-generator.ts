@@ -1,6 +1,7 @@
 import { env } from "@/lib/env";
 import { CAST_NOTE } from "@/lib/ai/gemini-prompt";
-import { AiImageError, type GeneratedImage, type ImageAspect } from "@/lib/ai/image-types";
+import { AiImageError, type CastImage, type GeneratedImage, type ImageAspect } from "@/lib/ai/image-types";
+import { generateWithClone } from "@/lib/ai/clone";
 import { generateWithGpt, gptAttemptMs, isGptModel, type GptImageModel } from "@/lib/ai/gpt-image";
 
 export { AiImageError, type GeneratedImage, type ImageAspect };
@@ -88,6 +89,9 @@ function partsFor(prompt: string, reference: GeneratedImage | null | undefined, 
 }
 
 async function attempt({ prompt, aspectRatio, reference, cast, edit, timeoutMs, model = "flash" }: Options & { edit?: GeneratedImage }): Promise<GeneratedImage> {
+  // A space with a trained clone: FLUX with the creator's LoRA draws the person — whatever model was picked.
+  const clone = (cast as CastImage | null | undefined)?.clone;
+  if (clone && !edit) return generateWithClone({ clone, prompt, aspectRatio, timeoutMs: timeoutMs ?? 90_000 });
   if (isGptModel(model)) {
     const { images, text } = edit ? { images: [edit], text: prompt } : withReferences(prompt, reference, cast);
     // A caller's cap is kept as given: the corrections of checked-image size theirs to the time left in the request.

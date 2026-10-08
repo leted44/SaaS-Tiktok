@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * lessons — so it gets a page of its own, and a post can be started from it.
  */
 export default async function SpacesPage({ searchParams }: { searchParams: Promise<{ modifier?: string }> }) {
-  const [{ modifier }, { user, spaces, voices, sheetGeneration }] = await Promise.all([searchParams, getSpacesData()]);
+  const [{ modifier }, { user, admin, spaces, voices, sheetGeneration }] = await Promise.all([searchParams, getSpacesData()]);
   const lessons = await prisma.accountLesson.groupBy({ by: ["spaceId"], where: { userId: user.id, dismissed: false, spaceId: { not: null } }, _count: { _all: true } });
   const lessonsBySpace = Object.fromEntries(lessons.map((l) => [l.spaceId as string, l._count._all]));
 
@@ -23,6 +23,7 @@ export default async function SpacesPage({ searchParams }: { searchParams: Promi
       <SpacesBoard
         spaces={spaces.map((s) => ({ ...s, lessonCount: lessonsBySpace[s.id] ?? 0 }))}
         voices={voices}
+        admin={admin}
         sheetGeneration={sheetGeneration}
         initialEdit={modifier && (modifier === "new" || spaces.some((s) => s.id === modifier)) ? modifier : null}
       />
