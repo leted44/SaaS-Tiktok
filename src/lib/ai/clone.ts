@@ -19,6 +19,8 @@ import { AiImageError, type GeneratedImage, type ImageAspect } from "@/lib/ai/im
 const TRAIN_ENDPOINT = "fal-ai/flux-lora-fast-training";
 const DRAW_ENDPOINT = "fal-ai/flux-lora";
 const TRAIN_STEPS = 1000;
+/** Under 1: at full strength the face comes out twice in the same image, and the scene's pose is followed less. */
+const LORA_SCALE = 0.85;
 
 export { CLONE_MAX_PHOTOS, CLONE_MIN_PHOTOS } from "@/lib/ai/clone-limits";
 
@@ -116,8 +118,8 @@ export async function generateWithClone(options: { clone: CloneModel; prompt: st
   const deadline = Date.now() + Math.max(options.timeoutMs, 60_000);
   const left = () => Math.max(1_000, deadline - Date.now());
   const tooSlow = () => new AiImageError("Le service de génération d'images ne répond pas. Réessaie dans un instant.", "UPSTREAM");
-  const prompt = `Photo of ${clone.trigger}. The person in this image is ${clone.trigger}, with exactly ${clone.trigger}'s face, features, skin tone, hair and build.\n${options.prompt}`;
-  const bodyFor = (loraUrl: string) => ({ prompt, loras: [{ path: loraUrl, scale: 1 }], image_size: SIZE[aspectRatio], num_inference_steps: 28, guidance_scale: 3.5, num_images: 1, enable_safety_checker: true, output_format: "jpeg" });
+  const prompt = `Photo of ${clone.trigger}. One single person, ${clone.trigger}, with one head and one body, exactly ${clone.trigger}'s face, features, skin tone, hair and build, in a natural, clearly readable pose.\n${options.prompt}`;
+  const bodyFor = (loraUrl: string) => ({ prompt, loras: [{ path: loraUrl, scale: LORA_SCALE }], image_size: SIZE[aspectRatio], num_inference_steps: 28, guidance_scale: 3.5, num_images: 1, enable_safety_checker: true, output_format: "jpeg" });
   const post = (loraUrl: string) => fetch(`${env.falQueueUrl}/${DRAW_ENDPOINT}`, { method: "POST", headers: headers(), body: JSON.stringify(bodyFor(loraUrl)), signal: AbortSignal.timeout(left()) });
 
   try {

@@ -111,7 +111,7 @@ export function CloneBlock({ spaceId, clone }: { spaceId: string; clone: CloneVi
         <div className="mt-2 space-y-2">
           <div className="flex items-center gap-2">
             {state.photoUrl && <img src={state.photoUrl} alt="" className="h-10 w-10 rounded-full object-cover" />}
-            <p className="text-[11px] text-muted-foreground">Prêt depuis le {new Date(state.readyAt ?? state.startedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} · {state.photos} photos. Les images IA de cet espace sont faites avec ton visage. Refais une scène pour juger.</p>
+            <p className="text-[11px] text-muted-foreground">Prêt depuis le {new Date(state.readyAt ?? state.startedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} · {state.photos} photos. Pour l&apos;utiliser : dans Visuels, test admin → « Mon clone », puis refais une scène. Les autres modèles prennent ta photo comme référence. Garde-le pour les poses simples (debout, assis, à table) ; pour les mouvements au sol, de vraies photos de toi rendent mieux.</p>
           </div>
           <div className="rounded-lg border border-white/10 bg-black/20 p-2.5">
             <p className="text-[11px] font-semibold">Le récupérer pour l&apos;utiliser ailleurs</p>

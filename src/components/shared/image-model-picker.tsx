@@ -11,6 +11,7 @@ const CHOICES: { id: ImageModelChoice; label: string; price: string }[] = [
   { id: "mix", label: "Mélange", price: "Pro la 1re image, NB2 le reste" },
   { id: "gpt-medium", label: "GPT Image 2 · moyenne", price: "≈ 0,04 $ / image" },
   { id: "gpt-high", label: "GPT Image 2 · haute", price: "≈ 0,15 $ / image · plus lente" },
+  { id: "clone", label: "Mon clone", price: "≈ 0,03–0,05 $ · ton visage, poses simples (espace avec clone, sinon NB2)" },
 ];
 
 const KEY = "vs-image-model";

@@ -24,7 +24,7 @@ export { AiImageError, type GeneratedImage, type ImageAspect };
  */
 type GeminiModel = "pro" | "flash";
 /** Gemini's two (Nano Banana 2, Pro) and OpenAI's GPT Image 2 at two qualities, the latter through fal.ai (lib/ai/gpt-image). */
-export type ImageModel = GeminiModel | GptImageModel;
+export type ImageModel = GeminiModel | GptImageModel | "clone";
 const MODELS: Record<GeminiModel, string> = {
   pro: "gemini-3-pro-image-preview",
   flash: "gemini-3.1-flash-image-preview",
@@ -89,9 +89,14 @@ function partsFor(prompt: string, reference: GeneratedImage | null | undefined, 
 }
 
 async function attempt({ prompt, aspectRatio, reference, cast, edit, timeoutMs, model = "flash" }: Options & { edit?: GeneratedImage }): Promise<GeneratedImage> {
-  // A space with a trained clone: FLUX with the creator's LoRA draws the person — whatever model was picked.
+  // « Mon clone » picked, in a space that has one: FLUX with the creator's LoRA draws the person. Without one, Nano Banana 2.
   const clone = (cast as CastImage | null | undefined)?.clone;
-  if (clone && !edit) return generateWithClone({ clone, prompt, aspectRatio, timeoutMs: timeoutMs ?? 90_000 });
+  if (model === "clone") {
+    if (clone && !edit) return generateWithClone({ clone, prompt, aspectRatio, timeoutMs: timeoutMs ?? 90_000 });
+    model = "flash";
+  }
+  // Another model in a clone space: the creator's photo goes as the reference, when it could be read.
+  if (cast && cast.data.length === 0) cast = null;
   if (isGptModel(model)) {
     const { images, text } = edit ? { images: [edit], text: prompt } : withReferences(prompt, reference, cast);
     // A caller's cap is kept as given: the corrections of checked-image size theirs to the time left in the request.

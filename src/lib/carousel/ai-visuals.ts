@@ -113,7 +113,7 @@ async function one(userId: string, slide: CarouselSlide, series: Series, referen
 export async function generateSeries(userId: string, slides: CarouselSlide[], targets: CarouselSlide[], series: Series, deadline = Date.now() + SERIES_BUDGET_MS): Promise<VisualOutcome[]> {
   // GPT Image takes up to ~100 s an image: cover first, then the rest, would not fit one
   // request. All at once, each with the whole budget, following the existing cover if any.
-  if (isGptModel(modelFor("cover", series.imageModel))) {
+  if (isGptModel(modelFor("cover", series.imageModel)) || series.imageModel === "clone") {
     const reference = await coverReference(slides, series.visualStyle, userId);
     const all = await Promise.all(targets.map((s) => one(userId, s, series, s.kind === "cover" ? null : reference, 150_000, deadline)));
     return all.map((r) => r.outcome);

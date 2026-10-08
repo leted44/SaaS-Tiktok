@@ -136,7 +136,8 @@ export async function generateSceneVisuals(
   // GPT Image takes up to ~100 s an image: drawing scene 0 first and the rest after it
   // would not fit one request. All at once, each with the whole budget — the
   // character sheet (and an existing scene 0) still holds the series together.
-  if (isGptModel(modelForImage(true, modelChoice))) {
+  // The clone draws without the series' first image, so it too draws them all at once.
+  if (isGptModel(modelForImage(true, modelChoice)) || modelChoice === "clone") {
     const all = await Promise.all(targets.map((t) => one(userId, t, style, motif, aspectRatio, existingReference, 150_000, deadline, modelChoice, cast)));
     return all.map((r) => r.outcome);
   }
