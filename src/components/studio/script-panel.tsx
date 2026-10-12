@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent, type MutableRefObject } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Sparkles, Save, History, Plus, Trash2, GripVertical, Lightbulb, RefreshCw, ChevronDown, Hash } from "lucide-react";
@@ -31,14 +31,31 @@ interface Props {
   /** Credit price of one generated script — zero for accounts that aren't charged. */
   scriptCost: number;
   reviewTally: ReviewTally | null;
+  /** Told whenever the text differs from the saved version, so the studio can ask before a tab change drops it. */
+  onDirtyChange?: (dirty: boolean) => void;
+  /** Filled with this panel's save, for the studio's « Enregistrer et continuer ». */
+  saveRef?: MutableRefObject<(() => Promise<boolean>) | null>;
 }
 
-export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene, onSelectScene, aiConfigured, scriptCost, reviewTally }: Props) {
+export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene, onSelectScene, aiConfigured, scriptCost, reviewTally, onDirtyChange, saveRef }: Props) {
   const router = useRouter();
   const active = scripts.find((s) => s.id === activeScriptId) ?? scripts[0] ?? null;
   const [draft, setDraft] = useState(active);
   const [saving, setSaving] = useState(false);
   useEffect(() => setDraft(active), [active]);
+  const dirty = Boolean(active && draft) && JSON.stringify(draft) !== JSON.stringify(active);
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+  // Leaving the tab unmounts the panel and its draft with it: nothing is left unsaved then.
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+  useEffect(() => {
+    if (!saveRef) return;
+    saveRef.current = save;
+    return () => {
+      saveRef.current = null;
+    };
+  });
 
   if (!active || !draft) {
     return (
@@ -51,7 +68,6 @@ export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene,
     );
   }
 
-  const dirty = JSON.stringify(draft) !== JSON.stringify(active);
   const words = countWords([draft.hook, ...draft.scenes.map((s) => s.text), draft.callToAction].join(" "));
 
   const updateScene = (i: number, patch: Partial<Scene>) => setDraft({ ...draft, scenes: draft.scenes.map((s, k) => (k === i ? { ...s, ...patch } : s)) });
@@ -69,16 +85,22 @@ export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene,
     setDraft({ ...draft, scenes });
   };
 
-  async function save() {
+  async function save(): Promise<boolean> {
+    if (!active || !draft) return true;
     setSaving(true);
-    const res = await saveScriptEdits(active!.id, { title: draft!.title, hook: draft!.hook, callToAction: draft!.callToAction, hashtags: draft!.hashtags, scenes: draft!.scenes.map((s) => ({ id: s.id, text: s.text, visualDescription: s.visualDescription, brollQuery: s.brollQuery, onScreenText: s.onScreenText })) });
+    const res = await saveScriptEdits(active.id, { title: draft.title, hook: draft.hook, callToAction: draft.callToAction, hashtags: draft.hashtags, scenes: draft.scenes.map((s) => ({ id: s.id, text: s.text, visualDescription: s.visualDescription, brollQuery: s.brollQuery, onScreenText: s.onScreenText })) });
     setSaving(false);
-    if (!res.ok) return toast.error(res.error);
-    toast.success(`Enregistré en version ${res.data.version}. Régénérez la voix off pour mettre à jour le timing.`);
+    if (!res.ok) {
+      toast.error(res.error);
+      return false;
+    }
+    toast.success(`Enregistré en version ${res.data.version}. Régénère la voix off (onglet Voix) pour que la voix et les sous-titres disent le nouveau texte.`);
     router.refresh();
+    return true;
   }
 
   async function switchVersion(id: string) {
+    if (dirty && !window.confirm("Tes modifications du script ne sont pas enregistrées. Changer de version les efface. Continuer ?")) return;
     const res = await setActiveScript(projectId, id);
     if (!res.ok) return toast.error(res.error);
     router.refresh();

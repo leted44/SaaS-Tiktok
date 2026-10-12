@@ -9,6 +9,7 @@ import { FileText, Captions, Layers, Mic2, Film, GalleryHorizontalEnd, ArrowLeft
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { MarkPostedDialog } from "@/components/projects/mark-posted-dialog";
@@ -32,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { coverTitleSuggestions } from "@/lib/video-cover";
 import { useCoverSettings } from "@/components/studio/cover-panel";
 import { SpaceLookButton } from "@/components/shared/space-look-button";
+import { useLeaveGuard } from "@/components/shared/use-leave-guard";
 import { saveVideoLookAction } from "@/server/actions/space-kit";
 import { videoLookColumns, videoLookSummary, type VideoLook } from "@/lib/space-kit";
 
@@ -87,14 +89,33 @@ export function Studio(props: StudioProps) {
     return () => clearTimeout(t);
   }, [dirty, saveNow]);
 
+  // The script tab is the one place saved by hand (each save is a new version):
+  // its edits live in the panel until « Enregistrer », and leaving the tab
+  // unmounts the panel with them. So a tab change asks first, and so does a link.
+  const [scriptDirty, setScriptDirty] = useState(false);
+  const saveScriptRef = useRef<(() => Promise<boolean>) | null>(null);
+  const [pendingTab, setPendingTab] = useState<string | null>(null);
+  const [savingScript, setSavingScript] = useState(false);
+  const changeTab = useCallback(
+    (next: string) => {
+      if (tab === "script" && next !== "script" && scriptDirty) setPendingTab(next);
+      else setTab(next);
+    },
+    [tab, scriptDirty],
+  );
+  async function saveScriptAndGo() {
+    const next = pendingTab;
+    setSavingScript(true);
+    const ok = (await saveScriptRef.current?.()) ?? true;
+    setSavingScript(false);
+    if (!ok) return;
+    setPendingTab(null);
+    if (next) setTab(next);
+  }
+
   // A reload or a closed tab in the second before the autosave would drop the last change:
   // the browser asks first while something is still unsaved.
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  useLeaveGuard({ unload: dirty || scriptDirty, links: scriptDirty ? "Tes modifications du script ne sont pas enregistrées. Quitter la page sans les enregistrer ?" : null });
 
   const activeScript = scripts.find((s) => s.id === activeScriptId) ?? scripts[0] ?? null;
 
@@ -308,7 +329,7 @@ export function Studio(props: StudioProps) {
           {readyRender?.outputUrl ? (
             <Button asChild variant="gradient" size="sm"><a href={readyRender.outputUrl} download target="_blank" rel="noreferrer"><Download /> Télécharger</a></Button>
           ) : (
-            <Button variant="gradient" size="sm" onClick={() => setTab("export")}><Film /> Exporter</Button>
+            <Button variant="gradient" size="sm" onClick={() => changeTab("export")}><Film /> Exporter</Button>
           )}
         </div>
       </div>
@@ -349,7 +370,7 @@ export function Studio(props: StudioProps) {
           just a block that grows, and the page scrolls.
         */}
         <div className="surface flex min-w-0 flex-col xl:sticky xl:top-24 xl:max-h-[calc(100vh-140px)]">
-          <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <Tabs value={tab} onValueChange={changeTab} className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="border-b border-white/[0.05] p-3">
               {/* The carousel used to hide here as a sixth, outbound tab — it now has an equal spot in the FormatSwitcher above, so this bar is video's own five. */}
               <TabsList className="grid w-full grid-cols-5">
@@ -365,7 +386,7 @@ export function Studio(props: StudioProps) {
             <div className="min-h-0 min-w-0 flex-1 xl:overflow-y-auto">
               <div className="min-w-0 p-4">
                 <TabsContent value="script" className="mt-0">
-                  <ScriptPanel projectId={project.id} scripts={scripts} activeScriptId={activeScriptId} selectedScene={selectedScene} onSelectScene={(i) => { setSelectedScene(i); if (i !== null && liveProps.scenes[i]) playerRef.current?.seekTo(Math.round((liveProps.scenes[i].startMs / 1000) * liveProps.fps)); }} aiConfigured={integrations.ai} scriptCost={planLimits.costs.script} reviewTally={reviewTally} />
+                  <ScriptPanel projectId={project.id} scripts={scripts} activeScriptId={activeScriptId} selectedScene={selectedScene} onSelectScene={(i) => { setSelectedScene(i); if (i !== null && liveProps.scenes[i]) playerRef.current?.seekTo(Math.round((liveProps.scenes[i].startMs / 1000) * liveProps.fps)); }} aiConfigured={integrations.ai} scriptCost={planLimits.costs.script} reviewTally={reviewTally} onDirtyChange={setScriptDirty} saveRef={saveScriptRef} />
                 </TabsContent>
                 <TabsContent value="captions" className="mt-0">
                   <CaptionsPanel style={state.captionStyle} onChange={(s) => patch("captionStyle", s)} />
@@ -452,6 +473,34 @@ export function Studio(props: StudioProps) {
       </div>
 
       {marking && <MarkPostedDialog projectId={project.id} title={project.title} open={marking} onOpenChange={setMarking} />}
+
+      <Dialog open={pendingTab !== null} onOpenChange={(open) => !open && !savingScript && setPendingTab(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Enregistrer le script ?</DialogTitle>
+            <DialogDescription>Tu as modifié le texte. Si tu changes d&apos;onglet sans enregistrer, ces modifications sont perdues.</DialogDescription>
+          </DialogHeader>
+          <Button variant="gradient" className="w-full" loading={savingScript} onClick={saveScriptAndGo}>
+            {!savingScript && <Check />} Enregistrer et continuer
+          </Button>
+          <Button
+            variant="secondary"
+            className="w-full"
+            disabled={savingScript}
+            onClick={() => {
+              const next = pendingTab;
+              setPendingTab(null);
+              setScriptDirty(false);
+              if (next) setTab(next);
+            }}
+          >
+            Continuer sans enregistrer
+          </Button>
+          <Button variant="ghost" size="sm" className="w-full" disabled={savingScript} onClick={() => setPendingTab(null)}>
+            Rester sur le script
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -35,6 +35,7 @@ import { FormatSwitcher } from "@/components/studio/format-switcher";
 import { CarouselDesignControls } from "@/components/carousel/design-controls";
 import { SpaceLookButton } from "@/components/shared/space-look-button";
 import { saveCarouselLookAction } from "@/server/actions/space-kit";
+import { useLeaveGuard } from "@/components/shared/use-leave-guard";
 import { rewriteCarouselBriefsAction } from "@/server/actions/brief-rewrite";
 import { carouselLookSummary, type CarouselLook } from "@/lib/space-kit";
 import type { SocialCopy } from "@/lib/social/captions";
@@ -213,6 +214,8 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
     const t = setTimeout(() => void persist(state), 900);
     return () => clearTimeout(t);
   }, [state, dirty, persist]);
+  // Saved by itself within a second; a reload, a closed tab or a link in that second (or after a failed save) asks first.
+  useLeaveGuard({ unload: dirty || saving, links: dirty ? "Ta dernière modification du carrousel n'est pas encore enregistrée. Quitter la page quand même ?" : null });
 
   // The space's look (lib/space-kit): saved from this carousel, or brought onto it.
   const [spaceLook, setSpaceLook] = useState<CarouselLook | null>(space?.look ?? null);
