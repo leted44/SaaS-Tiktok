@@ -39,6 +39,9 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
   const [tone, setTone] = useState<Tone>("energetic");
   const [format, setFormat] = useState<ContentFormat>("video");
   const [carouselLength, setCarouselLength] = useState<CarouselLength>("full");
+  /** « Mini-film sans voix » (see the Générateur de script): only for a video on its own. */
+  const [story, setStory] = useState(false);
+  const storyScript = story && format === "video";
   const [moreOpen, setMoreOpen] = useState(false);
   const [niche, setNiche] = useState(AUTO_NICHE);
   const [hookStyle, setHookStyle] = useState<HookStyle>("auto");
@@ -77,8 +80,9 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
         hookStyle,
         callToActionGoal: cta,
         audience: audience.trim() || undefined,
-        targetDurationSec: duration,
+        targetDurationSec: storyScript ? 15 : duration,
         language,
+        story: storyScript || undefined,
         // "Les deux" keeps a video script, written for the ear; a carousel alone gets one written for its slides.
         carouselLength: format === "carousel" ? carouselLength : undefined,
       });
@@ -145,6 +149,17 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
             </div>
           )}
 
+          {format === "video" && (
+            <div className="mt-3 grid grid-cols-2 gap-1 rounded-2xl border border-white/10 p-1" role="radiogroup" aria-label="Type de vidéo">
+              {([[false, "Avec voix off", "Une voix explique le sujet"], [true, "Mini-film sans voix", "Les personnages jouent la scène, quelques mots à l'écran"]] as const).map(([value, label, hint]) => (
+                <button key={label} type="button" role="radio" aria-checked={story === value} onClick={() => setStory(value)} className={cn("rounded-xl px-3 py-2 text-left transition", story === value ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground")}>
+                  <span className="block text-xs font-semibold">{label}</span>
+                  <span className="block text-[10px] text-muted-foreground">{hint}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {!withUrl && (
               <button type="button" onClick={() => setWithUrl(true)} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/10 px-3 text-xs text-muted-foreground transition hover:border-white/25 hover:text-foreground">
@@ -152,7 +167,7 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
               </button>
             )}
             {format === "carousel" && <CarouselLengthPicker value={carouselLength} onChange={setCarouselLength} />}
-            {format !== "carousel" && (
+            {format !== "carousel" && !storyScript && (
               <div className="inline-flex h-8 items-center rounded-full border border-white/10 p-0.5" role="radiogroup" aria-label="Durée">
                 {DURATIONS.map((d) => (
                   <button key={d} type="button" role="radio" aria-checked={duration === d} onClick={() => setDuration(d)} className={cn("h-full rounded-full px-2.5 text-xs transition", duration === d ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground")}>

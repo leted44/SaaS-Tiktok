@@ -87,7 +87,7 @@ export function AudioPanel(p: Props) {
     <div className="space-y-6">
       {p.story && (
         <div className="rounded-xl border border-brand-400/25 bg-brand-500/[0.07] p-3 text-xs leading-relaxed">
-          <p className="font-semibold">Histoire sans voix : rien à générer ici.</p>
+          <p className="font-semibold">Mini-film sans voix : rien à générer ici.</p>
           <p className="mt-1 text-muted-foreground">Les mots de chaque plan s&apos;affichent en sous-titres. Pour le son, importe ta musique ci-dessous (Musique de fond → ton fichier), ou ajoute un son tendance au moment de publier sur TikTok ou Instagram : c&apos;est souvent ce qui marche le mieux pour ce format.</p>
         </div>
       )}

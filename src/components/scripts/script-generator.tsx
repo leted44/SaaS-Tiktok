@@ -128,12 +128,12 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
               <Label>Type de vidéo</Label>
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setStory(false)} className={cn("rounded-lg border p-3 text-left transition", !story ? "border-primary/60 bg-primary/15 shadow-glow-sm" : "border-white/10 hover:border-white/20")}>
-                  <span className="block text-sm font-semibold">Infos · voix off</span>
-                  <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">Une voix explique, les images illustrent.</span>
+                  <span className="block text-sm font-semibold">Avec voix off</span>
+                  <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">Une voix explique le sujet, les images illustrent ce qu&apos;elle dit. Comme tes vidéos habituelles.</span>
                 </button>
                 <button type="button" onClick={() => setStory(true)} className={cn("rounded-lg border p-3 text-left transition", story ? "border-primary/60 bg-primary/15 shadow-glow-sm" : "border-white/10 hover:border-white/20")}>
-                  <span className="block text-sm font-semibold">Histoire · sans voix</span>
-                  <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">8 plans qui racontent une mini-histoire, quelques mots à l&apos;écran, environ 15 s.</span>
+                  <span className="block text-sm font-semibold">Mini-film sans voix</span>
+                  <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">Les personnages jouent la scène image après image, comme un dessin animé muet : 2 à 6 mots à l&apos;écran par image, ta musique, environ 15 s.</span>
                 </button>
               </div>
             </div>

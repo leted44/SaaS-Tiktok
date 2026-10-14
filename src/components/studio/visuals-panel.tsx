@@ -695,7 +695,7 @@ export function VisualsPanel({
           </div>
           {story && (
             <p className="mt-2 rounded-lg border border-brand-400/25 bg-brand-500/[0.07] p-2 text-[11px] leading-relaxed">
-              Histoire : les images fixes bougent déjà un peu (léger zoom) et l&apos;enchaînement raconte l&apos;histoire. Anime seulement 2 ou 3 plans d&apos;action, ceux où un personnage fait un geste fort : c&apos;est là que le mouvement se voit.
+              Mini-film : les images fixes bougent déjà un peu (léger zoom) et l&apos;enchaînement raconte l&apos;histoire. Anime seulement 2 ou 3 plans d&apos;action, ceux où un personnage fait un geste fort : c&apos;est là que le mouvement se voit.
             </p>
           )}
           <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">

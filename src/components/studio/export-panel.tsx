@@ -125,7 +125,7 @@ export function ExportPanel({ projectId, renders, planLimits, credits, hasScript
 
   return (
     <div className="space-y-4">
-      {story && hasScript && <p className="rounded-lg border border-brand-400/25 bg-brand-500/[0.07] p-3 text-xs">Histoire sans voix : la vidéo garde seulement ta musique (s&apos;il y en a une) et les mots à l&apos;écran. Tu peux ajouter un son tendance au moment de publier.</p>}
+      {story && hasScript && <p className="rounded-lg border border-brand-400/25 bg-brand-500/[0.07] p-3 text-xs">Mini-film sans voix : la vidéo garde seulement ta musique (s&apos;il y en a une) et les mots à l&apos;écran. Tu peux ajouter un son tendance au moment de publier.</p>}
       {!story && !hasVoiceover && hasScript && <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">Pas encore de voix off — la vidéo sera muette, avec un timing de sous-titres estimé. Génère-la d&apos;abord dans l&apos;onglet Voix.</p>}
 
       {activeRender && (
