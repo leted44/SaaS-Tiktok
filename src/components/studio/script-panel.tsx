@@ -3,7 +3,7 @@
 import { useEffect, useState, type MouseEvent, type MutableRefObject } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles, Save, History, Plus, Trash2, GripVertical, Lightbulb, RefreshCw, ChevronDown, Hash } from "lucide-react";
+import { Sparkles, Save, History, Plus, Trash2, GripVertical, Lightbulb, RefreshCw, ChevronDown, Hash, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,7 +88,7 @@ export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene,
   async function save(): Promise<boolean> {
     if (!active || !draft) return true;
     setSaving(true);
-    const res = await saveScriptEdits(active.id, { title: draft.title, hook: draft.hook, callToAction: draft.callToAction, hashtags: draft.hashtags, scenes: draft.scenes.map((s) => ({ id: s.id, text: s.text, visualDescription: s.visualDescription, brollQuery: s.brollQuery, onScreenText: s.onScreenText })) });
+    const res = await saveScriptEdits(active.id, { title: draft.title, hook: draft.hook, hookVisual: draft.hookVisual, callToAction: draft.callToAction, hashtags: draft.hashtags, scenes: draft.scenes.map((s) => ({ id: s.id, text: s.text, visualDescription: s.visualDescription, brollQuery: s.brollQuery, onScreenText: s.onScreenText })) });
     setSaving(false);
     if (!res.ok) {
       toast.error(res.error);
@@ -122,7 +122,7 @@ export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene,
       <div className={cn("space-y-1.5 rounded-lg p-2 -m-2 transition", selectedScene === 0 && "bg-primary/10")} onClick={() => onSelectScene(0)}>
         <Label className="text-brand-300">Hook · 3 premières secondes</Label>
         <Textarea value={draft.hook} onChange={(e) => setDraft({ ...draft, hook: e.target.value })} rows={2} className="font-medium" />
-        {active?.hookVisual && <p className="line-clamp-2 text-[11px] italic text-muted-foreground" title={active.hookVisual}>{active.hookVisual}</p>}
+        <ImageBrief value={draft.hookVisual ?? ""} onChange={(v) => setDraft({ ...draft, hookVisual: v })} />
         {active.alternativeHooks.length > 0 && (
           <AlternativeHooks hooks={active.alternativeHooks} onPick={(h) => setDraft({ ...draft, hook: h })} />
         )}
@@ -294,9 +294,33 @@ function SceneRow({ scene, index, total, selected, onSelect, onPatch, onMove, on
             <Input value={scene.brollQuery} onChange={(e) => onPatch({ brollQuery: e.target.value })} placeholder="Recherche de b-roll" className="h-8 text-xs" />
             <Input value={scene.onScreenText ?? ""} onChange={(e) => onPatch({ onScreenText: e.target.value || null })} placeholder="Texte à l'écran" className="h-8 text-xs" />
           </div>
-          {scene.visualDescription && <p className="line-clamp-2 text-[11px] italic text-muted-foreground" title={scene.visualDescription}>{scene.visualDescription}</p>}
+          <ImageBrief value={scene.visualDescription} onChange={(v) => onPatch({ visualDescription: v })} />
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * The brief the AI image of this part is drawn from, editable by hand (the
+ * carousel's slides have had theirs from the start). Folded to one line until
+ * opened, so the script stays readable; a new brief shows on « Refaire ».
+ */
+function ImageBrief({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  if (!open) {
+    return (
+      <button type="button" onClick={(e) => { e.stopPropagation(); setOpen(true); }} className="block w-full text-left" title="Modifier la description de l'image">
+        <span className="line-clamp-2 text-[11px] italic text-muted-foreground">{value.trim() || "Aucune description d'image : touche pour en écrire une."}</span>
+        <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-brand-300"><Pencil className="h-3 w-3" /> Modifier la description de l&apos;image</span>
+      </button>
+    );
+  }
+  return (
+    <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
+      <Label className="text-[11px] text-muted-foreground">Description de l&apos;image (ce que l&apos;IA dessine)</Label>
+      <Textarea value={value} onChange={(e) => onChange(e.target.value)} rows={4} className="text-xs" placeholder="Ce qu'on voit sur l'image : personnage, action, lieu, cadrage…" />
+      <p className="text-[10px] text-muted-foreground">Enregistre le script, puis « Refaire » l&apos;image dans Visuels pour qu&apos;elle suive cette description.</p>
     </div>
   );
 }

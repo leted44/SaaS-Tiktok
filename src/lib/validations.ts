@@ -96,6 +96,8 @@ export const scenesSchema = z.array(sceneSchema);
 export const scriptEditSchema = z.object({
   title: z.string().min(1).max(160),
   hook: z.string().min(1).max(600),
+  /** The hook's image brief, edited by hand; left out, the version keeps the one it had. */
+  hookVisual: z.string().max(2000).nullable().optional(),
   callToAction: z.string().max(400),
   hashtags: z.array(z.string().max(60)).max(20),
   scenes: z.array(sceneSchema.pick({ id: true, text: true, visualDescription: true, brollQuery: true, onScreenText: true })).min(1).max(30),
