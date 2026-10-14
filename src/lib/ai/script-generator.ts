@@ -120,6 +120,27 @@ THIS SCRIPT IS FOR A PHOTO CAROUSEL, NOT A VIDEO. It is read slide by slide in a
 - The callToAction is the closing slide's ask: ONE action, usually the save, with the concrete moment the reader will need it, then who to send it to, named by what that person says or does («Enregistre-la pour ta prochaine envie de chocolat à 22h, et envoie-la à celui qui dit que manger sain, c'est triste.»). Never three asks at once, never «lien en bio».
 - durationSec is the reading time of the slide in seconds; visualDescription and brollQuery describe the image of that slide.`;
 
+/**
+ * A silent story video (« Histoire »): the images tell a little story one
+ * after the other, like an animated short, over music, with a few words on
+ * screen as captions. No voice reads it, so everything about narration is
+ * replaced; the truth rules stay.
+ */
+export const STORY_SCRIPT_RULES = `
+
+THIS SCRIPT IS FOR A SILENT STORY VIDEO: there is no voice-over. Music plays; each part's words appear on screen as captions over its image, and the story is told by the images one after the other, like a short animated film. These rules replace the ones above about narration, the synthetic voice, pace, target duration and pattern interrupts:
+- Exactly 7 scenes after the hook: 8 shots in all, about 15 seconds.
+- The hook and each scene's text are the caption of that shot: 2 to 6 words, read in under 2 seconds — a reaction, a step of the story or the key fact, never a full explanation. No emoji, no symbols.
+- The story follows a short arc: the hook drops the viewer into the situation at its most telling moment; then the normal state, the trigger, the escalation, the consequence at its peak, a turn, and a last shot that lands a punchline the viewer smiles at. Each shot shows the visible consequence of the one before (an action, then the reaction to it), so the viewer stays to see what happens next.
+- One or two recurring characters, no more: the topic's subject turned into characters (an organ, a food, an object, an animal or a person), each described once in visualMotif with a precise, unchanging appearance, and named the same way in every visual brief.
+- Each shot is one moment a still image can tell on its own: one character's action at its peak with a strong, readable emotion (panic, relief, pride, embarrassment, surprise), with at most one object involved. The visual brief states exactly that action and that emotion. When the story has two worlds (outside and inside the body, before and after), it alternates between them.
+- The fact the story teaches is shown by what happens, then stated once in a caption of 5 words or fewer. Every rule above about truth, invented claims and promises still applies.
+- The callToAction is one line shown on screen over the last shot, 12 words at most: who to send the video to, named by what that person does.
+- The 3 alternativeHooks are alternative opening captions, 6 words at most.
+- durationSec is about 2 for every scene; onScreenText is null.`;
+
+const STORY_FORMAT = "Format: a silent story video — 8 shots, about 15 seconds: the hook shot, 7 scene shots, then a short on-screen call to action over the last shot.";
+
 /** What each carousel length asks of the script. */
 const CAROUSEL_FORMAT: Record<NonNullable<GenerateScriptInput["carouselLength"]>, string> = {
   single:
@@ -189,7 +210,7 @@ function buildUserPrompt(input: GenerateScriptInput, brand?: BrandContext): stri
     `Niche: ${input.niche === "general" ? "infer it from the topic" : input.niche}`,
     `Tone: ${input.tone}`,
     `Hook style: ${input.hookStyle === "auto" ? "choose the strongest for this topic" : input.hookStyle}`,
-    input.carouselLength ? CAROUSEL_FORMAT[input.carouselLength] : `Target duration: ${input.targetDurationSec}s (≈ ${targetWords} spoken words in total, including hook and CTA)`,
+    input.carouselLength ? CAROUSEL_FORMAT[input.carouselLength] : input.story ? STORY_FORMAT : `Target duration: ${input.targetDurationSec}s (≈ ${targetWords} spoken words in total, including hook and CTA)`,
     `Language: ${input.language}`,
     input.audience ? `Audience: ${input.audience}` : brand?.targetAudience ? `Audience: ${brand.targetAudience}` : null,
     brand?.toneOfVoice ? `Brand voice guidelines: ${brand.toneOfVoice}` : null,
@@ -272,8 +293,9 @@ export async function generateScript(
 
   // Same passes for a carousel — only the lens changes, never the bar.
   const carousel = Boolean(input.carouselLength);
-  const draft = await callForScript(anthropic, model, carousel ? SCRIPT_SYSTEM_PROMPT + CAROUSEL_SCRIPT_RULES : SCRIPT_SYSTEM_PROMPT, buildUserPrompt(input, brand), "medium");
-  const draftScript = normalizeScript(draft.parsed, input.carouselLength);
+  const story = !carousel && Boolean(input.story);
+  const draft = await callForScript(anthropic, model, carousel ? SCRIPT_SYSTEM_PROMPT + CAROUSEL_SCRIPT_RULES : story ? SCRIPT_SYSTEM_PROMPT + STORY_SCRIPT_RULES : SCRIPT_SYSTEM_PROMPT, buildUserPrompt(input, brand), "medium");
+  const draftScript = normalizeScript(draft.parsed, input.carouselLength, story);
   const rules = { topic: input.topic, carousel, contentSlides: input.carouselLength ? CAROUSEL_MAX_SCENES[input.carouselLength] : undefined, targetDurationSec: input.targetDurationSec };
 
   // The critic runs only when the draft breaks a rule a code check can see —
@@ -283,7 +305,8 @@ export async function generateScript(
   // Switched off altogether since (the owner's call): a second paid pass for a
   // rewrite that was rarely worth it. The draft is kept as written; the rules
   // it breaks are still listed on the admin's card, at no cost.
-  if (!CRITIC_ENABLED) {
+  // A story is never sent to the critic: its rules are written for narrated scripts.
+  if (!CRITIC_ENABLED || story) {
     return finish(draftScript, draft.response.model, [draft.response.usage], disabledReviewReport({ ...rules, draft: draftScript, draftCost: { model: draft.response.model, usage: draft.response.usage }, problems }));
   }
   if (!problems.length) {
@@ -291,7 +314,7 @@ export async function generateScript(
   }
 
   const revised = await callForScript(anthropic, model, carousel ? SCRIPT_CRITIC_SYSTEM_PROMPT + CAROUSEL_CRITIC_RULES : SCRIPT_CRITIC_SYSTEM_PROMPT, buildCriticUserPrompt(input, draft.parsed, brand, problems), "high");
-  const revisedScript = normalizeScript(revised.parsed, input.carouselLength);
+  const revisedScript = normalizeScript(revised.parsed, input.carouselLength, story);
   const review = buildReviewReport({
     ...rules,
     draft: draftScript,
@@ -326,8 +349,11 @@ function clampScore(n: number) {
 /** A carousel script keeps no more scenes than its slides can hold: 1 for a single image, 2 for a short carousel, 4 for a full one. */
 const CAROUSEL_MAX_SCENES = { single: 1, short: 2, full: 4 } as const;
 
-export function normalizeScript(s: GeneratedScript, carouselLength?: GenerateScriptInput["carouselLength"]): GeneratedScript {
-  const maxScenes = carouselLength ? CAROUSEL_MAX_SCENES[carouselLength] : 12;
+/** A story keeps its 7 shots after the hook (8 with it); a little slack for a writer that adds one. */
+const STORY_MAX_SCENES = 8;
+
+export function normalizeScript(s: GeneratedScript, carouselLength?: GenerateScriptInput["carouselLength"], story = false): GeneratedScript {
+  const maxScenes = carouselLength ? CAROUSEL_MAX_SCENES[carouselLength] : story ? STORY_MAX_SCENES : 12;
   return {
     ...s,
     hashtags: s.hashtags.map((h) => h.replace(/^#/, "").replace(/\s+/g, "")).filter(Boolean).slice(0, 12),

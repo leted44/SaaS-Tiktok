@@ -413,6 +413,8 @@ model Script {
   coverTitles          Json?
   /// Set when the script was written for a carousel ("single" | "short" | "full"): its hook and alternative hooks are cover headlines, and its scenes are the slides. Null for a video script.
   carouselLength       String?
+  /// A silent story video (the « Histoire » mode): words shown as captions, no voice-over.
+  story                Boolean  @default(false)
 
   model        String?
   inputTokens  Int?

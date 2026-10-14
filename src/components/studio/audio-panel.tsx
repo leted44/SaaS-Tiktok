@@ -20,6 +20,8 @@ import { VoiceTonePicker } from "@/components/studio/voice-tone";
 import type { BeatGrid } from "@/lib/audio/beats";
 
 interface Props {
+  /** A silent story: no voice-over to make, the music carries it. */
+  story?: boolean;
   projectId: string;
   scriptId: string | null;
   voiceover: StudioVoiceover | null;
@@ -83,6 +85,12 @@ export function AudioPanel(p: Props) {
 
   return (
     <div className="space-y-6">
+      {p.story && (
+        <div className="rounded-xl border border-brand-400/25 bg-brand-500/[0.07] p-3 text-xs leading-relaxed">
+          <p className="font-semibold">Histoire sans voix : rien à générer ici.</p>
+          <p className="mt-1 text-muted-foreground">Les mots de chaque plan s&apos;affichent en sous-titres. Pour le son, importe ta musique ci-dessous (Musique de fond → ton fichier), ou ajoute un son tendance au moment de publier sur TikTok ou Instagram : c&apos;est souvent ce qui marche le mieux pour ce format.</p>
+        </div>
+      )}
       <Section title="Voix" icon={Mic2} summary={selectedVoice?.name ?? "Aucune voix"} defaultOpen={!selectedVoice}>
         <div className="flex items-center justify-end"><Link href="/voices" className="text-[11px] text-muted-foreground hover:text-foreground">Catalogue complet →</Link></div>
         <div className="mt-2 space-y-1.5">

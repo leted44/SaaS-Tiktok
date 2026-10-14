@@ -65,6 +65,8 @@ interface Props {
   aiImageCost: number;
   /** The admin sees the image model test; clients get Nano Banana 2. */
   admin: boolean;
+  /** A silent story: the grid's help says which shots to animate. */
+  story?: boolean;
   credits: number;
   hasScript: boolean;
   /** Saves editor state immediately, bypassing the autosave debounce — the server reads the row back right after. */
@@ -97,6 +99,7 @@ export function VisualsPanel({
   aiImagesConfigured,
   aiImageCost,
   admin,
+  story = false,
   credits,
   hasScript,
   ensureSaved,
@@ -690,6 +693,11 @@ export function VisualsPanel({
               );
             })}
           </div>
+          {story && (
+            <p className="mt-2 rounded-lg border border-brand-400/25 bg-brand-500/[0.07] p-2 text-[11px] leading-relaxed">
+              Histoire : les images fixes bougent déjà un peu (léger zoom) et l&apos;enchaînement raconte l&apos;histoire. Anime seulement 2 ou 3 plans d&apos;action, ceux où un personnage fait un geste fort : c&apos;est là que le mouvement se voit.
+            </p>
+          )}
           <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
             {videoClipsConfigured ? "« Animer » transforme l'image en clip vidéo (plusieurs minutes) ; le mouvement est écrit automatiquement d'après l'image et le texte de la scène. " : ""}
             Touche une image pour la choisir : la banque d&apos;images, tes fichiers et la bibliothèque la remplacent. Le × la retire (elle reste dans la bibliothèque du projet). Sur une case vide, « Créer » dessine cette seule scène{admin ? " ; « Copier la description » copie sa description pour la coller dans Gemini ou ChatGPT, puis touche la case et « Importer un fichier »" : ""}. « Refaire » remplace une image par une nouvelle.

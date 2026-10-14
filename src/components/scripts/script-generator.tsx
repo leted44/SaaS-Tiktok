@@ -57,6 +57,9 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
   const [carouselLength, setCarouselLength] = useState<CarouselLength>("full");
   /** Only a new carousel-only project gets a script shaped for slides; "Les deux" and an existing project keep the video script. */
   const carouselScript = !projectId && format === "carousel";
+  /** « Histoire » : a silent story told by the images, words on screen, no voice-over. Only for a video-only script. */
+  const [story, setStory] = useState(false);
+  const storyScript = story && format === "video";
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(0);
 
@@ -78,7 +81,7 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
     setStep(0);
     const timer = setInterval(() => setStep((s) => Math.min(STEPS.length - 1, s + 1)), 2200);
     try {
-      const res = await generateScriptAction({ projectId, spaceId: projectId ? undefined : spaceId === NO_SPACE ? null : spaceId, topic, sourceUrl: sourceUrl || undefined, niche, tone, hookStyle, language, targetDurationSec: duration, callToActionGoal: cta, audience: audience || undefined, carouselLength: carouselScript ? carouselLength : undefined });
+      const res = await generateScriptAction({ projectId, spaceId: projectId ? undefined : spaceId === NO_SPACE ? null : spaceId, topic, sourceUrl: sourceUrl || undefined, niche, tone, hookStyle, language, targetDurationSec: storyScript ? 15 : duration, callToActionGoal: cta, audience: audience || undefined, carouselLength: carouselScript ? carouselLength : undefined, story: storyScript || undefined });
       if (!res.ok) {
         toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Obtenir des crédits", onClick: () => router.push("/billing") } : undefined });
         return;
@@ -119,6 +122,22 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
               ))}
             </div>
           </div>
+
+          {format === "video" && (
+            <div className="space-y-2">
+              <Label>Type de vidéo</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => setStory(false)} className={cn("rounded-lg border p-3 text-left transition", !story ? "border-primary/60 bg-primary/15 shadow-glow-sm" : "border-white/10 hover:border-white/20")}>
+                  <span className="block text-sm font-semibold">Infos · voix off</span>
+                  <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">Une voix explique, les images illustrent.</span>
+                </button>
+                <button type="button" onClick={() => setStory(true)} className={cn("rounded-lg border p-3 text-left transition", story ? "border-primary/60 bg-primary/15 shadow-glow-sm" : "border-white/10 hover:border-white/20")}>
+                  <span className="block text-sm font-semibold">Histoire · sans voix</span>
+                  <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">8 plans qui racontent une mini-histoire, quelques mots à l&apos;écran, environ 15 s.</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="url" className="inline-flex items-center gap-1"><Link2 className="h-3 w-3" /> URL source (optionnel)</Label>
@@ -179,7 +198,7 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
                 <p className="text-xs text-muted-foreground">Le script est écrit pour ce nombre de slides.</p>
               </div>
             )}
-            {format !== "carousel" && (
+            {format !== "carousel" && !storyScript && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between"><Label>Durée cible</Label><span className="text-sm font-semibold tabular-nums">{duration}s</span></div>
                 <Slider value={[duration]} min={15} max={120} step={5} onValueChange={([v]) => setDuration(v)} />

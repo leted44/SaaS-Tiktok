@@ -73,6 +73,10 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
     ).id;
 
   const project = await prisma.project.findFirstOrThrow({ where: { id: projectId, userId: user.id } });
+  // A story's words are its captions: they stay on even when the space's look switched them off.
+  const story = Boolean(data.story) && !data.carouselLength;
+  const captions = project.captionStyle as Record<string, unknown> | null;
+  const captionsOn = story && captions && typeof captions === "object" && captions.enabled === false ? { captionStyle: { ...captions, enabled: true } } : {};
   const latest = await prisma.script.findFirst({ where: { projectId }, orderBy: { version: "desc" }, select: { version: true } });
 
   const script = await prisma.script.create({
@@ -86,6 +90,7 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
       alternativeHooks: result.script.alternativeHooks,
       coverTitles: result.script.coverTitles,
       carouselLength: data.carouselLength ?? null,
+      story,
       scenes: result.script.scenes.map((s) => ({ id: nanoid(8), ...s })),
       callToAction: result.script.callToAction,
       fullText: result.fullText,
@@ -114,6 +119,7 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
       niche: project.niche ?? data.niche,
       // The cast and world the scenes' AI images share; a motif the creator already set is never replaced.
       visualMotif: project.visualMotif?.trim() ? project.visualMotif : result.script.visualMotif.trim().slice(0, 800) || null,
+      ...captionsOn,
     },
   });
 

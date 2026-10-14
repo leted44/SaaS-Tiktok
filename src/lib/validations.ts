@@ -141,6 +141,8 @@ export const generateScriptSchema = z.object({
   hookStyle: z.enum(["question", "bold-claim", "curiosity-gap", "story", "statistic", "auto"]).default("auto"),
   /** Set when the script is written for a carousel of this length — read in a feed, not heard. Absent for a video. */
   carouselLength: z.enum(["single", "short", "full"]).optional(),
+  /** A silent story video (« Histoire »): short on-screen words over a run of images, no voice-over. Ignored for a carousel. */
+  story: z.boolean().optional(),
 });
 export type GenerateScriptInput = z.infer<typeof generateScriptSchema>;
 

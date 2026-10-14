@@ -277,7 +277,8 @@ export function Studio(props: StudioProps) {
   const readyRender = renders.find((r) => r.status === "COMPLETED" && r.outputUrl) ?? null;
   const steps = [
     { value: "script", label: "Script", icon: FileText, done: Boolean(activeScript) },
-    { value: "audio", label: "Voix", icon: Mic2, done: Boolean(voiceover?.audioUrl) && voiceover?.voiceId === state.voiceId },
+    // A silent story has no voice-over to make: its words are captions.
+    { value: "audio", label: "Voix", icon: Mic2, done: Boolean(activeScript?.story) || (Boolean(voiceover?.audioUrl) && voiceover?.voiceId === state.voiceId) },
     { value: "visuals", label: "Visuels", icon: Layers, done: liveProps.scenes.length > 0 && liveProps.scenes.every((_, i) => state.visualLayers.some((l) => l.sceneIndex === i)) },
     // Captions are ready once there is a voice to time them on, or once they are switched off.
     { value: "captions", label: "Sous-titres", icon: Captions, done: state.captionStyle.enabled === false || Boolean(voiceover?.audioUrl) },
@@ -396,6 +397,7 @@ export function Studio(props: StudioProps) {
                 </TabsContent>
                 <TabsContent value="visuals" className="mt-0">
                   <VisualsPanel
+                    story={Boolean(activeScript?.story)}
                     projectId={project.id}
                     layers={state.visualLayers}
                     background={state.backgroundStyle}
@@ -432,6 +434,7 @@ export function Studio(props: StudioProps) {
                 </TabsContent>
                 <TabsContent value="audio" className="mt-0">
                   <AudioPanel
+                    story={Boolean(activeScript?.story)}
                     projectId={project.id}
                     scriptId={activeScript?.id ?? null}
                     voiceover={voiceover}
@@ -467,7 +470,7 @@ export function Studio(props: StudioProps) {
                   />
                 </TabsContent>
                 <TabsContent value="export" className="mt-0">
-                  <ExportPanel projectId={project.id} renders={renders} planLimits={planLimits} credits={user.credits} hasScript={Boolean(activeScript)} hasVoiceover={Boolean(voiceover?.audioUrl)} dirty={dirty} scriptId={activeScript?.id ?? null} socialCopy={activeScript?.socialCopy ?? null} hashtags={activeScript?.hashtags ?? []} aiConfigured={integrations.ai} cover={{ ...cover, settings: coverSettings }} />
+                  <ExportPanel story={Boolean(activeScript?.story)} projectId={project.id} renders={renders} planLimits={planLimits} credits={user.credits} hasScript={Boolean(activeScript)} hasVoiceover={Boolean(voiceover?.audioUrl)} dirty={dirty} scriptId={activeScript?.id ?? null} socialCopy={activeScript?.socialCopy ?? null} hashtags={activeScript?.hashtags ?? []} aiConfigured={integrations.ai} cover={{ ...cover, settings: coverSettings }} />
                 </TabsContent>
               </div>
             </div>

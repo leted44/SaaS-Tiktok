@@ -88,6 +88,7 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         title: s.title,
         hook: s.hook,
         hookVisual: s.hookVisual,
+        story: s.story,
         alternativeHooks: s.alternativeHooks,
         coverTitles: parseJson(coverTitlesSchema.nullable(), s.coverTitles, null),
         scenes: parseJson(scenesSchema, s.scenes, []),
