@@ -425,6 +425,7 @@ export function Studio(props: StudioProps) {
                     aiImagesConfigured={integrations.aiImages}
                     aiImageCost={planLimits.costs.aiImage}
                     admin={testMode}
+                    adminAccount={user.admin}
                     credits={user.credits}
                     hasScript={Boolean(activeScript)}
                     ensureSaved={saveNow}

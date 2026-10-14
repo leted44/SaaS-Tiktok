@@ -65,6 +65,8 @@ interface Props {
   aiImageCost: number;
   /** The admin sees the image model test; clients get Nano Banana 2. */
   admin: boolean;
+  /** The account is an admin's, whatever « Mode test » says: « Copier la description » is a working tool, always shown to them. */
+  adminAccount?: boolean;
   /** A silent story: the grid's help says which shots to animate. */
   story?: boolean;
   credits: number;
@@ -99,6 +101,7 @@ export function VisualsPanel({
   aiImagesConfigured,
   aiImageCost,
   admin,
+  adminAccount = false,
   story = false,
   credits,
   hasScript,
@@ -678,7 +681,7 @@ export function VisualsPanel({
                         </Button>
                       )}
                       {/* The same prompt "Créer" would send (lib/pipeline/ai-visuals), for the Gemini or ChatGPT app — the owner's alone: for subscribers the AI images are the product, one tap away. */}
-                      {admin && <CopyForGemini className="w-full" cast={gemini.cast} prompt={geminiPrompt(composeImagePrompt({ scene: gemini.briefs[i], motif: visualMotif, style, layout: "frame", purpose: "video" }), { aspect: gemini.aspect, cast: gemini.cast })} />}
+                      {adminAccount && <CopyForGemini className="w-full" cast={gemini.cast} prompt={geminiPrompt(composeImagePrompt({ scene: gemini.briefs[i], motif: visualMotif, style, layout: "frame", purpose: "video" }), { aspect: gemini.aspect, cast: gemini.cast })} />}
                     </div>
                   )}
                   {layer && !animating && aiImagesConfigured && i !== cta && gemini.briefs[i]?.trim() && (

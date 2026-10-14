@@ -917,7 +917,8 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
                   credits={credits}
                   ensureSaved={ensureSaved}
                   // "Copier la description" is the owner's alone (see visuals-panel).
-                  gemini={admin && s.kind !== "cta" ? geminiFor(s) : null}
+                  // « Copier la description » is a working tool of the admin, not a test: shown whether « Mode test » is on or off.
+                  gemini={adminAccount && s.kind !== "cta" ? geminiFor(s) : null}
                   onGenerated={(generatedStyle, creditsLeft) => {
                     setCredits(creditsLeft);
                     if (!state.visualStyle) set({ visualStyle: generatedStyle });
