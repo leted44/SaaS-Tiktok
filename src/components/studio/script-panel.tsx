@@ -31,13 +31,15 @@ interface Props {
   /** Credit price of one generated script — zero for accounts that aren't charged. */
   scriptCost: number;
   reviewTally: ReviewTally | null;
+  /** The admin's writing review card, shown in « Mode test » only. */
+  showReview?: boolean;
   /** Told whenever the text differs from the saved version, so the studio can ask before a tab change drops it. */
   onDirtyChange?: (dirty: boolean) => void;
   /** Filled with this panel's save, for the studio's « Enregistrer et continuer ». */
   saveRef?: MutableRefObject<(() => Promise<boolean>) | null>;
 }
 
-export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene, onSelectScene, aiConfigured, scriptCost, reviewTally, onDirtyChange, saveRef }: Props) {
+export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene, onSelectScene, aiConfigured, scriptCost, reviewTally, showReview = false, onDirtyChange, saveRef }: Props) {
   const router = useRouter();
   const active = scripts.find((s) => s.id === activeScriptId) ?? scripts[0] ?? null;
   const [draft, setDraft] = useState(active);
@@ -115,7 +117,7 @@ export function ScriptPanel({ projectId, scripts, activeScriptId, selectedScene,
       </div>
 
       <ScoreCard script={active} stale={dirty} />
-      {active.review && <ReviewCard report={active.review} tally={reviewTally} />}
+      {showReview && active.review && <ReviewCard report={active.review} tally={reviewTally} />}
 
       <div className="space-y-1.5"><Label>Titre</Label><Input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></div>
 

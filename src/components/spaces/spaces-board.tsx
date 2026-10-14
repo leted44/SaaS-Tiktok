@@ -1,6 +1,7 @@
 "use client";
 
 import { RESULTS_ENABLED } from "@/lib/results/config";
+import { useTestMode } from "@/components/shared/test-mode";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -22,7 +23,9 @@ type SpaceCard = SpaceOption & { publishedCount: number; lessonCount: number; lo
  * characters, voice) at a glance, and the two ways to start a post in it.
  * Editing opens the same form the Projets page used to hide behind "Gérer".
  */
-export function SpacesBoard({ spaces, voices, admin, sheetGeneration, initialEdit }: { spaces: SpaceCard[]; voices: { id: string; name: string }[]; admin: boolean; sheetGeneration: { cost: number; enabled: boolean }; initialEdit: string | null }) {
+export function SpacesBoard({ spaces, voices, admin: adminAccount, sheetGeneration, initialEdit }: { spaces: SpaceCard[]; voices: { id: string; name: string }[]; admin: boolean; sheetGeneration: { cost: number; enabled: boolean }; initialEdit: string | null }) {
+  // « Mon clone » is an admin test: shown only while « Mode test » is on.
+  const admin = useTestMode(adminAccount);
   const [focus, setFocus] = useState<string | null>(initialEdit);
   const voiceName = (id: string | null) => (id ? (voices.find((v) => v.id === id)?.name ?? null) : null);
 

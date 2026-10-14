@@ -34,6 +34,7 @@ import { coverTitleSuggestions } from "@/lib/video-cover";
 import { useCoverSettings } from "@/components/studio/cover-panel";
 import { SpaceLookButton } from "@/components/shared/space-look-button";
 import { useLeaveGuard } from "@/components/shared/use-leave-guard";
+import { useTestMode } from "@/components/shared/test-mode";
 import { saveVideoLookAction } from "@/server/actions/space-kit";
 import { videoLookColumns, videoLookSummary, type VideoLook } from "@/lib/space-kit";
 
@@ -42,6 +43,8 @@ export function Studio(props: StudioProps) {
   const router = useRouter();
   const playerRef = useRef<PlayerRef>(null);
   const [tab, setTab] = useState("script");
+  // The admin's tests show only while « Mode test » is on; off, this is the client's studio.
+  const testMode = useTestMode(user.admin);
   const [selectedScene, setSelectedScene] = useState<number | null>(null);
   const [title, setTitle] = useState(project.title);
   const [editingTitle, setEditingTitle] = useState(false);
@@ -386,7 +389,7 @@ export function Studio(props: StudioProps) {
             <div className="min-h-0 min-w-0 flex-1 xl:overflow-y-auto">
               <div className="min-w-0 p-4">
                 <TabsContent value="script" className="mt-0">
-                  <ScriptPanel projectId={project.id} scripts={scripts} activeScriptId={activeScriptId} selectedScene={selectedScene} onSelectScene={(i) => { setSelectedScene(i); if (i !== null && liveProps.scenes[i]) playerRef.current?.seekTo(Math.round((liveProps.scenes[i].startMs / 1000) * liveProps.fps)); }} aiConfigured={integrations.ai} scriptCost={planLimits.costs.script} reviewTally={reviewTally} onDirtyChange={setScriptDirty} saveRef={saveScriptRef} />
+                  <ScriptPanel projectId={project.id} scripts={scripts} activeScriptId={activeScriptId} selectedScene={selectedScene} onSelectScene={(i) => { setSelectedScene(i); if (i !== null && liveProps.scenes[i]) playerRef.current?.seekTo(Math.round((liveProps.scenes[i].startMs / 1000) * liveProps.fps)); }} aiConfigured={integrations.ai} scriptCost={planLimits.costs.script} reviewTally={reviewTally} showReview={testMode} onDirtyChange={setScriptDirty} saveRef={saveScriptRef} />
                 </TabsContent>
                 <TabsContent value="captions" className="mt-0">
                   <CaptionsPanel style={state.captionStyle} onChange={(s) => patch("captionStyle", s)} />
@@ -419,7 +422,7 @@ export function Studio(props: StudioProps) {
                     onCaptionStyleChange={(s) => patch("captionStyle", s)}
                     aiImagesConfigured={integrations.aiImages}
                     aiImageCost={planLimits.costs.aiImage}
-                    admin={user.admin}
+                    admin={testMode}
                     credits={user.credits}
                     hasScript={Boolean(activeScript)}
                     ensureSaved={saveNow}
@@ -445,7 +448,7 @@ export function Studio(props: StudioProps) {
                     tracks={tracks}
                     previewText={activeScript?.hook ?? ""}
                     premiumAllowed={planLimits.premiumVoices}
-                    admin={user.admin}
+                    admin={testMode}
                     ttsConfigured={integrations.tts}
                     estimatedDurationSec={activeScript?.estimatedDurationSec ?? project.targetDurationSec}
                     costPer30s={planLimits.costs.voicePer30s}

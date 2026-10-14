@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, Plus, LogOut, Settings, CreditCard, AlertTriangle, ChevronRight } from "lucide-react";
+import { Menu, Plus, LogOut, Settings, CreditCard, AlertTriangle, ChevronRight, FlaskConical } from "lucide-react";
+import { setTestMode, useTestMode } from "@/components/shared/test-mode";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -30,6 +31,7 @@ export function Topbar({ user, status, onMenu }: { user: ShellUser; status: { ai
   const base = `/${pathname.split("/")[1]}`;
   const title = TITLES[base] ?? "VidiSprint";
   const missing = [!status.ai && "Scripts IA", !status.tts && "Voix off", !status.stripe && "Facturation"].filter(Boolean) as string[];
+  const testMode = useTestMode(user.admin);
   const initials = (user.name ?? user.email).split(" ").map((s) => s[0]).join("").slice(0, 2).toUpperCase();
 
   return (
@@ -53,6 +55,11 @@ export function Topbar({ user, status, onMenu }: { user: ShellUser; status: { ai
             <TooltipContent>Clés manquantes pour : {missing.join(", ")}. Voir .env.example.</TooltipContent>
           </Tooltip>
         )}
+        {testMode && (
+          <button type="button" onClick={() => setTestMode(false)} title="Mode test activé : touche pour le couper" className="inline-flex items-center gap-1 rounded-full border border-amber-300/40 bg-amber-300/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200">
+            <FlaskConical className="h-3 w-3" /> Mode test
+          </button>
+        )}
         <Button asChild size="sm" variant="gradient" className="hidden md:inline-flex">
           <Link href="/scripts"><Plus /> Nouvelle vidéo</Link>
         </Button>
@@ -73,6 +80,11 @@ export function Topbar({ user, status, onMenu }: { user: ShellUser; status: { ai
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild><Link href="/billing"><CreditCard /> Facturation · {user.credits} crédits</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link href="/settings"><Settings /> Paramètres</Link></DropdownMenuItem>
+            {user.admin && (
+              <DropdownMenuItem onSelect={() => setTestMode(!testMode)}>
+                <FlaskConical /> Mode test : {testMode ? "activé" : "désactivé"}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => signOutAction()} className="text-red-300 focus:text-red-200"><LogOut /> Se déconnecter</DropdownMenuItem>
           </DropdownMenuContent>

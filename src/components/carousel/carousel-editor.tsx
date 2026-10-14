@@ -36,6 +36,7 @@ import { CarouselDesignControls } from "@/components/carousel/design-controls";
 import { SpaceLookButton } from "@/components/shared/space-look-button";
 import { saveCarouselLookAction } from "@/server/actions/space-kit";
 import { useLeaveGuard } from "@/components/shared/use-leave-guard";
+import { useTestMode } from "@/components/shared/test-mode";
 import { rewriteCarouselBriefsAction } from "@/server/actions/brief-rewrite";
 import { carouselLookSummary, type CarouselLook } from "@/lib/space-kit";
 import type { SocialCopy } from "@/lib/social/captions";
@@ -123,7 +124,7 @@ function lengthOf(slides: CarouselState["slides"]): CarouselLength {
   return slides.filter((s) => s.kind === "content").length <= CONTENT_SLIDES.short ? "short" : "full";
 }
 
-export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured, posted, admin, review, characterReference, defaultStyle, scriptStart, spaceLook: space }: Props) {
+export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScript, script, cost, socialCopyCost, aiImageCost, credits: initialCredits, aiConfigured, stockConfigured, aiImagesConfigured, posted, admin: adminAccount, review: adminReview, characterReference, defaultStyle, scriptStart, spaceLook: space }: Props) {
   const [marking, setMarking] = useState(false);
   const [unmarking, setUnmarking] = useState(false);
   const [rewriting, setRewriting] = useState(false);
@@ -171,6 +172,9 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const [busy, setBusy] = useState<null | "share" | "download" | "zip">(null);
   const [textsOpen, setTextsOpen] = useState(false);
   /** Image model test, admin only — shared with the video studio. Clients get Nano Banana 2. */
+  // Every admin test shows only while the « Mode test » switch is on; off, this is the client's editor.
+  const admin = useTestMode(adminAccount);
+  const review = admin ? adminReview : null;
   const [imageModel, setImageModel] = useAdminImageModel(admin);
   /** Tapping a slide in the preview opens its text, where it can be changed. */
   function editSlide(id: string) {

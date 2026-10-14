@@ -12,6 +12,8 @@ export interface ShellUser {
   image: string | null;
   plan: string;
   credits: number;
+  /** Shows the « Mode test » switch. */
+  admin: boolean;
 }
 
 export function AppShell({ user, status, children }: { user: ShellUser; status: { ai: boolean; tts: boolean; stripe: boolean }; children: React.ReactNode }) {
