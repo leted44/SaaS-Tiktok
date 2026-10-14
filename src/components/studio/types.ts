@@ -54,6 +54,8 @@ export interface StudioScript {
   hookVisual: string | null;
   /** A silent story video (« Histoire »): its words are captions, there is no voice-over to make. */
   story: boolean;
+  /** With `story`: told by a voice-over (one sentence per shot), so a voice-over is expected. */
+  storyNarrated: boolean;
   alternativeHooks: string[];
   /** Titles for the video's cover (lib/video-cover); null on scripts written before covers. */
   coverTitles: CoverTitle[] | null;

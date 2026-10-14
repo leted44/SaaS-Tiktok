@@ -75,8 +75,10 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
   const project = await prisma.project.findFirstOrThrow({ where: { id: projectId, userId: user.id } });
   // A story's words are its captions: they stay on even when the space's look switched them off.
   const story = Boolean(data.story) && !data.carouselLength;
+  // Only the silent version needs its captions forced on: a narrated one is captioned like any voiced video.
+  const silentStory = story && !data.storyNarrated;
   const captions = project.captionStyle as Record<string, unknown> | null;
-  const captionsOn = story && captions && typeof captions === "object" && captions.enabled === false ? { captionStyle: { ...captions, enabled: true } } : {};
+  const captionsOn = silentStory && captions && typeof captions === "object" && captions.enabled === false ? { captionStyle: { ...captions, enabled: true } } : {};
   const latest = await prisma.script.findFirst({ where: { projectId }, orderBy: { version: "desc" }, select: { version: true } });
 
   const script = await prisma.script.create({
@@ -91,6 +93,7 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
       coverTitles: result.script.coverTitles,
       carouselLength: data.carouselLength ?? null,
       story,
+      storyNarrated: story && Boolean(data.storyNarrated),
       scenes: result.script.scenes.map((s) => ({ id: nanoid(8), ...s })),
       callToAction: result.script.callToAction,
       fullText: result.fullText,

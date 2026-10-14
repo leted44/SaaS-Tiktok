@@ -200,6 +200,7 @@ export async function saveScriptEdits(scriptId: string, input: unknown): Promise
         coverTitles: original.coverTitles ?? Prisma.DbNull,
         carouselLength: original.carouselLength,
         story: original.story,
+        storyNarrated: original.storyNarrated,
         viralityScore: scores.virality,
         hookScore: scores.hook,
         retentionScore: scores.retention,

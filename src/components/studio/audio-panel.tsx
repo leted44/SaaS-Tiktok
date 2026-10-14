@@ -20,8 +20,8 @@ import { VoiceTonePicker } from "@/components/studio/voice-tone";
 import type { BeatGrid } from "@/lib/audio/beats";
 
 interface Props {
-  /** A silent story: no voice-over to make, the music carries it. */
-  story?: boolean;
+  /** A mini-film: « silent » needs no voice-over (words on screen, music); « narrated » is told by the voice-over. */
+  story?: "silent" | "narrated";
   projectId: string;
   scriptId: string | null;
   voiceover: StudioVoiceover | null;
@@ -85,10 +85,16 @@ export function AudioPanel(p: Props) {
 
   return (
     <div className="space-y-6">
-      {p.story && (
+      {p.story === "silent" && (
         <div className="rounded-xl border border-brand-400/25 bg-brand-500/[0.07] p-3 text-xs leading-relaxed">
-          <p className="font-semibold">Mini-film sans voix : rien à générer ici.</p>
-          <p className="mt-1 text-muted-foreground">Les mots de chaque plan s&apos;affichent en sous-titres. Pour le son, importe ta musique ci-dessous (Musique de fond → ton fichier), ou ajoute un son tendance au moment de publier sur TikTok ou Instagram : c&apos;est souvent ce qui marche le mieux pour ce format.</p>
+          <p className="font-semibold">Mini-film sans voix : la voix off est facultative.</p>
+          <p className="mt-1 text-muted-foreground">Sans voix, les mots de chaque plan s&apos;affichent en sous-titres ; avec, elle lit ces mots. Pour le son, importe ta musique ci-dessous (Musique de fond → ton fichier), ou ajoute un son tendance au moment de publier sur TikTok ou Instagram.</p>
+        </div>
+      )}
+      {p.story === "narrated" && (
+        <div className="rounded-xl border border-brand-400/25 bg-brand-500/[0.07] p-3 text-xs leading-relaxed">
+          <p className="font-semibold">Mini-film raconté : génère la voix off ci-dessous.</p>
+          <p className="mt-1 text-muted-foreground">Elle raconte l&apos;histoire, une phrase par image, et les images se calent sur elle. Un ton vivant (curseur « Ton de la voix ») va bien à ce format.</p>
         </div>
       )}
       <Section title="Voix" icon={Mic2} summary={selectedVoice?.name ?? "Aucune voix"} defaultOpen={!selectedVoice}>

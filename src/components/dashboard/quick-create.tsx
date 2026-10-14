@@ -39,8 +39,9 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
   const [tone, setTone] = useState<Tone>("energetic");
   const [format, setFormat] = useState<ContentFormat>("video");
   const [carouselLength, setCarouselLength] = useState<CarouselLength>("full");
-  /** « Mini-film sans voix » (see the Générateur de script): only for a video on its own. */
+  /** « Mini-film » (see the Générateur de script): told by a voice by default, silent when unticked. Only for a video on its own. */
   const [story, setStory] = useState(false);
+  const [storyVoice, setStoryVoice] = useState(true);
   const storyScript = story && format === "video";
   const [moreOpen, setMoreOpen] = useState(false);
   const [niche, setNiche] = useState(AUTO_NICHE);
@@ -80,9 +81,10 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
         hookStyle,
         callToActionGoal: cta,
         audience: audience.trim() || undefined,
-        targetDurationSec: storyScript ? 15 : duration,
+        targetDurationSec: storyScript ? (storyVoice ? 25 : 15) : duration,
         language,
         story: storyScript || undefined,
+        storyNarrated: storyScript ? storyVoice : undefined,
         // "Les deux" keeps a video script, written for the ear; a carousel alone gets one written for its slides.
         carouselLength: format === "carousel" ? carouselLength : undefined,
       });
@@ -151,13 +153,20 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
 
           {format === "video" && (
             <div className="mt-3 grid grid-cols-2 gap-1 rounded-2xl border border-white/10 p-1" role="radiogroup" aria-label="Type de vidéo">
-              {([[false, "Avec voix off", "Une voix explique le sujet"], [true, "Mini-film sans voix", "Les personnages jouent la scène, quelques mots à l'écran"]] as const).map(([value, label, hint]) => (
+              {([[false, "Explication", "Une voix explique le sujet"], [true, "Mini-film", "Les personnages vivent une petite histoire"]] as const).map(([value, label, hint]) => (
                 <button key={label} type="button" role="radio" aria-checked={story === value} onClick={() => setStory(value)} className={cn("rounded-xl px-3 py-2 text-left transition", story === value ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground")}>
                   <span className="block text-xs font-semibold">{label}</span>
                   <span className="block text-[10px] text-muted-foreground">{hint}</span>
                 </button>
               ))}
             </div>
+          )}
+
+          {storyScript && (
+            <label className="mt-2 flex cursor-pointer items-center gap-2 px-1 text-xs text-muted-foreground">
+              <input type="checkbox" checked={storyVoice} onChange={(e) => setStoryVoice(e.target.checked)} className="h-3.5 w-3.5 accent-[hsl(var(--primary))]" />
+              <span><span className="text-foreground">Une voix raconte l&apos;histoire</span> {storyVoice ? "· une phrase par image" : "· sans voix, quelques mots à l'écran"}</span>
+            </label>
           )}
 
           <div className="mt-3 flex flex-wrap items-center gap-2">

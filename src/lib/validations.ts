@@ -143,6 +143,8 @@ export const generateScriptSchema = z.object({
   carouselLength: z.enum(["single", "short", "full"]).optional(),
   /** A silent story video (« Histoire »): short on-screen words over a run of images, no voice-over. Ignored for a carousel. */
   story: z.boolean().optional(),
+  /** With `story`: a voice tells it, one spoken sentence per shot; without, the silent version (words on screen only). */
+  storyNarrated: z.boolean().optional(),
 });
 export type GenerateScriptInput = z.infer<typeof generateScriptSchema>;
 

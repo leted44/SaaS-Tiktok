@@ -139,6 +139,25 @@ THIS SCRIPT IS FOR A SILENT STORY VIDEO: there is no voice-over. Music plays; ea
 - The 3 alternativeHooks are alternative opening captions, 6 words at most.
 - durationSec is about 2 for every scene; onScreenText is null.`;
 
+/**
+ * The narrated mini-film: the same story told in images, with a voice that
+ * tells it like a storyteller — one spoken sentence per shot, each over the
+ * image that acts it out. The narration rules above (written for the ear,
+ * truth, the hook) all stay; only the shape changes.
+ */
+export const NARRATED_STORY_RULES = `
+
+THIS SCRIPT IS FOR A NARRATED MINI-FILM: the images tell a little story one after the other, like an animated short, and the voice-over tells that story like a storyteller while it plays. Everything above about writing for the ear, the voice, truth and the hook still applies; these rules set the shape:
+- Exactly 7 scenes after the hook: 8 shots in all, about 25 seconds.
+- Each scene's text is ONE spoken sentence of 6 to 14 words, in the present tense, telling what is happening in its image and why — the story and the explanation move forward together, one step per shot (e.g. «Tu coupes l'oignon, et ses cellules éclatent.» then «Elles lâchent un gaz qui file droit vers tes yeux.»). Never a sentence that only comments or lists.
+- The hook is the story's most telling moment, said in 8 words at most, over the most striking image.
+- The story follows a short arc: the situation, the trigger, the escalation, the consequence at its peak, a turn, and a last shot that lands a punchline the viewer smiles at, then the call to action. Each shot shows the visible consequence of the one before (an action, then the reaction to it).
+- One or two recurring characters, no more: the topic's subject turned into characters (an organ, a food, an object, an animal or a person), each described once in visualMotif with a precise, unchanging appearance and named the same way in every visual brief.
+- Each visual brief is the one moment a still image can tell on its own, matching its sentence: one character's action at its peak with a strong, readable emotion (panic, relief, pride, embarrassment, surprise), with at most one object involved. When the story has two worlds (outside and inside the body, before and after), it alternates between them.
+- durationSec is about 3 for every scene; onScreenText is null.`;
+
+const NARRATED_STORY_FORMAT = "Format: a narrated mini-film — 8 shots, about 25 seconds: the hook shot, 7 scene shots each with one spoken sentence, then the spoken call to action over the last shot.";
+
 const STORY_FORMAT = "Format: a silent story video — 8 shots, about 15 seconds: the hook shot, 7 scene shots, then a short on-screen call to action over the last shot.";
 
 /** What each carousel length asks of the script. */
@@ -210,7 +229,7 @@ function buildUserPrompt(input: GenerateScriptInput, brand?: BrandContext): stri
     `Niche: ${input.niche === "general" ? "infer it from the topic" : input.niche}`,
     `Tone: ${input.tone}`,
     `Hook style: ${input.hookStyle === "auto" ? "choose the strongest for this topic" : input.hookStyle}`,
-    input.carouselLength ? CAROUSEL_FORMAT[input.carouselLength] : input.story ? STORY_FORMAT : `Target duration: ${input.targetDurationSec}s (≈ ${targetWords} spoken words in total, including hook and CTA)`,
+    input.carouselLength ? CAROUSEL_FORMAT[input.carouselLength] : input.story ? (input.storyNarrated ? NARRATED_STORY_FORMAT : STORY_FORMAT) : `Target duration: ${input.targetDurationSec}s (≈ ${targetWords} spoken words in total, including hook and CTA)`,
     `Language: ${input.language}`,
     input.audience ? `Audience: ${input.audience}` : brand?.targetAudience ? `Audience: ${brand.targetAudience}` : null,
     brand?.toneOfVoice ? `Brand voice guidelines: ${brand.toneOfVoice}` : null,
@@ -294,7 +313,7 @@ export async function generateScript(
   // Same passes for a carousel — only the lens changes, never the bar.
   const carousel = Boolean(input.carouselLength);
   const story = !carousel && Boolean(input.story);
-  const draft = await callForScript(anthropic, model, carousel ? SCRIPT_SYSTEM_PROMPT + CAROUSEL_SCRIPT_RULES : story ? SCRIPT_SYSTEM_PROMPT + STORY_SCRIPT_RULES : SCRIPT_SYSTEM_PROMPT, buildUserPrompt(input, brand), "medium");
+  const draft = await callForScript(anthropic, model, carousel ? SCRIPT_SYSTEM_PROMPT + CAROUSEL_SCRIPT_RULES : story ? SCRIPT_SYSTEM_PROMPT + (input.storyNarrated ? NARRATED_STORY_RULES : STORY_SCRIPT_RULES) : SCRIPT_SYSTEM_PROMPT, buildUserPrompt(input, brand), "medium");
   const draftScript = normalizeScript(draft.parsed, input.carouselLength, story);
   const rules = { topic: input.topic, carousel, contentSlides: input.carouselLength ? CAROUSEL_MAX_SCENES[input.carouselLength] : undefined, targetDurationSec: input.targetDurationSec };
 

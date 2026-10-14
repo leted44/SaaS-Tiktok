@@ -57,8 +57,9 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
   const [carouselLength, setCarouselLength] = useState<CarouselLength>("full");
   /** Only a new carousel-only project gets a script shaped for slides; "Les deux" and an existing project keep the video script. */
   const carouselScript = !projectId && format === "carousel";
-  /** « Histoire » : a silent story told by the images, words on screen, no voice-over. Only for a video-only script. */
+  /** « Mini-film » : a little story told by the images, by default with a voice that tells it (off = the silent version). Only for a video-only script. */
   const [story, setStory] = useState(false);
+  const [storyVoice, setStoryVoice] = useState(true);
   const storyScript = story && format === "video";
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(0);
@@ -81,7 +82,7 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
     setStep(0);
     const timer = setInterval(() => setStep((s) => Math.min(STEPS.length - 1, s + 1)), 2200);
     try {
-      const res = await generateScriptAction({ projectId, spaceId: projectId ? undefined : spaceId === NO_SPACE ? null : spaceId, topic, sourceUrl: sourceUrl || undefined, niche, tone, hookStyle, language, targetDurationSec: storyScript ? 15 : duration, callToActionGoal: cta, audience: audience || undefined, carouselLength: carouselScript ? carouselLength : undefined, story: storyScript || undefined });
+      const res = await generateScriptAction({ projectId, spaceId: projectId ? undefined : spaceId === NO_SPACE ? null : spaceId, topic, sourceUrl: sourceUrl || undefined, niche, tone, hookStyle, language, targetDurationSec: storyScript ? (storyVoice ? 25 : 15) : duration, callToActionGoal: cta, audience: audience || undefined, carouselLength: carouselScript ? carouselLength : undefined, story: storyScript || undefined, storyNarrated: storyScript ? storyVoice : undefined });
       if (!res.ok) {
         toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Obtenir des crédits", onClick: () => router.push("/billing") } : undefined });
         return;
@@ -128,14 +129,23 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
               <Label>Type de vidéo</Label>
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setStory(false)} className={cn("rounded-lg border p-3 text-left transition", !story ? "border-primary/60 bg-primary/15 shadow-glow-sm" : "border-white/10 hover:border-white/20")}>
-                  <span className="block text-sm font-semibold">Avec voix off</span>
+                  <span className="block text-sm font-semibold">Explication</span>
                   <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">Une voix explique le sujet, les images illustrent ce qu&apos;elle dit. Comme tes vidéos habituelles.</span>
                 </button>
                 <button type="button" onClick={() => setStory(true)} className={cn("rounded-lg border p-3 text-left transition", story ? "border-primary/60 bg-primary/15 shadow-glow-sm" : "border-white/10 hover:border-white/20")}>
-                  <span className="block text-sm font-semibold">Mini-film sans voix</span>
-                  <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">Les personnages jouent la scène image après image, comme un dessin animé muet : 2 à 6 mots à l&apos;écran par image, ta musique, environ 15 s.</span>
+                  <span className="block text-sm font-semibold">Mini-film</span>
+                  <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">Les personnages vivent une petite histoire, image après image, comme un dessin animé. 8 images.</span>
                 </button>
               </div>
+              {story && (
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-white/10 p-3">
+                  <input type="checkbox" checked={storyVoice} onChange={(e) => setStoryVoice(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[hsl(var(--primary))]" />
+                  <span>
+                    <span className="block text-sm font-medium">Une voix raconte l&apos;histoire</span>
+                    <span className="block text-[11px] leading-snug text-muted-foreground">{storyVoice ? "Une phrase dite par image, comme un conteur. Environ 25 s." : "Sans voix : 2 à 6 mots à l'écran par image et ta musique. Environ 15 s."}</span>
+                  </span>
+                </label>
+              )}
             </div>
           )}
 

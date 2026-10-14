@@ -415,6 +415,8 @@ model Script {
   carouselLength       String?
   /// A silent story video (the « Histoire » mode): words shown as captions, no voice-over.
   story                Boolean  @default(false)
+  /// A story told by a voice-over (« Mini-film » with « Avec voix qui raconte »): one spoken sentence per shot. False with `story` = the silent version.
+  storyNarrated        Boolean  @default(false)
 
   model        String?
   inputTokens  Int?

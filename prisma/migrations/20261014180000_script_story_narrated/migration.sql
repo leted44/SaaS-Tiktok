@@ -1,0 +1,1 @@
+ALTER TABLE "Script" ADD COLUMN "storyNarrated" BOOLEAN NOT NULL DEFAULT false;
