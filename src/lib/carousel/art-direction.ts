@@ -69,19 +69,23 @@ export const ART_DIRECTIONS: Record<VisualStyle, ArtDirection> = {
  */
 export type VisualLayout = "cover" | "bleed" | "band" | "frame";
 
+// The lower part reserved for the text is described as the same scene carrying
+// on, never as "the background in darker tones": image models (Gemini) read
+// that as a second, blurred copy of the scene stacked under the first, with a
+// hard seam between them.
 const COMPOSITION: Record<VisualLayout, string> = {
   // The cover carries more text than any slide — its label, a headline of up
   // to four lines and a subtitle — which reaches up to about 35% from the top
   // in the story format. With the 55% rule of the other slides, a real cover
   // had its key object (the bowl of rice) buried under its own headline.
   cover:
-    "Composition: vertical frame. The subject and the key action sit in the upper 40% of the frame, entirely visible and uncut — choose a shot size and camera angle wide enough to fit every element the scene mentions inside that area, the key object raised up rather than held low. The lower 60% continues the same background in darker, simpler tones, with nothing important in it, because the cover headline and its subtitle are printed over it.",
+    "Composition: vertical frame. The subject and the key action sit in the upper 40% of the frame, entirely visible and uncut — choose a shot size and camera angle wide enough to fit every element the scene mentions inside that area, the key object raised up rather than held low. Below them the same scene simply carries on down to the bottom edge, in one single continuous image: the floor, ground, table or tissue keeps its real texture and perspective all the way down, plain and uncluttered, getting gradually darker toward the bottom like a soft vignette, with nothing important in the lower 60%, because the cover headline and its subtitle are printed over it. Never a horizontal split, a seam, a separate band, a blurred copy or a repeated part of the background.",
   // The headline is printed over the lower part of a full-bleed slide, so the
   // action has to live above it. The shot size is left to the scene: forcing
   // a close-up (as this once did) cropped out exactly what a slide was about —
   // the feet on the floor, the bar, the body line of an exercise.
   bleed:
-    "Composition: vertical frame. The subject and the key action sit in the upper 55% of the frame, entirely visible and uncut — choose the shot size (close-up, medium or full-body wide shot) and camera angle that keep every element the scene mentions inside that area. The lower 45% continues the same background in darker, simpler tones, with nothing important in it, because a headline is printed over it.",
+    "Composition: vertical frame. The subject and the key action sit in the upper 55% of the frame, entirely visible and uncut — choose the shot size (close-up, medium or full-body wide shot) and camera angle that keep every element the scene mentions inside that area. Below them the same scene simply carries on down to the bottom edge, in one single continuous image: the floor, ground, table or tissue keeps its real texture and perspective all the way down, plain and uncluttered, getting gradually darker toward the bottom like a soft vignette, with nothing important in the lower 45%, because a headline is printed over it. Never a horizontal split, a seam, a separate band, a blurred copy or a repeated part of the background.",
   band: "Composition: wide horizontal frame, subject centred with generous margins, every element the scene mentions fully inside the frame.",
   // A video scene: captions can land anywhere over it, not a fixed text band,
   // so nothing is reserved — the photo is the whole frame.
