@@ -49,10 +49,12 @@ export async function generateCarouselAction(
     const user = await requireDbUser();
     const project = await prisma.project.findFirstOrThrow({
       where: { id: projectId, userId: user.id },
-      include: { workspace: true, space: { select: { brief: true, kit: true } }, scripts: { orderBy: { version: "desc" } }, carousel: true },
+      include: { workspace: true, space: { select: { brief: true, kit: true, motif: true } }, scripts: { orderBy: { version: "desc" } }, carousel: true },
     });
     const script = project.scripts.find((s) => s.id === project.activeScriptId) ?? project.scripts[0];
     if (!script) throw new Error("Générez d'abord un script pour ce projet : le carrousel est écrit à partir de lui.");
+    // The creator's Fil conducteur (one typed for this post when the project was made, else the space's) is kept as is.
+    const bible = (project.motifFromCreator ? project.visualMotif?.trim() : null) || project.space?.motif?.trim() || null;
     // A first carousel of a space starts on the space's saved look (lib/space-kit).
     const look = project.carousel ? null : readSpaceKit(project.space?.kit).carousel;
     const ai = options.visuals === "ai";
@@ -83,6 +85,7 @@ export async function generateCarouselAction(
         lessons: lessonsBrief(lessons),
         concept: project.space?.brief,
         cast: await castTextFor(user.id, project.id, project.spaceId),
+        bible,
         visualStyle,
         template,
         length: asLength(options.length),

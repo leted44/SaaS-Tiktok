@@ -31,6 +31,7 @@ interface SpaceOption {
   color: string;
   language: string | null;
   tone: string | null;
+  motif?: string | null;
 }
 
 const EXAMPLES = [
@@ -68,10 +69,17 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
   // isn't blocked here by a price the server would never charge it.
   const canGenerate = credits >= cost;
 
+  /** This post's Fil conducteur: the space's, shown to be changed for this post only. Sent only when changed. */
+  const [motif, setMotif] = useState(startSpace?.motif ?? "");
+  const [motifEdited, setMotifEdited] = useState(false);
+  const spaceMotif = spaces.find((s) => s.id === spaceId)?.motif?.trim() ?? "";
+  const motifOverride = !projectId && motifEdited && motif.trim() && motif.trim() !== spaceMotif ? motif.trim() : undefined;
+
   /** Only a starting point — the space's own language/ton are proposed, never forced. */
   function pickSpace(id: string) {
     setSpaceId(id);
     const space = spaces.find((s) => s.id === id);
+    if (!motifEdited) setMotif(space?.motif ?? "");
     if (space?.language) setLanguage(space.language);
     if (space?.tone && (TONES as readonly string[]).includes(space.tone)) setTone(space.tone as Tone);
   }
@@ -82,7 +90,7 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
     setStep(0);
     const timer = setInterval(() => setStep((s) => Math.min(STEPS.length - 1, s + 1)), 2200);
     try {
-      const res = await generateScriptAction({ projectId, spaceId: projectId ? undefined : spaceId === NO_SPACE ? null : spaceId, topic, sourceUrl: sourceUrl || undefined, niche, tone, hookStyle, language, targetDurationSec: storyScript ? (storyVoice ? 25 : 15) : duration, callToActionGoal: cta, audience: audience || undefined, carouselLength: carouselScript ? carouselLength : undefined, story: storyScript || undefined, storyNarrated: storyScript ? storyVoice : undefined });
+      const res = await generateScriptAction({ projectId, spaceId: projectId ? undefined : spaceId === NO_SPACE ? null : spaceId, topic, sourceUrl: sourceUrl || undefined, niche, tone, hookStyle, language, targetDurationSec: storyScript ? (storyVoice ? 25 : 15) : duration, callToActionGoal: cta, audience: audience || undefined, carouselLength: carouselScript ? carouselLength : undefined, story: storyScript || undefined, storyNarrated: storyScript ? storyVoice : undefined, visualMotif: motifOverride });
       if (!res.ok) {
         toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Obtenir des crédits", onClick: () => router.push("/billing") } : undefined });
         return;
@@ -223,6 +231,14 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
               </Select>
             </div>
           </div>
+
+          {!projectId && (
+            <div className="space-y-1.5">
+              <Label htmlFor="post-motif">Fil conducteur de ce post (facultatif)</Label>
+              <Textarea id="post-motif" value={motif} onChange={(e) => { setMotif(e.target.value); setMotifEdited(true); }} maxLength={800} rows={3} placeholder={spaceId !== NO_SPACE ? "Celui de l'espace s'applique. Écris ici seulement pour un post différent." : "Les personnages et les lieux des images. Vide = l'IA l'écrit."} />
+              <p className="text-xs text-muted-foreground">{spaceMotif ? (motifOverride ? "Ce post utilisera ce texte à la place de celui de l'espace." : "Pré-rempli avec le fil conducteur de l'espace : rien à faire.") : "Astuce : écris-le une fois dans Espaces → Modifier, il servira à tous les posts de l'espace."}</p>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="audience">Audience (optionnel)</Label>

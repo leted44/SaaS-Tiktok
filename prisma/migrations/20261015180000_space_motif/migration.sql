@@ -1,0 +1,2 @@
+ALTER TABLE "Space" ADD COLUMN "motif" TEXT;
+ALTER TABLE "Project" ADD COLUMN "motifFromCreator" BOOLEAN NOT NULL DEFAULT false;

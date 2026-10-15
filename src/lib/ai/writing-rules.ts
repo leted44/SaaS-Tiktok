@@ -25,6 +25,19 @@ export function accountConceptLine(concept: string | null | undefined): string |
 }
 
 /**
+ * The Fil conducteur the creator set (the space's, or one typed for this
+ * post): the source of truth for who appears and in which world. The writer
+ * keeps it word for word as the series bible, shows a character only where
+ * the scene calls for them, and picks each image's place within its world.
+ */
+export function creatorBibleLine(bible: string | null | undefined): string | null {
+  const t = bible?.trim();
+  return t
+    ? `Series bible set by the creator (the Fil conducteur of this account), the source of truth for the images: «${t}». Return it word for word as visualMotif. Whenever an image brief shows one of its characters, describe them exactly as it does — never another look — and show a character only where the scene calls for them, never in every image. Pick each image's own place within the world it describes, the one that suits this topic and this scene.`
+    : null;
+}
+
+/**
  * The account's character sheet in words (lib/ai/cast-reader). The image
  * model draws from the sheet itself; the writer's visualMotif and image
  * briefs must say the same thing, or the image model gets two descriptions.

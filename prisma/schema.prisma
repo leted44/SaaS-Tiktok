@@ -307,6 +307,8 @@ model Project {
   // as one shot rather than stock clips from unrelated sources.
   visualStyle     String?
   visualMotif     String?
+  /// The Fil conducteur came from the creator (the space's, or one typed for this post), not from the writer: a carousel made from this project keeps it.
+  motifFromCreator    Boolean  @default(false)
 
   thumbnailUrl   String?
   activeScriptId String?
@@ -365,6 +367,8 @@ model Space {
   // What this account/theme talks about, in the user's words. The autopilot
   // reads it to invent each video's topic when the user lets it choose.
   brief              String? @db.Text
+  /// The space's Fil conducteur: its recurring cast in words and its usual places. Every new post of the space starts from it (its writer keeps it word for word).
+  motif               String?  @db.Text
   /// The account's character sheet ("Image de référence"): its recurring characters on a plain background, sent with every AI image of its videos and carousels so they look the same in every post.
   characterImage     String? @db.Text
   /// The sheet put into words (lib/ai/cast-reader), for the writers that compose image briefs and never see the image.

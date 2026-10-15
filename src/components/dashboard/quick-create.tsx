@@ -21,7 +21,7 @@ interface Props {
   /** Credits one script costs this account (0 when not billed). */
   cost: number;
   language: string;
-  spaces?: { id: string; name: string; language: string | null; tone: string | null }[];
+  spaces?: { id: string; name: string; language: string | null; tone: string | null; motif: string | null }[];
 }
 
 /**
@@ -50,11 +50,17 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
   const [language, setLanguage] = useState(defaultLanguage);
   const [audience, setAudience] = useState("");
   const [spaceId, setSpaceId] = useState("");
+  /** This post's Fil conducteur: the space's, shown to be changed for this post only. Sent only when changed. */
+  const [motif, setMotif] = useState("");
+  const [motifEdited, setMotifEdited] = useState(false);
+  const spaceMotif = spaces.find((s) => s.id === spaceId)?.motif?.trim() ?? "";
+  const motifOverride = motifEdited && motif.trim() && motif.trim() !== spaceMotif ? motif.trim() : undefined;
 
   /** A space proposes its own language and tone — a starting point, never forced. */
   function pickSpace(id: string) {
     setSpaceId(id);
     const space = spaces.find((s) => s.id === id);
+    if (!motifEdited) setMotif(space?.motif ?? "");
     if (space?.language) setLanguage(space.language);
     if (space?.tone && (TONES as readonly string[]).includes(space.tone)) setTone(space.tone as Tone);
   }
@@ -84,6 +90,7 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
         targetDurationSec: storyScript ? (storyVoice ? 25 : 15) : duration,
         language,
         story: storyScript || undefined,
+        visualMotif: motifOverride,
         storyNarrated: storyScript ? storyVoice : undefined,
         // "Les deux" keeps a video script, written for the ear; a carousel alone gets one written for its slides.
         carouselLength: format === "carousel" ? carouselLength : undefined,
@@ -235,6 +242,10 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
               )}
               <Field label="Audience (facultatif)" wide={spaces.length === 0}>
                 <input value={audience} onChange={(e) => setAudience(e.target.value)} maxLength={200} placeholder="ex. Femmes de 25-40 ans qui manquent de confiance" className={SELECT} />
+              </Field>
+              <Field label="Fil conducteur de ce post (facultatif)" wide>
+                <textarea value={motif} onChange={(e) => { setMotif(e.target.value); setMotifEdited(true); }} maxLength={800} rows={3} placeholder={spaceId ? "Celui de l'espace s'applique. Écris ici seulement pour un post différent." : "Les personnages et les lieux des images. Vide = l'IA l'écrit."} className={cn(SELECT, "h-auto py-2 leading-relaxed")} />
+                <span className="mt-1 block text-[10px] text-muted-foreground">{spaceMotif ? (motifOverride ? "Ce post utilisera ce texte à la place de celui de l'espace." : "Pré-rempli avec le fil conducteur de l'espace : rien à faire.") : "Astuce : écris-le une fois dans Espaces → Modifier, il servira à tous les posts de l'espace."}</span>
               </Field>
             </div>
           )}

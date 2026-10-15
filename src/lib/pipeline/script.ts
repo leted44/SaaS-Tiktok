@@ -34,15 +34,22 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
 
   // The account the script is for: the space picked, or the one of the project it is written into.
   const targetSpaceId = data.spaceId ?? (data.projectId ? ((await prisma.project.findFirst({ where: { id: data.projectId, userId: user.id }, select: { spaceId: true } }))?.spaceId ?? null) : null);
-  const [lessons, targetSpace, cast] = await Promise.all([
+  const [lessons, targetSpace, cast, existing] = await Promise.all([
     activeLessons(user.id, targetSpaceId, data.carouselLength ? "carousel" : "video").catch(() => []),
-    targetSpaceId ? prisma.space.findFirst({ where: { id: targetSpaceId, userId: user.id }, select: { brief: true } }) : null,
+    targetSpaceId ? prisma.space.findFirst({ where: { id: targetSpaceId, userId: user.id }, select: { brief: true, motif: true } }) : null,
     castTextFor(user.id, data.projectId, targetSpaceId),
+    data.projectId ? prisma.project.findFirst({ where: { id: data.projectId, userId: user.id }, select: { visualMotif: true } }) : null,
   ]);
+  // The Fil conducteur the scenes are written from: one typed for this post, else the
+  // project's own (a new script for an existing post keeps its world), else the space's.
+  // Only with none of them does the writer invent its own.
+  const typed = data.visualMotif?.trim() || null;
+  const bible = typed ?? (existing?.visualMotif?.trim() || null) ?? (targetSpace?.motif?.trim() || null);
+  const fromCreator = Boolean(typed || (!existing?.visualMotif?.trim() && targetSpace?.motif?.trim()));
 
   let result;
   try {
-    result = await generateScript(data, { toneOfVoice: workspace.toneOfVoice, targetAudience: workspace.targetAudience, lessons: lessonsBrief(lessons), concept: targetSpace?.brief, cast });
+    result = await generateScript(data, { toneOfVoice: workspace.toneOfVoice, targetAudience: workspace.targetAudience, lessons: lessonsBrief(lessons), concept: targetSpace?.brief, cast, bible });
   } catch (err) {
     if (!admin) await refundCredits(user.id, CREDIT_COSTS.SCRIPT_GENERATION, "Remboursement — la génération du script a échoué");
     throw err;
@@ -120,8 +127,10 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
       status: "SCRIPTED",
       topic: project.topic ?? data.topic,
       niche: project.niche ?? data.niche,
-      // The cast and world the scenes' AI images share; a motif the creator already set is never replaced.
-      visualMotif: project.visualMotif?.trim() ? project.visualMotif : result.script.visualMotif.trim().slice(0, 800) || null,
+      // The cast and world the scenes' AI images share: one typed for this post wins; a motif the
+      // project already has is never replaced; else the space's, word for word; else the writer's.
+      visualMotif: typed ?? (project.visualMotif?.trim() ? project.visualMotif : bible ?? (result.script.visualMotif.trim().slice(0, 800) || null)),
+      ...(fromCreator ? { motifFromCreator: true } : {}),
       ...captionsOn,
     },
   });

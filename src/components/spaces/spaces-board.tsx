@@ -55,6 +55,9 @@ export function SpacesBoard({ spaces, voices, admin: adminAccount, sheetGenerati
               </button>
 
               <p className={s.brief ? "line-clamp-3 text-sm text-muted-foreground" : "text-sm italic text-muted-foreground/70"}>{s.brief ?? "Pas encore de Thématique : décris de quoi parle ce compte pour que l'IA écrive dans son sens."}</p>
+              <p className={s.motif ? "line-clamp-2 text-xs text-muted-foreground" : "text-xs italic text-muted-foreground/70"}>
+                {s.motif ? <><span className="font-medium text-foreground/80">Fil conducteur : </span>{s.motif}</> : "Pas de fil conducteur d'espace : l'IA en écrit un à chaque post. Modifier → Fil conducteur pour l'écrire une fois."}
+              </p>
 
               <div className="flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">
                 <span className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5"><Mic2 className="h-3 w-3" /> {voiceName(s.voiceId) ?? "Voix par défaut"}</span>

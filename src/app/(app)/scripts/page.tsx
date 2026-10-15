@@ -15,7 +15,7 @@ export default async function ScriptsPage({ searchParams }: { searchParams: Prom
   const user = await getCurrentUser();
   const [scripts, spaces] = await Promise.all([
     getScriptsLibrary(),
-    prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, color: true, language: true, tone: true } }),
+    prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, color: true, language: true, tone: true, motif: true } }),
   ]);
   const cost = isAdmin(user.role) ? 0 : CREDIT_COSTS.SCRIPT_GENERATION;
   return (

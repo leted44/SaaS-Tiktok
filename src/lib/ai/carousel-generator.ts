@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 import { env } from "@/lib/env";
 import { CONTENT_SLIDES, IMAGE_PROMPT_MAX, IMAGE_SLIDE_LIMITS, SHARE_TO_MAX, SLIDE_LIMITS, VISUAL_MOTIF_MAX, imageLayout, stripEmoji, tidyEmoji, type CarouselLength, type CarouselSlide, type CarouselTemplate } from "@/lib/carousel/schema";
 import { anthropicErrorMessage } from "@/lib/ai/anthropic-errors";
-import { INNER_SETTING, SETTING_VARIETY, NO_INVENTED_EXPERIENCE, accountConceptLine, characterSheetLine } from "@/lib/ai/writing-rules";
+import { INNER_SETTING, SETTING_VARIETY, NO_INVENTED_EXPERIENCE, accountConceptLine, characterSheetLine, creatorBibleLine } from "@/lib/ai/writing-rules";
 import { ART_DIRECTIONS, type VisualLayout, type VisualStyle } from "@/lib/carousel/art-direction";
 
 const EMPHASIS = "The 1 to 3 consecutive words of the title that carry its punch — the surprising number, the key noun, the twist — copied EXACTLY as they appear in the title. They are set in the accent colour.";
@@ -148,6 +148,8 @@ export interface CarouselInput {
   concept?: string | null;
   /** The character sheet in words (lib/characters castTextFor). */
   cast?: string | null;
+  /** The Fil conducteur the creator set (the space's, or this post's): kept word for word as visualMotif. */
+  bible?: string | null;
   /** The look the images will be generated in — the briefs are written to suit it (an illustration can show characters a photo shouldn't). */
   visualStyle: VisualStyle;
   /** Decides how much room a content slide's text gets: full-bleed (Immersive) leaves it untouched, a band leaves a third of the height to a photo. */
@@ -219,6 +221,7 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
     `Art direction of the images: ${art.label} — ${art.prompt}`,
     accountConceptLine(input.concept),
     characterSheetLine(input.cast),
+    creatorBibleLine(input.bible),
     input.niche && input.niche !== "general" ? `Niche: ${input.niche}` : null,
     input.toneOfVoice ? `Brand voice guidelines: ${input.toneOfVoice}` : null,
     input.targetAudience ? `Audience: ${input.targetAudience}` : null,
@@ -277,7 +280,8 @@ export async function generateCarousel(input: CarouselInput): Promise<GeneratedC
     imageQuery: fit(out.coverImageQuery, 80),
     imagePrompt: brief(out.coverImagePrompt),
   };
-  const visualMotif = brief(out.visualMotif).slice(0, VISUAL_MOTIF_MAX);
+  // The creator's Fil conducteur is kept word for word; only without one does the writer's stand.
+  const visualMotif = input.bible?.trim().slice(0, VISUAL_MOTIF_MAX) || brief(out.visualMotif).slice(0, VISUAL_MOTIF_MAX);
   if (input.length === "single") return { slides: [cover], visualMotif };
 
   if (!out.slides?.length || !out.ctaTitle) throw unreadable();

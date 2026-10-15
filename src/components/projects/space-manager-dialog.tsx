@@ -33,15 +33,18 @@ interface FormState {
   tone: string;
   voiceId: string;
   brief: string;
+  motif: string;
+  /** The motif field was filled from the space's latest post, not saved yet. */
+  motifSuggested: boolean;
   characterImage: string | null;
 }
 
 function blank(): FormState {
-  return { name: "", color: SPACE_COLORS[0], language: DEFAULT, tone: DEFAULT, voiceId: DEFAULT, brief: "", characterImage: null };
+  return { name: "", color: SPACE_COLORS[0], language: DEFAULT, tone: DEFAULT, voiceId: DEFAULT, brief: "", motif: "", motifSuggested: false, characterImage: null };
 }
 
 function fromSpace(s: SpaceOption): FormState {
-  return { name: s.name, color: s.color, language: s.language ?? DEFAULT, tone: s.tone ?? DEFAULT, voiceId: s.voiceId ?? DEFAULT, brief: s.brief ?? "", characterImage: s.characterImage };
+  return { name: s.name, color: s.color, language: s.language ?? DEFAULT, tone: s.tone ?? DEFAULT, voiceId: s.voiceId ?? DEFAULT, brief: s.brief ?? "", motif: s.motif ?? s.suggestedMotif ?? "", motifSuggested: !s.motif && Boolean(s.suggestedMotif), characterImage: s.characterImage };
 }
 
 /**
@@ -97,6 +100,7 @@ export function SpaceManagerDialog({ spaces, voices, open, onOpenChange, sheetGe
       tone: form.tone === DEFAULT ? null : form.tone,
       voiceId: form.voiceId === DEFAULT ? null : form.voiceId,
       brief: form.brief,
+      motif: form.motif,
       characterImage: form.characterImage,
     });
     setSaving(false);
@@ -164,7 +168,21 @@ export function SpaceManagerDialog({ spaces, voices, open, onOpenChange, sheetGe
                 onChange={(e) => set("brief", e.target.value)}
                 placeholder="Ex. : pensées positives et petites habitudes pour bien commencer la journée, pour des femmes de 25-40 ans"
               />
-              <p className="text-[11px] text-muted-foreground">De quoi parle ce compte, en une ou deux phrases, et son univers visuel s'il en a un. L'IA s'en sert pour écrire chaque script et ses images, et le pilote automatique pour choisir les sujets.</p>
+              <p className="text-[11px] text-muted-foreground">De quoi parle ce compte, en une ou deux phrases. L'IA s'en sert pour écrire chaque script, et le pilote automatique pour choisir les sujets. L'apparence des personnages va dans le Fil conducteur, juste en dessous.</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="space-motif">Fil conducteur de l&apos;espace <span className="font-normal text-muted-foreground">(facultatif)</span></Label>
+              <Textarea
+                id="space-motif"
+                value={form.motif}
+                maxLength={800}
+                rows={5}
+                onChange={(e) => setForm((f) => ({ ...f, motif: e.target.value, motifSuggested: false }))}
+                placeholder="Ex. : Le créateur, toujours le même quand il apparaît : homme d'environ 30 ans, peau brun foncé, t-shirt bleu marine… Le monde : cuisine du matin, parc avec barres de traction, salle de sport."
+              />
+              {form.motifSuggested && <p className="text-[11px] text-amber-200">Pré-rempli avec le fil conducteur de ton dernier post de cet espace : relis-le, corrige-le, puis enregistre.</p>}
+              <p className="text-[11px] text-muted-foreground">Tes personnages en mots (exactement comme sur l&apos;image de référence) et les lieux habituels du compte. Chaque nouveau post de l&apos;espace s&apos;en sert tel quel : l&apos;IA garde les personnages mot pour mot, ne les montre que là où la scène en parle, et choisit les lieux selon le sujet. Laisse vide pour que l&apos;IA l&apos;écrive à chaque post.</p>
             </div>
 
             <div className="space-y-1.5">

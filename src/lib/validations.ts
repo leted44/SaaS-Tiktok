@@ -145,6 +145,8 @@ export const generateScriptSchema = z.object({
   story: z.boolean().optional(),
   /** With `story`: a voice tells it, one spoken sentence per shot; without, the silent version (words on screen only). */
   storyNarrated: z.boolean().optional(),
+  /** A Fil conducteur typed for this post, over the space's. Absent = the space's (or, with none, the writer's own). */
+  visualMotif: z.string().trim().max(800).optional(),
 });
 export type GenerateScriptInput = z.infer<typeof generateScriptSchema>;
 

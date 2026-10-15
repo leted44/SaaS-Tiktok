@@ -23,6 +23,14 @@ export const spaceInputSchema = z.object({
     .max(600, "Thématique trop longue (600 caractères maximum).")
     .nullable()
     .transform((v) => v || null),
+  /** The space's Fil conducteur: its cast in words and its usual places, used by every new post. Blank = none. */
+  motif: z
+    .string()
+    .trim()
+    .max(800, "Fil conducteur trop long (800 caractères maximum).")
+    .nullable()
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v || null)),
   /** The character sheet ("Image de référence"), a stored image URL. Null = none. */
   characterImage: z.string().trim().max(2000).nullable().optional(),
 });
@@ -36,6 +44,10 @@ export interface SpaceOption {
   tone: string | null;
   voiceId: string | null;
   brief: string | null;
+  /** The space's Fil conducteur (see spaceInputSchema). */
+  motif: string | null;
+  /** While the space has none: its latest post's, offered to start from. */
+  suggestedMotif: string | null;
   characterImage: string | null;
   /** Projects currently tagged with it, so deleting says what it affects. */
   projectCount: number;

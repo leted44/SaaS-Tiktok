@@ -14,7 +14,7 @@ import { getCurrentUser } from "@/server/queries";
 /** The user's spaces, for the quick create's options — a space proposes its language and tone. */
 async function getSpaceOptions() {
   const user = await getCurrentUser();
-  return prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, language: true, tone: true } });
+  return prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, language: true, tone: true, motif: true } });
 }
 
 export const metadata: Metadata = { title: "Tableau de bord" };

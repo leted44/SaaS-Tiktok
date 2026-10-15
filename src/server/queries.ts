@@ -152,8 +152,10 @@ function cloneView(value: unknown): CloneView | null {
 export async function getSpacesData() {
   const [user, workspace] = await Promise.all([getCurrentUser(), getCurrentWorkspace()]);
   const plan = effectivePlanDef(user);
-  const [rows, published, customVoice] = await Promise.all([
-    prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, color: true, language: true, tone: true, voiceId: true, brief: true, characterImage: true, kit: true, clone: true, _count: { select: { projects: true } } } }),
+  const [rows, latestMotifs, published, customVoice] = await Promise.all([
+    prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, color: true, language: true, tone: true, voiceId: true, brief: true, motif: true, characterImage: true, kit: true, clone: true, _count: { select: { projects: true } } } }),
+    // Each space's latest post that has a Fil conducteur: the starting point offered for the space's own.
+    prisma.project.findMany({ where: { userId: user.id, spaceId: { not: null }, visualMotif: { not: null } }, orderBy: { updatedAt: "desc" }, distinct: ["spaceId"], select: { spaceId: true, visualMotif: true } }),
     prisma.project.groupBy({ by: ["spaceId"], where: { userId: user.id, postedAt: { not: null }, spaceId: { not: null } }, _count: { _all: true } }),
     plan.voiceCloning ? prisma.customVoice.findUnique({ where: { userId: user.id }, select: { name: true } }) : null,
   ]);
@@ -166,6 +168,8 @@ export async function getSpacesData() {
     tone: s.tone,
     voiceId: s.voiceId,
     brief: s.brief,
+    motif: s.motif,
+    suggestedMotif: s.motif ? null : (latestMotifs.find((p) => p.spaceId === s.id)?.visualMotif?.trim() || null),
     characterImage: s.characterImage,
     projectCount: s._count.projects,
     publishedCount: publishedBySpace.get(s.id) ?? 0,

@@ -6,7 +6,7 @@ import type { GenerateScriptInput } from "@/lib/validations";
 import { normalizeSocialCopy, socialCopyFields } from "@/lib/ai/caption-generator";
 import { anthropicErrorMessage } from "@/lib/ai/anthropic-errors";
 import { countWords } from "@/lib/utils";
-import { ANNOUNCED_COUNT, INNER_SETTING, SETTING_VARIETY, NO_INVENTED_EXPERIENCE, accountConceptLine, characterSheetLine } from "@/lib/ai/writing-rules";
+import { ANNOUNCED_COUNT, INNER_SETTING, SETTING_VARIETY, NO_INVENTED_EXPERIENCE, accountConceptLine, characterSheetLine, creatorBibleLine } from "@/lib/ai/writing-rules";
 import { buildReviewReport, disabledReviewReport, draftProblems, skippedReviewReport, type ReviewReport } from "@/lib/ai/review-report";
 
 /**
@@ -217,6 +217,8 @@ export interface BrandContext {
   concept?: string | null;
   /** The character sheet in words (lib/characters castTextFor). */
   cast?: string | null;
+  /** The Fil conducteur the creator set (the space's, or this post's): kept word for word as visualMotif. */
+  bible?: string | null;
 }
 
 function buildUserPrompt(input: GenerateScriptInput, brand?: BrandContext): string {
@@ -224,6 +226,7 @@ function buildUserPrompt(input: GenerateScriptInput, brand?: BrandContext): stri
   return [
     accountConceptLine(brand?.concept),
     characterSheetLine(brand?.cast),
+    creatorBibleLine(brand?.bible),
     `Topic / brief: ${input.topic}`,
     input.sourceUrl ? `Source URL for reference (use its subject as the basis): ${input.sourceUrl}` : null,
     `Niche: ${input.niche === "general" ? "infer it from the topic" : input.niche}`,
