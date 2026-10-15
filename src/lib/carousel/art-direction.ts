@@ -122,7 +122,8 @@ export function composeImagePrompt(input: { scene: string; motif: string; style:
   return [
     `Create a ${MEDIUM[input.style]} for ${input.purpose === "video" ? "a scene of a premium vertical short-form video" : "a premium Instagram carousel slide"}.`,
     `Scene — subject, action, setting: ${scene}.`,
-    motif ? `Recurring cast of the series, identical in every image, and the world it moves through — this image's own place is the one the scene above names (where it gives a size or position, the composition below wins): ${motif}.` : null,
+    // The cast is drawn only where the scene names it: "identical in every image" read as "in every image", and put the creator inside a muscle or over a plate shot.
+    motif ? `Recurring cast of the series and the world it moves through — draw a character from it only when the scene above names or shows them, never added to a scene that does not, and when they appear, exactly as described here; this image's own place is the one the scene above names (where it gives a size or position, the composition below wins): ${motif}.` : null,
     COMPOSITION[input.layout],
     `Style: ${ART_DIRECTIONS[input.style].prompt}`,
     RULES,
