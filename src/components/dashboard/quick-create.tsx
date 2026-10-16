@@ -91,7 +91,7 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
         hookStyle,
         callToActionGoal: cta,
         audience: audience.trim() || undefined,
-        targetDurationSec: storyScript ? (storyVoice ? 25 : 15) : duration,
+        targetDurationSec: storyScript ? (storyVoice ? 25 : 18) : duration,
         language,
         story: storyScript || undefined,
         visualMotif: motifOverride,

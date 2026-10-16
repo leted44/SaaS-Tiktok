@@ -35,12 +35,41 @@ function musicIsPlaying(project: Project): boolean {
   return Boolean(project.musicUrl || project.musicTrackId);
 }
 
+/** How long a silent mini-film's hook and closing line stay on screen, and the bounds of a shot. */
+const SILENT_HOOK_MS = 3000;
+const SILENT_CTA_MS = 2500;
+const SILENT_SHOT_MIN_MS = 2500;
+const SILENT_SHOT_MAX_MS = 5000;
+
+/**
+ * A silent mini-film has no voice to time it, and its 2 to 6 words per shot
+ * read in about a second: timed by reading speed, every shot lasted 1.4 s —
+ * too short to see a gesture land, and a fifth of the 5-second animation
+ * paid for it. Each shot lasts the length its script gives it instead
+ * (durationSec, kept between 2.5 and 5 s), and its words show from the
+ * shot's start.
+ */
+function silentStoryTiming(segments: string[], scenes: { durationSec: number }[]): { words: WordTiming[]; totalMs: number } {
+  const words: WordTiming[] = [];
+  let start = 0;
+  segments.forEach((text, i) => {
+    const planned = i === 0 ? SILENT_HOOK_MS : i === segments.length - 1 ? SILENT_CTA_MS : Math.min(SILENT_SHOT_MAX_MS, Math.max(SILENT_SHOT_MIN_MS, (scenes[i - 1]?.durationSec ?? 0) * 1000));
+    const own = estimateWordTimings(text, [0]).map((w) => ({ ...w, startMs: w.startMs + start, endMs: w.endMs + start, sceneIndex: i }));
+    words.push(...own);
+    start = Math.max(start + planned, (own.at(-1)?.endMs ?? start) + 400);
+  });
+  return { words, totalMs: start };
+}
+
 /** Assemble the exact composition props for preview or rendering. Pure and deterministic. */
 export function buildShortVideoProps({ project, script, voiceover, workspace, resolution, watermark, absolute = false, snapCuts = true }: BuildArgs): ShortVideoProps {
   const scenes = parseJson(scenesSchema, script.scenes, []);
   const segments = [script.hook, ...scenes.map((s) => s.text), script.callToAction].map((t) => t.trim()).filter(Boolean);
 
   let words: WordTiming[] = parseJson(z.array(wordTimingSchema), voiceover?.wordTimings, []);
+  // A silent mini-film without a voice-over: each shot keeps its planned length.
+  const silent = !words.length && script.story && !script.storyNarrated ? silentStoryTiming(segments, scenes) : null;
+  if (silent) words = silent.words;
   if (!words.length) {
     const boundaries: number[] = [];
     let cursor = 0;
@@ -52,7 +81,7 @@ export function buildShortVideoProps({ project, script, voiceover, workspace, re
   }
 
   const lastEnd = words.length ? words[words.length - 1].endMs : 3000;
-  const durationMs = Math.max(3000, (voiceover?.durationMs ?? lastEnd + 400) + 600);
+  const durationMs = silent ? silent.totalMs : Math.max(3000, (voiceover?.durationMs ?? lastEnd + 400) + 600);
 
   const sceneRanges = segments.map((text, index) => {
     const ws = words.filter((w) => w.sceneIndex === index);

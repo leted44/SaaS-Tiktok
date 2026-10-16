@@ -129,7 +129,7 @@ THIS SCRIPT IS FOR A PHOTO CAROUSEL, NOT A VIDEO. It is read slide by slide in a
 export const STORY_SCRIPT_RULES = `
 
 THIS SCRIPT IS FOR A SILENT STORY VIDEO: there is no voice-over. Music plays; each part's words appear on screen as captions over its image, and the story is told by the images one after the other, like a short animated film. These rules replace the ones above about narration, the synthetic voice, pace, target duration and pattern interrupts:
-- Exactly 7 scenes after the hook: 8 shots in all, about 15 seconds.
+- Exactly 5 scenes after the hook: 6 shots in all, about 18 seconds. Each shot lasts long enough for its action to land, and is animated as a short clip.
 - The hook and each scene's text are the caption of that shot: 2 to 6 words, read in under 2 seconds — a reaction, a step of the story or the key fact, never a full explanation. No emoji, no symbols.
 - The story follows a short arc: the hook drops the viewer into the situation at its most telling moment; then the normal state, the trigger, the escalation, the consequence at its peak, a turn, and a last shot that lands a punchline the viewer smiles at. Each shot shows the visible consequence of the one before (an action, then the reaction to it), so the viewer stays to see what happens next.
 - One or two recurring characters, no more: the topic's subject turned into characters (an organ, a food, an object, an animal or a person), each described once in visualMotif with a precise, unchanging appearance, and named the same way in every visual brief.
@@ -137,7 +137,7 @@ THIS SCRIPT IS FOR A SILENT STORY VIDEO: there is no voice-over. Music plays; ea
 - The fact the story teaches is shown by what happens, then stated once in a caption of 5 words or fewer. Every rule above about truth, invented claims and promises still applies.
 - The callToAction is one line shown on screen over the last shot, 12 words at most: who to send the video to, named by what that person does.
 - The 3 alternativeHooks are alternative opening captions, 6 words at most.
-- durationSec is about 2 for every scene; onScreenText is null.`;
+- durationSec is 2.5 for a reaction or a look, 3 for an action (someone walks in, runs, hugs, falls); onScreenText is null.`;
 
 /**
  * The narrated mini-film: the same story told in images, with a voice that
@@ -158,7 +158,7 @@ THIS SCRIPT IS FOR A NARRATED MINI-FILM: the images tell a little story one afte
 
 const NARRATED_STORY_FORMAT = "Format: a narrated mini-film — 8 shots, about 25 seconds: the hook shot, 7 scene shots each with one spoken sentence, then the spoken call to action over the last shot.";
 
-const STORY_FORMAT = "Format: a silent story video — 8 shots, about 15 seconds: the hook shot, 7 scene shots, then a short on-screen call to action over the last shot.";
+const STORY_FORMAT = "Format: a silent story video — 6 shots, about 18 seconds: the hook shot, 5 scene shots, then a short on-screen call to action over the last shot.";
 
 /** What each carousel length asks of the script. */
 const CAROUSEL_FORMAT: Record<NonNullable<GenerateScriptInput["carouselLength"]>, string> = {
@@ -371,8 +371,8 @@ function clampScore(n: number) {
 /** A carousel script keeps no more scenes than its slides can hold: 1 for a single image, 2 for a short carousel, 4 for a full one. */
 const CAROUSEL_MAX_SCENES = { single: 1, short: 2, full: 4 } as const;
 
-/** A story keeps its 7 shots after the hook (8 with it); a little slack for a writer that adds one. */
-const STORY_MAX_SCENES = 8;
+/** A silent story keeps its 5 shots after the hook, a narrated one its 7 (8 with the hook); no more. */
+const STORY_MAX_SCENES = 7;
 
 export function normalizeScript(s: GeneratedScript, carouselLength?: GenerateScriptInput["carouselLength"], story = false): GeneratedScript {
   const maxScenes = carouselLength ? CAROUSEL_MAX_SCENES[carouselLength] : story ? STORY_MAX_SCENES : 12;

@@ -96,7 +96,7 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
     setStep(0);
     const timer = setInterval(() => setStep((s) => Math.min(STEPS.length - 1, s + 1)), 2200);
     try {
-      const res = await generateScriptAction({ projectId, spaceId: projectId ? undefined : spaceId === NO_SPACE ? null : spaceId, topic, sourceUrl: sourceUrl || undefined, niche, tone, hookStyle, language, targetDurationSec: storyScript ? (storyVoice ? 25 : 15) : duration, callToActionGoal: cta, audience: audience || undefined, carouselLength: carouselScript ? carouselLength : undefined, story: storyScript || undefined, storyNarrated: storyScript ? storyVoice : undefined, visualMotif: motifOverride, characterImages: projectId ? undefined : postCharacterOverride(images, spaceImages) });
+      const res = await generateScriptAction({ projectId, spaceId: projectId ? undefined : spaceId === NO_SPACE ? null : spaceId, topic, sourceUrl: sourceUrl || undefined, niche, tone, hookStyle, language, targetDurationSec: storyScript ? (storyVoice ? 25 : 18) : duration, callToActionGoal: cta, audience: audience || undefined, carouselLength: carouselScript ? carouselLength : undefined, story: storyScript || undefined, storyNarrated: storyScript ? storyVoice : undefined, visualMotif: motifOverride, characterImages: projectId ? undefined : postCharacterOverride(images, spaceImages) });
       if (!res.ok) {
         toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Obtenir des crédits", onClick: () => router.push("/billing") } : undefined });
         return;
@@ -156,7 +156,7 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
                   <input type="checkbox" checked={storyVoice} onChange={(e) => setStoryVoice(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[hsl(var(--primary))]" />
                   <span>
                     <span className="block text-sm font-medium">Une voix raconte l&apos;histoire</span>
-                    <span className="block text-[11px] leading-snug text-muted-foreground">{storyVoice ? "Une phrase dite par image, comme un conteur. Environ 25 s." : "Sans voix : 2 à 6 mots à l'écran par image et ta musique. Environ 15 s."}</span>
+                    <span className="block text-[11px] leading-snug text-muted-foreground">{storyVoice ? "Une phrase dite par image, comme un conteur. Environ 25 s." : "Sans voix : 6 plans de 2,5 à 3 s, 2 à 6 mots à l'écran par image et ta musique. Environ 18 s."}</span>
                   </span>
                 </label>
               )}
