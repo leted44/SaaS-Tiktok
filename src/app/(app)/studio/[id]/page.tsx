@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { characterList } from "@/lib/characters";
+import { readProjectFilm } from "@/lib/video-clips/film";
 import { notFound } from "next/navigation";
 import { spaceVisualStyle } from "@/lib/space-style";
 import { getProjectForStudio, getCustomVoice, getReviewTally, readReviewReport } from "@/server/queries";
@@ -78,6 +79,8 @@ export default async function StudioPage({ params }: { params: Promise<{ id: str
         visualMotif: project.visualMotif ?? "",
         postedAt: project.postedAt?.toISOString() ?? null,
         postedPlatforms: project.postedPlatforms,
+        film: (() => { const f = readProjectFilm(project.film); return f ? { src: f.src, seconds: Math.round(f.shotsMs.reduce((a, b) => a + b, 0) / 1000) } : null; })(),
+        filmJobId: project.videoClipJobs[0]?.id ?? null,
         characterReference: { own: characterList(project), space: project.space ? characterList(project.space) : [], spaceName: project.space?.name ?? null, spaceId: project.spaceId },
         spaceLook: project.space ? { spaceName: project.space.name, voiceId: project.space.voiceId, look: spaceVideoLook } : null,
         coverSettings: parseJson(coverSettingsSchema.nullable(), project.coverSettings, null),

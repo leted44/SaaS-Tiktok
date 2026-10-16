@@ -1,6 +1,7 @@
 import { env } from "@/lib/env";
 import type { KlingDuration } from "@/lib/plans";
 import { MOTION_NEGATIVE } from "@/lib/ai/motion-prompt";
+import { FILM_ENDPOINT, type FilmRequest } from "@/lib/video-clips/film";
 
 /**
  * Animates one scene's still into a short clip with Kling (image-to-video),
@@ -24,9 +25,13 @@ import { MOTION_NEGATIVE } from "@/lib/ai/motion-prompt";
 
 export type VideoClipTier = "standard" | "pro";
 
-const ENDPOINT: Record<VideoClipTier, string> = {
+/** A scene clip's tier, or « film »: the admin test that draws a whole mini-film at once (lib/video-clips/film). */
+export type ClipJobKind = VideoClipTier | "film";
+
+const ENDPOINT: Record<ClipJobKind, string> = {
   standard: "fal-ai/kling-video/v2.5-turbo/standard/image-to-video",
   pro: "fal-ai/kling-video/v2.5-turbo/pro/image-to-video",
+  film: FILM_ENDPOINT,
 };
 
 const QUEUE_BASE = env.falQueueUrl;
@@ -38,7 +43,7 @@ const QUEUE_BASE = env.falQueueUrl;
  * (the URLs in its own submit response, status_url and response_url, have
  * this shape).
  */
-function requestUrl(tier: VideoClipTier, requestId: string): string {
+function requestUrl(tier: ClipJobKind, requestId: string): string {
   const app = ENDPOINT[tier].split("/").slice(0, 2).join("/");
   return `${QUEUE_BASE}/${app}/requests/${requestId}`;
 }
@@ -81,13 +86,41 @@ export async function submitImageToVideo(imageUrl: string, prompt: string, tier:
   return { requestId: json.request_id };
 }
 
+/**
+ * Starts a whole film (Kling 3, several shots in one generation): the start
+ * image, one prompt and length per shot, and each recurring character as an
+ * element (its reference image, drawn wherever a prompt names @ElementN).
+ * No sound: the music is added on the platform or imported.
+ */
+export async function submitFilm(startImageUrl: string, request: FilmRequest): Promise<{ requestId: string }> {
+  if (!env.falApiKey) throw new VideoClipError("La génération vidéo n'est pas configurée (clé FAL_API_KEY manquante).", "NOT_CONFIGURED");
+  const total = request.shots.reduce((sum, s) => sum + s.duration, 0);
+  const res = await fetch(`${QUEUE_BASE}/${ENDPOINT.film}`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      start_image_url: startImageUrl,
+      multi_prompt: request.shots.map((s) => ({ prompt: s.prompt, duration: String(s.duration) })),
+      shot_type: "customize",
+      duration: String(total),
+      ...(request.elements.length ? { elements: request.elements.map((url) => ({ frontal_image_url: url, reference_image_urls: [url] })) } : {}),
+      generate_audio: false,
+      negative_prompt: MOTION_NEGATIVE,
+    }),
+  });
+  if (!res.ok) throw new VideoClipError(`La demande du film a échoué (${await describeFailure(res)}).`, "UPSTREAM");
+  const json = (await res.json()) as { request_id?: string };
+  if (!json.request_id) throw new VideoClipError("fal.ai n'a renvoyé aucun identifiant de tâche.", "UPSTREAM");
+  return { requestId: json.request_id };
+}
+
 export type VideoClipStatus =
   | { state: "pending" }
   | { state: "completed"; videoUrl: string }
   | { state: "failed"; message: string };
 
 /** One check — never blocks waiting for completion, so it fits inside a poll tick. */
-export async function checkVideoStatus(requestId: string, tier: VideoClipTier): Promise<VideoClipStatus> {
+export async function checkVideoStatus(requestId: string, tier: ClipJobKind): Promise<VideoClipStatus> {
   if (!env.falApiKey) throw new VideoClipError("L'animation de scène n'est pas configurée (clé FAL_API_KEY manquante).", "NOT_CONFIGURED");
 
   const statusRes = await fetch(`${requestUrl(tier, requestId)}/status`, { headers: authHeaders() });

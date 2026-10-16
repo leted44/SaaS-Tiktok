@@ -695,7 +695,7 @@ export function CarouselEditor({ projectId, projectTitle, initial, brand, hasScr
   const photoSlots = state.slides.filter((s) => s.kind !== "cta").length;
   const photoCount = state.slides.filter((s) => s.kind !== "cta" && s.image).length;
   const style = state.visualStyle ?? defaultStyle;
-  const hasCast = Boolean(characterReference.own || characterReference.space);
+  const hasCast = characterReference.own.length > 0 || characterReference.space.length > 0;
   /** The prompt this slide's image would be drawn with here (lib/carousel/ai-visuals promptFor), for the Gemini app. */
   const geminiFor = (slide: CarouselSlide) => {
     const layout = imageLayout(slide.kind, state.template);

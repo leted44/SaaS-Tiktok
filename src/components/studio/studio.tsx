@@ -19,6 +19,7 @@ import { Timeline } from "@/components/studio/timeline";
 import { ScriptPanel } from "@/components/studio/script-panel";
 import { CaptionsPanel } from "@/components/studio/captions-panel";
 import { VisualsPanel } from "@/components/studio/visuals-panel";
+import { FilmTest } from "@/components/studio/film-test";
 import { AudioPanel } from "@/components/studio/audio-panel";
 import { ExportPanel } from "@/components/studio/export-panel";
 import { FormatSwitcher } from "@/components/studio/format-switcher";
@@ -396,6 +397,9 @@ export function Studio(props: StudioProps) {
                   <CaptionsPanel style={state.captionStyle} onChange={(s) => patch("captionStyle", s)} />
                 </TabsContent>
                 <TabsContent value="visuals" className="mt-0">
+                  {testMode && activeScript?.story && !activeScript.storyNarrated && (
+                    <FilmTest projectId={project.id} film={project.film} filmJobId={project.filmJobId} durationMs={liveProps.durationMs} onLayersChange={(l) => patch("visualLayers", l)} ensureSaved={saveNow} />
+                  )}
                   <VisualsPanel
                     story={Boolean(activeScript?.story)}
                     projectId={project.id}
@@ -406,7 +410,7 @@ export function Studio(props: StudioProps) {
                     gemini={{
                       briefs: sceneBriefs,
                       aspect: project.aspectRatio === "VERTICAL" ? "9:16" : project.aspectRatio === "SQUARE" ? "1:1" : "16:9",
-                      cast: Boolean(project.characterReference.own || project.characterReference.space),
+                      cast: project.characterReference.own.length > 0 || project.characterReference.space.length > 0,
                     }}
                     stockConfigured={integrations.stock}
                     selectedScene={selectedScene}

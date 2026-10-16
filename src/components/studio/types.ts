@@ -37,6 +37,9 @@ export interface StudioProject {
   postedPlatforms: string[];
   /** The character sheet its AI images are drawn with (lib/characters). */
   characterReference: CharacterReferenceState;
+  /** Admin test « Film en une fois » (lib/video-clips/film): the film on the video, and one still generating. */
+  film: { src: string; seconds: number } | null;
+  filmJobId: string | null;
   /** Its own cover settings, null until first changed. */
   coverSettings: CoverSettingsData | null;
   /** The voice's tone to read with: its own, else its last voice-over's, else its space's. */

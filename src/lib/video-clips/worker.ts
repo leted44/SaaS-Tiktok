@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import type { VideoClipJob } from "@prisma/client";
 import { claimNextVideoClipJob, claimVideoClipJobById, completeVideoClipJob, failVideoClipJob, PENDING, releaseSubmission, reserveSubmission, saveFalRequestId } from "@/lib/video-clips/queue";
-import { submitImageToVideo, checkVideoStatus, VideoClipError, type VideoClipTier } from "@/lib/ai/video-clip-generator";
+import { submitFilm, submitImageToVideo, checkVideoStatus, VideoClipError, type ClipJobKind, type VideoClipTier } from "@/lib/ai/video-clip-generator";
+import { filmLayer, filmRequestSchema, readProjectFilm } from "@/lib/video-clips/film";
 import { refundCredits } from "@/lib/credits";
 import { putObject, storageKey } from "@/lib/storage";
 import { parseJson, visualLayersSchema } from "@/lib/validations";
@@ -47,7 +48,25 @@ async function applyResultToLayer(projectId: string, layerId: string, videoUrl: 
   return stored.url;
 }
 
+/**
+ * Download a finished film (lib/video-clips/film) and make it the video's only
+ * visual, keeping the visuals it replaces so « Revenir aux images » can put
+ * them back — the ones from before an earlier film, when one was already on.
+ */
+async function applyFilm(job: VideoClipJob, videoUrl: string): Promise<string> {
+  const request = filmRequestSchema.parse(JSON.parse(job.prompt));
+  const project = await prisma.project.findUniqueOrThrow({ where: { id: job.projectId }, select: { visualLayers: true, film: true } });
+  const videoRes = await fetch(videoUrl);
+  if (!videoRes.ok) throw new Error(`Le téléchargement du clip généré a échoué (${videoRes.status}).`);
+  const stored = await putObject(storageKey(job.userId, "asset", `film-${job.id}.mp4`), Buffer.from(await videoRes.arrayBuffer()), "video/mp4");
+  const shotsMs = request.shots.map((s) => s.duration * 1000);
+  const previousLayers = readProjectFilm(project.film)?.previousLayers ?? parseJson(visualLayersSchema, project.visualLayers, []);
+  await prisma.project.update({ where: { id: job.projectId }, data: { visualLayers: [filmLayer(stored.url, shotsMs)], film: { src: stored.url, shotsMs, previousLayers } } });
+  return stored.url;
+}
+
 async function runVideoClipJob(job: VideoClipJob): Promise<VideoClipOutcome> {
+  const kind = job.tier as ClipJobKind;
   const tier = job.tier as VideoClipTier;
   try {
     if (!job.falRequestId) {
@@ -55,7 +74,7 @@ async function runVideoClipJob(job: VideoClipJob): Promise<VideoClipOutcome> {
       if (!(await reserveSubmission(job.id))) return { jobId: job.id, status: "in_progress" };
       let requestId: string;
       try {
-        ({ requestId } = await submitImageToVideo(job.imageUrl, job.prompt, tier, job.duration as "5" | "10"));
+        ({ requestId } = kind === "film" ? await submitFilm(job.imageUrl, filmRequestSchema.parse(JSON.parse(job.prompt))) : await submitImageToVideo(job.imageUrl, job.prompt, tier, job.duration as "5" | "10"));
       } catch (err) {
         await releaseSubmission(job.id);
         throw err;
@@ -70,14 +89,14 @@ async function runVideoClipJob(job: VideoClipJob): Promise<VideoClipOutcome> {
       return { jobId: job.id, status: "in_progress" };
     }
 
-    const status = await checkVideoStatus(job.falRequestId, tier);
+    const status = await checkVideoStatus(job.falRequestId, kind);
     if (status.state === "pending") return { jobId: job.id, status: "in_progress" };
     if (status.state === "failed") throw new Error(status.message);
 
     // The layer's own src is the durable, re-hosted copy; a raw provider URL is
     // kept only as a fallback record when the layer was deleted mid-generation
     // and there was nothing left to apply it to.
-    const storedUrl = await applyResultToLayer(job.projectId, job.layerId, status.videoUrl, job.userId);
+    const storedUrl = kind === "film" ? await applyFilm(job, status.videoUrl) : await applyResultToLayer(job.projectId, job.layerId, status.videoUrl, job.userId);
     await completeVideoClipJob(job.id, storedUrl ?? status.videoUrl);
     return { jobId: job.id, status: "completed" };
   } catch (err) {

@@ -7,6 +7,7 @@ import { absoluteUrl } from "@/lib/storage";
 import { ASPECT_DIMENSIONS, type ShortVideoProps } from "@/lib/render/props";
 import { alignLayersToScenes, applyBeatSync, timelineOffsetMs, type BeatGridSpec } from "@/lib/render/beat-grid";
 import { z } from "zod";
+import { readProjectFilm } from "@/lib/video-clips/film";
 
 interface BuildArgs {
   project: Project;
@@ -49,14 +50,21 @@ const SILENT_SHOT_MAX_MS = 5000;
  * (durationSec, kept between 2.5 and 5 s), and its words show from the
  * shot's start.
  */
-function silentStoryTiming(segments: string[], scenes: { durationSec: number }[]): { words: WordTiming[]; totalMs: number } {
+function silentStoryTiming(segments: string[], scenes: { durationSec: number }[], filmShotsMs: number[] | null): { words: WordTiming[]; totalMs: number } {
+  // With a film on (lib/video-clips/film), each part lasts its shot, the closing line taking the end of the last one.
+  const film = filmShotsMs && filmShotsMs.length === segments.length - 1 ? filmShotsMs : null;
+  const filmCta = film ? Math.min(SILENT_CTA_MS, Math.round(film[film.length - 1] / 2)) : 0;
   const words: WordTiming[] = [];
   let start = 0;
   segments.forEach((text, i) => {
-    const planned = i === 0 ? SILENT_HOOK_MS : i === segments.length - 1 ? SILENT_CTA_MS : Math.min(SILENT_SHOT_MAX_MS, Math.max(SILENT_SHOT_MIN_MS, (scenes[i - 1]?.durationSec ?? 0) * 1000));
-    const own = estimateWordTimings(text, [0]).map((w) => ({ ...w, startMs: w.startMs + start, endMs: w.endMs + start, sceneIndex: i }));
+    const last = i === segments.length - 1;
+    const planned = film
+      ? last ? filmCta : i === film.length - 1 ? film[i] - filmCta : film[i]
+      : i === 0 ? SILENT_HOOK_MS : last ? SILENT_CTA_MS : Math.min(SILENT_SHOT_MAX_MS, Math.max(SILENT_SHOT_MIN_MS, (scenes[i - 1]?.durationSec ?? 0) * 1000));
+    // The estimate opens with a quarter-second lead-in: a part starts with its first word, so the words start with the part.
+    const own = estimateWordTimings(text, [0]).map((w) => ({ ...w, startMs: w.startMs - 250 + start, endMs: w.endMs - 250 + start, sceneIndex: i }));
     words.push(...own);
-    start = Math.max(start + planned, (own.at(-1)?.endMs ?? start) + 400);
+    start = film ? start + planned : Math.max(start + planned, (own.at(-1)?.endMs ?? start) + 400);
   });
   return { words, totalMs: start };
 }
@@ -68,7 +76,7 @@ export function buildShortVideoProps({ project, script, voiceover, workspace, re
 
   let words: WordTiming[] = parseJson(z.array(wordTimingSchema), voiceover?.wordTimings, []);
   // A silent mini-film without a voice-over: each shot keeps its planned length.
-  const silent = !words.length && script.story && !script.storyNarrated ? silentStoryTiming(segments, scenes) : null;
+  const silent = !words.length && script.story && !script.storyNarrated ? silentStoryTiming(segments, scenes, readProjectFilm(project.film)?.shotsMs ?? null) : null;
   if (silent) words = silent.words;
   if (!words.length) {
     const boundaries: number[] = [];

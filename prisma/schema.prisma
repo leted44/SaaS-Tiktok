@@ -267,6 +267,8 @@ model Project {
   characterImage     String?       @db.Text
   /// The images that sheet was built from, one per character or group, in order (4 at most). Empty for a sheet saved before there could be several.
   characterImages    String[]      @default([])
+  /// Admin test « Film en une fois » (lib/video-clips/film): the whole silent mini-film drawn by Kling 3 in one generation, shown as the video's only visual — { src, shotsMs, previousLayers } — so « Revenir aux images » puts the images back. Null: the video is made of its images as usual.
+  film               Json?
   /// Its own sheet put into words, alongside characterImage.
   characterSheetText String?       @db.Text
   status             ProjectStatus @default(DRAFT)
