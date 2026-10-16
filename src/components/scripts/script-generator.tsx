@@ -15,6 +15,7 @@ import { Slider } from "@/components/ui/slider";
 import { Card, CardContent } from "@/components/ui/card";
 import { UpgradePrompt } from "@/components/shared/upgrade-prompt";
 import { generateScriptAction } from "@/server/actions/scripts";
+import { recoverWrittenScript } from "@/components/shared/recover-script";
 import { FormatPicker } from "@/components/shared/format-picker";
 import { CarouselLengthPicker } from "@/components/shared/carousel-length-picker";
 import type { CarouselLength } from "@/lib/carousel/schema";
@@ -95,6 +96,7 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
     setLoading(true);
     setStep(0);
     const timer = setInterval(() => setStep((s) => Math.min(STEPS.length - 1, s + 1)), 2200);
+    const since = Date.now();
     try {
       const res = await generateScriptAction({ projectId, spaceId: projectId ? undefined : spaceId === NO_SPACE ? null : spaceId, topic, sourceUrl: sourceUrl || undefined, niche, tone, hookStyle, language, targetDurationSec: storyScript ? (storyVoice ? 25 : 18) : duration, callToActionGoal: cta, audience: audience || undefined, carouselLength: carouselScript ? carouselLength : undefined, story: storyScript || undefined, storyNarrated: storyScript ? storyVoice : undefined, visualMotif: motifOverride, characterImages: projectId ? undefined : postCharacterOverride(images, spaceImages) });
       if (!res.ok) {
@@ -106,7 +108,8 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
     } catch {
       // A dead network call or a killed server function never reaches `res.ok` —
       // without this, the button spins on "Calcul du score de viralité" forever.
-      toast.error("La génération a échoué (délai dépassé ou connexion perdue). Réessayez.");
+      // The phone dropped the request (page left): the server usually finished it anyway.
+      await recoverWrittenScript({ topic, projectId, since }, (found) => router.push(projectId ? `/studio/${found.projectId}` : formatDestination(format, found.projectId)));
     } finally {
       clearInterval(timer);
       setLoading(false);

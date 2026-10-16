@@ -33,6 +33,28 @@ export async function generateScriptAction(input: unknown): Promise<ActionResult
   });
 }
 
+/**
+ * The script a request was writing when the phone dropped its connection —
+ * a browser sent to the background loses its pending request, but the server
+ * keeps writing and saves the script. The page asks here, every few seconds
+ * once it is back, instead of reporting a failure and inviting a second paid
+ * try. `since` is when the page sent the request (two minutes of slack for
+ * the phone's clock); a project is matched by its topic, a new version by its
+ * project.
+ */
+export async function findWrittenScriptAction(input: { topic: string; projectId?: string; since: number }): Promise<ActionResult<{ projectId: string; version: number; viralityScore: number } | null>> {
+  return guard(async () => {
+    const user = await requireDbUser();
+    const after = new Date(Math.max(input.since - 120_000, Date.now() - 15 * 60_000));
+    const script = await prisma.script.findFirst({
+      where: { userId: user.id, createdAt: { gte: after }, ...(input.projectId ? { projectId: input.projectId } : { project: { topic: input.topic } }) },
+      orderBy: { createdAt: "desc" },
+      select: { projectId: true, version: true, viralityScore: true },
+    });
+    return script ? { projectId: script.projectId, version: script.version, viralityScore: script.viralityScore } : null;
+  });
+}
+
 /** Rewrites just the post captions for an existing script — a weak caption shouldn't cost a whole new script. */
 export async function regenerateSocialCopyAction(scriptId: string): Promise<ActionResult<{ socialCopy: SocialCopy; creditsLeft: number }>> {
   return guard(async () => {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, ChevronDown, Link2, Loader2, SlidersHorizontal, Sparkles, Wand2, X } from "lucide-react";
 import { toast } from "sonner";
 import { generateScriptAction } from "@/server/actions/scripts";
+import { recoverWrittenScript } from "@/components/shared/recover-script";
 import { TONES, TONE_LABELS, type Tone } from "@/lib/autopilot/template-shared";
 import { FormatPicker } from "@/components/shared/format-picker";
 import { CarouselLengthPicker } from "@/components/shared/carousel-length-picker";
@@ -81,6 +82,7 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
     }
     if (!urlValid) return toast.error("Ce lien n'est pas une adresse web valide.");
     setLoading(true);
+    const since = Date.now();
     try {
       const res = await generateScriptAction({
         topic: topic.trim(),
@@ -107,7 +109,8 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
       toast.success(`Script prêt — viralité ${res.data.viralityScore}/100`, { description: `${res.data.lessonsApplied ? `Écrit avec ${res.data.lessonsApplied} leçon${res.data.lessonsApplied > 1 ? "s" : ""} de ton compte. ` : ""}${format === "carousel" ? "Direction l'éditeur de carrousel." : "Direction le studio pour la voix, les visuels et l'export."}` });
       router.push(formatDestination(format, res.data.projectId));
     } catch {
-      toast.error("La génération a échoué (délai dépassé ou connexion perdue). Réessayez.");
+      // The phone dropped the request (page left): the server usually finished it anyway.
+      await recoverWrittenScript({ topic: topic.trim(), since }, (found) => router.push(formatDestination(format, found.projectId)));
     } finally {
       setLoading(false);
     }

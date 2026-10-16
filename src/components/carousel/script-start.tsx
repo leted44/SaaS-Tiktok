@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { generateScriptAction } from "@/server/actions/scripts";
+import { recoverWrittenScript } from "@/components/shared/recover-script";
 import { AUTO_NICHE, CTA_GOALS, HOOK_STYLES, NICHES, type CtaGoal, type HookStyle } from "@/lib/scripts/options";
 import { TONES, TONE_LABELS, type Tone } from "@/lib/autopilot/template-shared";
 import { CarouselLengthPicker } from "@/components/shared/carousel-length-picker";
@@ -39,6 +40,7 @@ export function ScriptStart({ projectId, topic: initialTopic, niche: initialNich
   async function write() {
     if (topic.trim().length < 3) return toast.error("Décris d'abord le sujet du carrousel.");
     setLoading(true);
+    const since = Date.now();
     try {
       const res = await generateScriptAction({
         projectId,
@@ -58,7 +60,8 @@ export function ScriptStart({ projectId, topic: initialTopic, niche: initialNich
       toast.success("Script prêt — relis-le, puis crée le carrousel.");
       router.refresh();
     } catch {
-      toast.error("La génération a échoué (délai dépassé ou connexion perdue). Réessaie.");
+      // The phone dropped the request (page left): the server usually finished it anyway.
+      await recoverWrittenScript({ topic: topic.trim(), projectId, since }, () => router.refresh());
     } finally {
       setLoading(false);
     }
