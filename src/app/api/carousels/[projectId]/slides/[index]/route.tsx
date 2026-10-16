@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { bandBox, CarouselSlideView } from "@/components/carousel/slide";
-import { cropForBand } from "@/lib/carousel/band-crop";
+import { cropToBox } from "@/lib/carousel/photo-crop";
 import { resolveTemplate } from "@/lib/carousel/templates";
 import { loadCarouselFonts } from "@/lib/carousel/fonts";
 import { installBundledEmoji } from "@/lib/carousel/emoji";
@@ -52,9 +52,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ projectI
   // Read from storage, not fetched from the public URL: see slideImageSrc.
   const slide = state.slides[i];
   const inBand = !slide.bakedText && slide.kind === "content" && imageLayout(slide.kind, state.template) === "band";
+  // Every photo is cut to the box it fills, keeping the top of a tall one (lib/carousel/photo-crop):
+  // a 9:16 image on a 4:5 or square slide keeps its subject's head. A slide drawn whole, text
+  // included, keeps the renderer's centred cut.
+  const box = inBand ? bandBox(state.format) : { width, height };
   const [imageSrc, closingSrc] = await Promise.all([
-    slideImageSrc(slide.image?.url, session.user.id).then((src) => (inBand ? cropForBand(src, bandBox(state.format)) : src)),
-    state.slides[i].kind === "cta" ? slideImageSrc(coverImageUrl, session.user.id) : Promise.resolve(null),
+    slideImageSrc(slide.image?.url, session.user.id).then((src) => (slide.bakedText ? src : cropToBox(src, box))),
+    slide.kind === "cta" ? slideImageSrc(coverImageUrl, session.user.id).then((src) => cropToBox(src, { width, height })) : Promise.resolve(null),
   ]);
 
   const download = new URL(req.url).searchParams.has("download");
