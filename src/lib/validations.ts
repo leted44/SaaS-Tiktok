@@ -147,6 +147,8 @@ export const generateScriptSchema = z.object({
   storyNarrated: z.boolean().optional(),
   /** A Fil conducteur typed for this post, over the space's. Absent = the space's (or, with none, the writer's own). */
   visualMotif: z.string().trim().max(800).optional(),
+  /** Character images picked for this post, over the space's (up to 4, stored URLs). Absent = the project's or space's own. */
+  characterImages: z.array(z.string().trim().min(1).max(2000)).max(4, "4 images de référence au maximum.").optional(),
 });
 export type GenerateScriptInput = z.infer<typeof generateScriptSchema>;
 

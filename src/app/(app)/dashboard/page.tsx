@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { characterList } from "@/lib/characters";
 import Link from "next/link";
 import { AlertTriangle, ArrowRight } from "lucide-react";
 import { getDashboard, type DashboardData } from "@/app/(app)/dashboard/data";
@@ -14,7 +15,7 @@ import { getCurrentUser } from "@/server/queries";
 /** The user's spaces, for the quick create's options — a space proposes its language and tone. */
 async function getSpaceOptions() {
   const user = await getCurrentUser();
-  return prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, language: true, tone: true, motif: true } });
+  return prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, language: true, tone: true, motif: true, characterImage: true, characterImages: true } }).then((rows) => rows.map(({ characterImage, characterImages, ...r }) => ({ ...r, images: characterList({ characterImage, characterImages }) })));
 }
 
 export const metadata: Metadata = { title: "Tableau de bord" };

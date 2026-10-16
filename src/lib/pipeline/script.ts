@@ -7,7 +7,7 @@ import { chargeCredits, refundCredits } from "@/lib/credits";
 import { isAdmin, CREDIT_COSTS } from "@/lib/plans";
 import type { GenerateScriptInput } from "@/lib/validations";
 import { activeLessons, lessonsBrief } from "@/lib/results/lessons";
-import { castTextFor } from "@/lib/characters";
+import { castTextFor, characterFields } from "@/lib/characters";
 
 export interface GeneratedScriptSummary {
   projectId: string;
@@ -26,6 +26,9 @@ export interface GeneratedScriptSummary {
  * exactly like one made by hand.
  */
 export async function createScript(user: Pick<User, "id" | "role" | "credits">, workspace: Workspace, data: GenerateScriptInput): Promise<GeneratedScriptSummary> {
+  // Character images picked for this post: checked, joined into one sheet and put into words before
+  // anything is charged, so the writer knows every character (lib/characters).
+  const ownCast = data.characterImages?.length ? await characterFields(data.characterImages, user.id) : null;
   // Charge first (atomic), refund if generation fails — never let a failed call eat credits.
   const admin = isAdmin(user.role);
   const creditsLeft = admin
@@ -37,7 +40,7 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
   const [lessons, targetSpace, cast, existing] = await Promise.all([
     activeLessons(user.id, targetSpaceId, data.carouselLength ? "carousel" : "video").catch(() => []),
     targetSpaceId ? prisma.space.findFirst({ where: { id: targetSpaceId, userId: user.id }, select: { brief: true, motif: true } }) : null,
-    castTextFor(user.id, data.projectId, targetSpaceId),
+    ownCast ? ownCast.characterSheetText : castTextFor(user.id, data.projectId, targetSpaceId),
     data.projectId ? prisma.project.findFirst({ where: { id: data.projectId, userId: user.id }, select: { visualMotif: true } }) : null,
   ]);
   // The Fil conducteur the scenes are written from: one typed for this post, else the
@@ -75,9 +78,11 @@ export async function createScript(user: Pick<User, "id" | "role" | "credits">, 
           musicTrackId: workspace.defaultMusicId,
           // The space's saved look (lib/space-kit): captions, background, music, art direction.
           ...videoLookColumns(readSpaceKit(space?.kit).video),
+          ...(ownCast ?? {}),
         },
       })
     ).id;
+  if (ownCast && data.projectId) await prisma.project.updateMany({ where: { id: data.projectId, userId: user.id }, data: ownCast });
 
   const project = await prisma.project.findFirstOrThrow({ where: { id: projectId, userId: user.id } });
   // A story's words are its captions: they stay on even when the space's look switched them off.

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { PostCharacterImages, postCharacterOverride } from "@/components/shared/post-character-images";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,6 +33,8 @@ interface SpaceOption {
   language: string | null;
   tone: string | null;
   motif?: string | null;
+  /** The space's character images (Espaces → Modifier). */
+  images?: string[];
 }
 
 const EXAMPLES = [
@@ -74,6 +77,9 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
   const [motifEdited, setMotifEdited] = useState(false);
   const spaceMotif = spaces.find((s) => s.id === spaceId)?.motif?.trim() ?? "";
   const motifOverride = !projectId && motifEdited && motif.trim() && motif.trim() !== spaceMotif ? motif.trim() : undefined;
+  /** This post's character images: null while the space's apply (see PostCharacterImages). */
+  const [images, setImages] = useState<string[] | null>(null);
+  const spaceImages = spaces.find((s) => s.id === spaceId)?.images ?? [];
 
   /** Only a starting point — the space's own language/ton are proposed, never forced. */
   function pickSpace(id: string) {
@@ -90,7 +96,7 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
     setStep(0);
     const timer = setInterval(() => setStep((s) => Math.min(STEPS.length - 1, s + 1)), 2200);
     try {
-      const res = await generateScriptAction({ projectId, spaceId: projectId ? undefined : spaceId === NO_SPACE ? null : spaceId, topic, sourceUrl: sourceUrl || undefined, niche, tone, hookStyle, language, targetDurationSec: storyScript ? (storyVoice ? 25 : 15) : duration, callToActionGoal: cta, audience: audience || undefined, carouselLength: carouselScript ? carouselLength : undefined, story: storyScript || undefined, storyNarrated: storyScript ? storyVoice : undefined, visualMotif: motifOverride });
+      const res = await generateScriptAction({ projectId, spaceId: projectId ? undefined : spaceId === NO_SPACE ? null : spaceId, topic, sourceUrl: sourceUrl || undefined, niche, tone, hookStyle, language, targetDurationSec: storyScript ? (storyVoice ? 25 : 15) : duration, callToActionGoal: cta, audience: audience || undefined, carouselLength: carouselScript ? carouselLength : undefined, story: storyScript || undefined, storyNarrated: storyScript ? storyVoice : undefined, visualMotif: motifOverride, characterImages: projectId ? undefined : postCharacterOverride(images, spaceImages) });
       if (!res.ok) {
         toast.error(res.error, { action: res.code === "INSUFFICIENT_CREDITS" ? { label: "Obtenir des crédits", onClick: () => router.push("/billing") } : undefined });
         return;
@@ -237,6 +243,13 @@ export function ScriptGenerator({ credits, cost, aiConfigured, projectId, initia
               <Label htmlFor="post-motif">Fil conducteur de ce post (facultatif)</Label>
               <Textarea id="post-motif" value={motif} onChange={(e) => { setMotif(e.target.value); setMotifEdited(true); }} maxLength={800} rows={3} placeholder={spaceId !== NO_SPACE ? "Celui de l'espace s'applique. Écris ici seulement pour un post différent." : "Les personnages et les lieux des images. Vide = l'IA l'écrit."} />
               <p className="text-xs text-muted-foreground">{spaceMotif ? (motifOverride ? "Ce post utilisera ce texte à la place de celui de l'espace." : "Pré-rempli avec le fil conducteur de l'espace : rien à faire.") : "Astuce : écris-le une fois dans Espaces → Modifier, il servira à tous les posts de l'espace."}</p>
+            </div>
+          )}
+
+          {!projectId && (
+            <div className="space-y-1.5">
+              <Label>Images de référence de ce post (facultatif)</Label>
+              <PostCharacterImages spaceImages={spaceImages} value={images} onChange={setImages} spaced={spaceId !== NO_SPACE} />
             </div>
           )}
 

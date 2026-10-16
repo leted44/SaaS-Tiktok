@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { characterList } from "@/lib/characters";
 import { prisma } from "@/lib/prisma";
 import { getScriptsLibrary, getCurrentUser } from "@/server/queries";
 import { PageHeader } from "@/components/shared/page-header";
@@ -15,7 +16,7 @@ export default async function ScriptsPage({ searchParams }: { searchParams: Prom
   const user = await getCurrentUser();
   const [scripts, spaces] = await Promise.all([
     getScriptsLibrary(),
-    prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, color: true, language: true, tone: true, motif: true } }),
+    prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, color: true, language: true, tone: true, motif: true, characterImage: true, characterImages: true } }).then((rows) => rows.map(({ characterImage, characterImages, ...r }) => ({ ...r, images: characterList({ characterImage, characterImages }) }))),
   ]);
   const cost = isAdmin(user.role) ? 0 : CREDIT_COSTS.SCRIPT_GENERATION;
   return (

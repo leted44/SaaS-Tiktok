@@ -11,6 +11,7 @@ import { CarouselLengthPicker } from "@/components/shared/carousel-length-picker
 import type { CarouselLength } from "@/lib/carousel/schema";
 import { formatDestination, type ContentFormat } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { PostCharacterImages, postCharacterOverride } from "@/components/shared/post-character-images";
 import { AUTO_NICHE, CTA_GOALS, DEFAULT_DURATION_SEC, HOOK_STYLES, LANGUAGES, NICHES, type CtaGoal, type HookStyle } from "@/lib/scripts/options";
 
 const DURATIONS = [20, 30, 45];
@@ -21,7 +22,7 @@ interface Props {
   /** Credits one script costs this account (0 when not billed). */
   cost: number;
   language: string;
-  spaces?: { id: string; name: string; language: string | null; tone: string | null; motif: string | null }[];
+  spaces?: { id: string; name: string; language: string | null; tone: string | null; motif: string | null; images?: string[] }[];
 }
 
 /**
@@ -55,6 +56,9 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
   const [motifEdited, setMotifEdited] = useState(false);
   const spaceMotif = spaces.find((s) => s.id === spaceId)?.motif?.trim() ?? "";
   const motifOverride = motifEdited && motif.trim() && motif.trim() !== spaceMotif ? motif.trim() : undefined;
+  /** This post's character images: null while the space's apply (see PostCharacterImages). */
+  const [images, setImages] = useState<string[] | null>(null);
+  const spaceImages = spaces.find((s) => s.id === spaceId)?.images ?? [];
 
   /** A space proposes its own language and tone — a starting point, never forced. */
   function pickSpace(id: string) {
@@ -91,6 +95,7 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
         language,
         story: storyScript || undefined,
         visualMotif: motifOverride,
+        characterImages: postCharacterOverride(images, spaceImages),
         storyNarrated: storyScript ? storyVoice : undefined,
         // "Les deux" keeps a video script, written for the ear; a carousel alone gets one written for its slides.
         carouselLength: format === "carousel" ? carouselLength : undefined,
@@ -246,6 +251,9 @@ export function QuickCreate({ aiConfigured, credits, cost, language: defaultLang
               <Field label="Fil conducteur de ce post (facultatif)" wide>
                 <textarea value={motif} onChange={(e) => { setMotif(e.target.value); setMotifEdited(true); }} maxLength={800} rows={3} placeholder={spaceId ? "Celui de l'espace s'applique. Écris ici seulement pour un post différent." : "Les personnages et les lieux des images. Vide = l'IA l'écrit."} className={cn(SELECT, "h-auto py-2 leading-relaxed")} />
                 <span className="mt-1 block text-[10px] text-muted-foreground">{spaceMotif ? (motifOverride ? "Ce post utilisera ce texte à la place de celui de l'espace." : "Pré-rempli avec le fil conducteur de l'espace : rien à faire.") : "Astuce : écris-le une fois dans Espaces → Modifier, il servira à tous les posts de l'espace."}</span>
+              </Field>
+              <Field label="Images de référence de ce post (facultatif)" wide>
+                <PostCharacterImages spaceImages={spaceImages} value={images} onChange={setImages} spaced={Boolean(spaceId)} />
               </Field>
             </div>
           )}
