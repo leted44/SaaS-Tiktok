@@ -16,9 +16,12 @@ const SYSTEM = `You write the shot list of a multi-shot image-to-video generatio
 
 You see the start image (the first frame of shot 1) and the reference image of each recurring character, called an element: the first reference image is @Element1, the second @Element2, and so on. One reference image may show several characters; then say which one you mean right after the token (e.g. "@Element1 (the little girl)").
 
-For each shot you get the words shown on screen, the scene's visual brief and its length. Write one prompt per shot, in English, 25 to 70 words, present tense:
-- Who is in the shot, each character always by its @ElementN token, and only the characters the brief names.
-- One clear action at its peak, with a strong readable expression (annoyed, delighted, jealous, surprised), suited to the shot's length — no more action than fits.
+You get the story in one line, then for each shot the words shown on screen, the scene's visual brief and its length. Read every shot first: the shots are one gag told in order, each the consequence of the one before.
+
+Write one prompt per shot, in English, 25 to 70 words, present tense:
+- Who is in the shot, each character always by its @ElementN token followed by two or three of their fixed traits (hair, outfit), and only the characters the brief names.
+- A reference image shows only what a character looks like. Their pose, gesture and place come from the shot alone: never the pose of their reference image — a thumbs-up, a straight standing pose or a front view on a reference image is not an action and is never repeated. A character who arrives is moving (walks in, opens the door and steps through), never posing in a doorway.
+- One clear action at its peak that moves the gag forward from the previous shot, with the expression that beat calls for (annoyed, delighted, jealous, surprised) — a character who refuses or sulks keeps refusing or sulking until the story turns, never smiling in between. Suited to the shot's length: no more action than fits.
 - The framing (close-up, medium shot, wide shot) and one simple camera move (slow push-in, gentle pan, static).
 - The same home, light and art style as the start image unless the brief moves to another place.
 Never write text, captions, logos or speech bubbles into a shot. Never describe image quality.
@@ -38,7 +41,7 @@ let client: Anthropic | null = null;
 const small = async (image: GeneratedImage) => (await sharp(image.data).resize({ width: 640, height: 640, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer()).toString("base64");
 
 /** One prompt per shot, or null when they could not be written — the caller then sends the briefs as they are. */
-export async function writeFilmShots(start: GeneratedImage, elements: GeneratedImage[], shots: FilmShotInput[], motif: string): Promise<string[] | null> {
+export async function writeFilmShots(start: GeneratedImage, elements: GeneratedImage[], shots: FilmShotInput[], motif: string, story: string): Promise<string[] | null> {
   if (!env.anthropicApiKey) return null;
   client ??= new Anthropic({ apiKey: env.anthropicApiKey, maxRetries: 1, timeout: 90_000 });
   try {
@@ -47,7 +50,7 @@ export async function writeFilmShots(start: GeneratedImage, elements: GeneratedI
       content.push({ type: "text", text: `@Element${i + 1}:` }, { type: "image", source: { type: "base64", media_type: "image/jpeg", data: await small(el) } });
     }
     const list = shots.map((s, i) => `Shot ${i + 1} (${s.durationSec} s)\nOn screen: ${s.caption.trim() || "(none)"}\nBrief: ${s.brief.trim() || "(none)"}`).join("\n\n");
-    content.push({ type: "text", text: `${motif.trim() ? `Recurring world of the series: ${motif.trim()}\n\n` : ""}${list}\n\nWrite the ${shots.length} shot prompts.` });
+    content.push({ type: "text", text: `${story.trim() ? `The story: ${story.trim()}\n\n` : ""}${motif.trim() ? `Recurring world of the series: ${motif.trim()}\n\n` : ""}${list}\n\nWrite the ${shots.length} shot prompts.` });
     const response = await client.messages.create({ model: env.anthropicModel, max_tokens: 4000, system: SYSTEM, messages: [{ role: "user", content }] });
     const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
     const json = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)) as { shots?: unknown };

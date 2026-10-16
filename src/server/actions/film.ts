@@ -57,7 +57,7 @@ export async function startFilmAction(projectId: string): Promise<ActionResult<{
       caption: i === seconds.length - 1 ? `${props.scenes[i]?.text ?? ""} ${props.scenes[i + 1]?.text ?? ""}` : (props.scenes[i]?.text ?? ""),
       brief: briefs[i] ?? "",
     }));
-    const written = await writeFilmShots(start, elementImages, shotInputs, project.visualMotif ?? "");
+    const written = await writeFilmShots(start, elementImages, shotInputs, project.visualMotif ?? "", project.topic ?? script.title);
     const request: FilmRequest = {
       shots: seconds.map((duration, i) => ({ duration, prompt: (written?.[i] ?? (shotInputs[i].brief || shotInputs[i].caption || "The characters act out the scene.")).slice(0, 2500) })),
       elements: elementUrls.slice(0, elementImages.length).map((u) => absoluteUrl(u)),
