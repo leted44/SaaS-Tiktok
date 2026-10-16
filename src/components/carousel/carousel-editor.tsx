@@ -79,8 +79,8 @@ interface Props {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const withoutVersion = (s: CarouselSnapshot): CarouselState => ({ template: s.template, format: s.format, handle: s.handle, slides: s.slides, visualStyle: s.visualStyle, visualMotif: s.visualMotif, accent: s.accent });
-/** See slideUrl. 2: images read from storage instead of their public URL. 3: per-slide keys. 4-5: the closing slide redesigned. */
-const RENDER_REVISION = 5;
+/** See slideUrl. 2: images read from storage instead of their public URL. 3: per-slide keys. 4-5: the closing slide redesigned. 6: tall photos cut keeping their top (lib/carousel/photo-crop). */
+const RENDER_REVISION = 6;
 
 /**
  * A short fingerprint of everything one slide's image is drawn from, in a
