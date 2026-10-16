@@ -34,7 +34,7 @@ export function CopyForGemini({ prompt, cast, className }: { prompt: string; cas
   async function copy() {
     if (!(await copyText(prompt))) return void toast.error("Copie impossible sur ce navigateur.");
     toast.success("Copié — colle-le dans Gemini ou ChatGPT", {
-      description: cast ? "Joins aussi ta fiche personnages (Image de référence) à la demande." : "Puis importe l'image obtenue ici.",
+      description: cast ? "Joins aussi tes images de référence (les personnages) à la demande." : "Puis importe l'image obtenue ici.",
       action: { label: "Gemini", onClick: () => window.open("https://gemini.google.com/app", "_blank", "noopener") },
       cancel: { label: "ChatGPT", onClick: () => window.open("https://chatgpt.com", "_blank", "noopener") },
     });

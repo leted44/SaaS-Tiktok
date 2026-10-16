@@ -15,7 +15,9 @@ import type { GeneratedImage } from "@/lib/ai/image-generator";
 
 const SYSTEM = `You describe the characters on a character sheet so that a writer who never sees it describes them exactly as drawn.
 
-For each character, left to right, one line: its kind (e.g. "a red blood cell", "a stomach"), then its body shape, colours, face (eyes, eyebrows, nose, mouth), limbs, hands and feet, clothing and accessories. Concrete visual facts only, in English: no names, no personality, no style or lighting words, nothing about the background. 600 characters at most in total.`;
+The sheet may be several pictures joined side by side, one character or group in each: describe every character on it, none left out.
+
+For each character, left to right, one line: its kind (e.g. "a red blood cell", "a stomach", "a toddler girl"), then its body shape, colours, face (eyes, eyebrows, nose, mouth), hair, limbs, hands and feet, clothing and accessories. Concrete visual facts only, in English: no names, no personality, no style or lighting words, nothing about the background. About 300 characters per character, 1200 at most in total.`;
 
 let client: Anthropic | null = null;
 
@@ -32,7 +34,7 @@ export async function describeCharacterSheet(image: GeneratedImage): Promise<str
       messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: "image/jpeg", data: data.toString("base64") } }, { type: "text", text: "Describe the characters on this sheet." }] }],
     });
     const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("\n").trim();
-    return text ? text.slice(0, 900) : null;
+    return text ? text.slice(0, 1400) : null;
   } catch (err) {
     console.error("[cast-reader] could not describe the character sheet:", err instanceof Error ? err.message : err);
     return null;

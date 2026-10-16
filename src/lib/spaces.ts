@@ -31,8 +31,8 @@ export const spaceInputSchema = z.object({
     .nullable()
     .optional()
     .transform((v) => (v === undefined ? undefined : v || null)),
-  /** The character sheet ("Image de référence"), a stored image URL. Null = none. */
-  characterImage: z.string().trim().max(2000).nullable().optional(),
+  /** The character images ("Images de référence"), stored image URLs in order — one per character or group, 4 at most. Empty = none. */
+  characterImages: z.array(z.string().trim().min(1).max(2000)).max(4, "4 images de référence au maximum.").optional(),
 });
 export type SpaceInput = z.input<typeof spaceInputSchema>;
 
@@ -48,7 +48,10 @@ export interface SpaceOption {
   motif: string | null;
   /** While the space has none: its latest post's, offered to start from. */
   suggestedMotif: string | null;
+  /** The sheet the AI images get (several images joined side by side). */
   characterImage: string | null;
+  /** The images it was built from, shown and edited one by one. */
+  characterImages: string[];
   /** Projects currently tagged with it, so deleting says what it affects. */
   projectCount: number;
 }

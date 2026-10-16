@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/auth";
 import { PLANS, effectivePlanDef, isAdmin, CREDIT_COSTS } from "@/lib/plans";
 import { integrations } from "@/lib/env";
 import type { SpaceOption } from "@/lib/spaces";
+import { characterList } from "@/lib/characters";
 import { VOICES, sortVoices } from "@/lib/tts/voices";
 import { CUSTOM_VOICE_ID, customVoiceDefinition } from "@/lib/tts/resolve-voice";
 import { getUsageSummary } from "@/lib/credits";
@@ -58,7 +59,7 @@ export async function getProjectForStudio(projectId: string) {
     where: { id: projectId, userId: user.id },
     include: {
       workspace: true,
-      space: { select: { name: true, characterImage: true, kit: true, voiceId: true } },
+      space: { select: { name: true, characterImage: true, characterImages: true, kit: true, voiceId: true } },
       scripts: { orderBy: { version: "desc" } },
       voiceovers: { orderBy: { createdAt: "desc" }, take: 5 },
       renderJobs: { orderBy: { createdAt: "desc" }, take: 5 },
@@ -75,7 +76,7 @@ export async function getProjectForCarousel(projectId: string) {
   const user = await getCurrentUser();
   const project = await prisma.project.findFirst({
     where: { id: projectId, userId: user.id },
-    include: { workspace: true, space: { select: { name: true, characterImage: true, kit: true, voiceId: true } }, scripts: { orderBy: { version: "desc" } }, carousel: true },
+    include: { workspace: true, space: { select: { name: true, characterImage: true, characterImages: true, kit: true, voiceId: true } }, scripts: { orderBy: { version: "desc" } }, carousel: true },
   });
   if (!project) return null;
   const activeScript = project.scripts.find((s) => s.id === project.activeScriptId) ?? project.scripts[0] ?? null;
@@ -153,7 +154,7 @@ export async function getSpacesData() {
   const [user, workspace] = await Promise.all([getCurrentUser(), getCurrentWorkspace()]);
   const plan = effectivePlanDef(user);
   const [rows, latestMotifs, published, customVoice] = await Promise.all([
-    prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, color: true, language: true, tone: true, voiceId: true, brief: true, motif: true, characterImage: true, kit: true, clone: true, _count: { select: { projects: true } } } }),
+    prisma.space.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, color: true, language: true, tone: true, voiceId: true, brief: true, motif: true, characterImage: true, characterImages: true, kit: true, clone: true, _count: { select: { projects: true } } } }),
     // Each space's latest post that has a Fil conducteur: the starting point offered for the space's own.
     prisma.project.findMany({ where: { userId: user.id, spaceId: { not: null }, visualMotif: { not: null } }, orderBy: { updatedAt: "desc" }, distinct: ["spaceId"], select: { spaceId: true, visualMotif: true } }),
     prisma.project.groupBy({ by: ["spaceId"], where: { userId: user.id, postedAt: { not: null }, spaceId: { not: null } }, _count: { _all: true } }),
@@ -171,6 +172,7 @@ export async function getSpacesData() {
     motif: s.motif,
     suggestedMotif: s.motif ? null : (latestMotifs.find((p) => p.spaceId === s.id)?.visualMotif?.trim() || null),
     characterImage: s.characterImage,
+    characterImages: characterList(s),
     projectCount: s._count.projects,
     publishedCount: publishedBySpace.get(s.id) ?? 0,
     look: spaceLookView(s.kit),

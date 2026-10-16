@@ -15,20 +15,22 @@ import { storageMigrationInfo } from "@/lib/storage";
 export interface Column {
   table: string;
   column: string;
-  json: "json" | "jsonb" | null;
+  /** The column's type when it is not plain text: rewritten as text, then cast back. */
+  json: "json" | "jsonb" | "text[]" | null;
 }
 
 export const ident = (name: string) => `"${name.replace(/"/g, '""')}"`;
 
 export async function textColumns(): Promise<Column[]> {
   // Cast to text: information_schema's own types (sql_identifier…) are not ones every driver decodes.
-  const rows = await prisma.$queryRaw<{ table_name: string; column_name: string; data_type: string }[]>`
-    SELECT table_name::text AS table_name, column_name::text AS column_name, data_type::text AS data_type
+  // Lists of text count too: a space's character images (Space.characterImages) are stored URLs.
+  const rows = await prisma.$queryRaw<{ table_name: string; column_name: string; data_type: string; udt_name: string }[]>`
+    SELECT table_name::text AS table_name, column_name::text AS column_name, data_type::text AS data_type, udt_name::text AS udt_name
     FROM information_schema.columns
     WHERE table_schema = current_schema()
-      AND data_type IN ('text', 'character varying', 'json', 'jsonb')
+      AND (data_type IN ('text', 'character varying', 'json', 'jsonb') OR (data_type = 'ARRAY' AND udt_name = '_text'))
       AND table_name <> '_prisma_migrations'`;
-  return rows.map((r) => ({ table: r.table_name, column: r.column_name, json: r.data_type === "json" || r.data_type === "jsonb" ? (r.data_type as "json" | "jsonb") : null }));
+  return rows.map((r) => ({ table: r.table_name, column: r.column_name, json: r.data_type === "json" || r.data_type === "jsonb" ? (r.data_type as "json" | "jsonb") : r.data_type === "ARRAY" ? "text[]" : null }));
 }
 
 function prefixes(): { from: string; to: string }[] {

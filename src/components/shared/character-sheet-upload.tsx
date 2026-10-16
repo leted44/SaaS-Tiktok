@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Check, ImagePlus, Trash2, Wand2 } from "lucide-react";
+import { useRef, useState, type ReactNode } from "react";
+import { Check, ImagePlus, Loader2, Wand2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { uploadAsset } from "@/lib/assets/upload-client";
@@ -58,22 +58,30 @@ export interface SheetGeneration {
   enabled: boolean;
 }
 
+/** Most images one space or project takes (lib/characters MAX_CHARACTER_IMAGES — kept apart: that file is server-only). */
+export const MAX_CHARACTER_IMAGES = 4;
+
 /**
- * Pick, preview and clear a character sheet ("Image de référence") — imported,
- * or drawn here when `generate` is given. `onChange` receives the stored
- * image's URL, or null when cleared; saving it is the caller's job.
+ * The character images ("Images de référence") — one per character or group,
+ * imported or drawn here when `generate` is given, 4 at most. The AI gets
+ * them joined side by side as one sheet (lib/characters). `onChange` receives
+ * the new list of stored image URLs; saving it is the caller's job.
  */
-export function CharacterSheetUpload({ value, onChange, disabled, removable = true, removeLabel = "Retirer", pickLabel, generate }: { value: string | null; onChange: (url: string | null) => void | Promise<void>; disabled?: boolean; removable?: boolean; removeLabel?: string; pickLabel?: string; generate?: SheetGeneration }) {
+export function CharacterSheetUpload({ value, onChange, disabled, generate, footer }: { value: string[]; onChange: (urls: string[]) => void | Promise<void>; disabled?: boolean; generate?: SheetGeneration; footer?: ReactNode }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const room = MAX_CHARACTER_IMAGES - value.length;
 
-  async function pick(file: File | undefined) {
-    if (!file) return;
+  async function pick(files: FileList | null) {
+    const picked = [...(files ?? [])];
+    if (!picked.length) return;
+    if (picked.length > room) toast.error(`${MAX_CHARACTER_IMAGES} images au maximum : seules les ${room} premières sont ajoutées.`);
     setBusy(true);
     try {
-      const asset = await uploadAsset(await toJpeg(file), { kind: "asset" });
-      await onChange(asset.url);
+      const urls: string[] = [];
+      for (const file of picked.slice(0, room)) urls.push((await uploadAsset(await toJpeg(file), { kind: "asset" })).url);
+      if (urls.length) await onChange([...value, ...urls]);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "L'envoi de l'image a échoué.");
     } finally {
@@ -84,39 +92,53 @@ export function CharacterSheetUpload({ value, onChange, disabled, removable = tr
 
   return (
     <div className="space-y-3">
-      {/* Wraps under the image when a long label ("Remplacer pour ce projet") would not fit a phone. */}
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={() => input.current?.click()}
-          disabled={disabled || busy}
-          className="flex h-20 w-32 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-white/15 bg-white/[0.03] transition hover:border-white/30"
-          aria-label="Choisir l'image de référence"
-        >
-          {value ? <img src={value} alt="Image de référence des personnages" className="h-full w-full bg-white object-contain" /> : <ImagePlus className="h-5 w-5 text-muted-foreground" />}
-        </button>
-        <div className="flex flex-col gap-1.5">
-          <Button type="button" size="sm" variant="secondary" loading={busy} disabled={disabled} onClick={() => input.current?.click()}>
-            <ImagePlus /> {pickLabel ?? (value ? "Remplacer" : "Choisir une image")}
-          </Button>
-          {generate?.enabled && (
-            <Button type="button" size="sm" variant="secondary" disabled={disabled || busy} onClick={() => setGenerating((g) => !g)}>
-              <Wand2 /> Générer avec l&apos;IA
-            </Button>
-          )}
-          {value && removable && (
-            <Button type="button" size="sm" variant="ghost" disabled={disabled || busy} onClick={() => onChange(null)} className="text-red-300 hover:text-red-200">
-              <Trash2 /> {removeLabel}
-            </Button>
-          )}
-        </div>
-        <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
+      <div className="flex flex-wrap gap-2">
+        {value.map((url, i) => (
+          <div key={url} className="relative h-20 w-24 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white">
+            <img src={url} alt={`Personnage ${i + 1}`} className="h-full w-full object-contain" />
+            <button
+              type="button"
+              disabled={disabled || busy}
+              onClick={() => onChange(value.filter((u) => u !== url))}
+              className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-red-500/90"
+              aria-label={`Retirer l'image ${i + 1}`}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+        {room > 0 && (
+          <button
+            type="button"
+            onClick={() => input.current?.click()}
+            disabled={disabled || busy}
+            className="flex h-20 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-white/15 bg-white/[0.03] text-[11px] text-muted-foreground transition hover:border-white/30"
+            aria-label="Ajouter une image de référence"
+          >
+            {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
+            {value.length ? "Ajouter" : "Choisir"}
+          </button>
+        )}
       </div>
-      {generating && generate && (
+      <div className="flex flex-wrap gap-1.5">
+        {room > 0 && (
+          <Button type="button" size="sm" variant="secondary" loading={busy} disabled={disabled} onClick={() => input.current?.click()}>
+            <ImagePlus /> {value.length ? "Ajouter un personnage" : "Choisir des images"}
+          </Button>
+        )}
+        {generate?.enabled && room > 0 && (
+          <Button type="button" size="sm" variant="secondary" disabled={disabled || busy} onClick={() => setGenerating((g) => !g)}>
+            <Wand2 /> Générer avec l&apos;IA
+          </Button>
+        )}
+        {footer}
+      </div>
+      <input ref={input} type="file" accept="image/*" multiple className="hidden" onChange={(e) => pick(e.target.files)} />
+      {generating && generate && room > 0 && (
         <SheetGenerator
           generation={generate}
           onUse={async (url) => {
-            await onChange(url);
+            await onChange([...value, url]);
             setGenerating(false);
           }}
         />

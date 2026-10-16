@@ -1,5 +1,6 @@
+import sharp from "sharp";
 import { prisma } from "@/lib/prisma";
-import { isOwnImage, readOwnImage } from "@/lib/ai/images";
+import { isOwnImage, readOwnImage, storeGeneratedImage } from "@/lib/ai/images";
 import type { GeneratedImage } from "@/lib/ai/image-generator";
 import { describeCharacterSheet } from "@/lib/ai/cast-reader";
 import { readClone, readyClone } from "@/lib/ai/clone";
@@ -20,6 +21,60 @@ export async function assertCharacterSheet(url: string, userId: string): Promise
   if (!isOwnImage(url, userId) || !(await readOwnImage(url, userId))) {
     throw new Error("Cette image ne peut pas servir de référence : envoie un JPEG ou un PNG de moins de 10 Mo.");
   }
+}
+
+/** Most images one sheet is built from: one per character (or group), side by side. */
+export const MAX_CHARACTER_IMAGES = 4;
+
+/** Height of each image on a built sheet: enough for faces and outfits to read, small enough to send with every image. */
+const CELL_HEIGHT = 1024;
+const GAP = 48;
+
+/**
+ * The single sheet the image model and the cast reader get, from the images
+ * a space or project was given: the image itself when there is one, else all
+ * of them side by side on white, in order, stored as one image. One image
+ * keeps every path that sends the sheet — Gemini, GPT Image, « Copier la
+ * description » — exactly as it was, and a lineup of several characters is
+ * what a character sheet already is (the image prompt's CAST_NOTE says never
+ * to copy the lineup itself).
+ */
+export async function composeSheet(urls: string[], userId: string): Promise<string | null> {
+  if (urls.length <= 1) return urls[0] ?? null;
+  const images = await Promise.all(urls.map((url) => readOwnImage(url, userId)));
+  const cells = await Promise.all(
+    images.map(async (image) => {
+      if (!image) throw new Error("Une des images de référence ne peut plus être lue : retire-la puis ajoute-la à nouveau.");
+      const { data, info } = await sharp(image.data).flatten({ background: "#ffffff" }).resize({ height: CELL_HEIGHT, width: CELL_HEIGHT * 2, fit: "inside" }).jpeg({ quality: 92 }).toBuffer({ resolveWithObject: true });
+      return { data, width: info.width, height: info.height };
+    }),
+  );
+  const width = cells.reduce((sum, c) => sum + c.width, 0) + GAP * (cells.length + 1);
+  const height = CELL_HEIGHT + GAP * 2;
+  let left = GAP;
+  const layers = cells.map((c) => {
+    const layer = { input: c.data, left, top: GAP + Math.round((CELL_HEIGHT - c.height) / 2) };
+    left += c.width + GAP;
+    return layer;
+  });
+  const sheet = await sharp({ create: { width, height, channels: 3, background: "#ffffff" } }).composite(layers).jpeg({ quality: 90, chromaSubsampling: "4:4:4" }).toBuffer();
+  return storeGeneratedImage(userId, { data: sheet, mimeType: "image/jpeg" }, "carousel");
+}
+
+/**
+ * What a space or project stores for a new list of character images: the
+ * list, the sheet built from it, and that sheet in words for the writers.
+ */
+export async function characterFields(urls: string[] | null, userId: string): Promise<{ characterImages: string[]; characterImage: string | null; characterSheetText: string | null }> {
+  const list = [...new Set((urls ?? []).filter(Boolean))].slice(0, MAX_CHARACTER_IMAGES);
+  for (const url of list) await assertCharacterSheet(url, userId);
+  const sheet = await composeSheet(list, userId);
+  return { characterImages: list, characterImage: sheet, characterSheetText: await sheetText(sheet, userId) };
+}
+
+/** The images a space or project shows in its block: its list, or the one sheet saved before there could be several. */
+export function characterList(row: { characterImages?: string[] | null; characterImage: string | null }): string[] {
+  return row.characterImages?.length ? row.characterImages : row.characterImage ? [row.characterImage] : [];
 }
 
 /**

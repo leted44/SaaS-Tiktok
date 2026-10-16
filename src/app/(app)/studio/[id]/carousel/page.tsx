@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { characterList } from "@/lib/characters";
 import { notFound } from "next/navigation";
 import { spaceVisualStyle } from "@/lib/space-style";
 import { DEFAULT_VISUAL_STYLE } from "@/lib/carousel/art-direction";
@@ -66,7 +67,7 @@ export default async function CarouselPage({ params }: { params: Promise<{ id: s
       admin={admin}
       review={review ? { report: review, tally: reviewTally } : null}
       defaultStyle={inheritedStyle ?? DEFAULT_VISUAL_STYLE}
-      characterReference={{ own: project.characterImage, space: project.space?.characterImage ?? null, spaceName: project.space?.name ?? null, spaceId: project.spaceId }}
+      characterReference={{ own: characterList(project), space: project.space ? characterList(project.space) : [], spaceName: project.space?.name ?? null, spaceId: project.spaceId }}
       spaceLook={project.space ? { spaceName: project.space.name, look: readSpaceKit(project.space.kit).carousel } : null}
       scriptStart={{ topic: project.topic ?? project.title, niche: project.niche, language: project.language, cost: admin ? 0 : CREDIT_COSTS.SCRIPT_GENERATION }}
     />

@@ -36,15 +36,15 @@ interface FormState {
   motif: string;
   /** The motif field was filled from the space's latest post, not saved yet. */
   motifSuggested: boolean;
-  characterImage: string | null;
+  characterImages: string[];
 }
 
 function blank(): FormState {
-  return { name: "", color: SPACE_COLORS[0], language: DEFAULT, tone: DEFAULT, voiceId: DEFAULT, brief: "", motif: "", motifSuggested: false, characterImage: null };
+  return { name: "", color: SPACE_COLORS[0], language: DEFAULT, tone: DEFAULT, voiceId: DEFAULT, brief: "", motif: "", motifSuggested: false, characterImages: [] };
 }
 
 function fromSpace(s: SpaceOption): FormState {
-  return { name: s.name, color: s.color, language: s.language ?? DEFAULT, tone: s.tone ?? DEFAULT, voiceId: s.voiceId ?? DEFAULT, brief: s.brief ?? "", motif: s.motif ?? s.suggestedMotif ?? "", motifSuggested: !s.motif && Boolean(s.suggestedMotif), characterImage: s.characterImage };
+  return { name: s.name, color: s.color, language: s.language ?? DEFAULT, tone: s.tone ?? DEFAULT, voiceId: s.voiceId ?? DEFAULT, brief: s.brief ?? "", motif: s.motif ?? s.suggestedMotif ?? "", motifSuggested: !s.motif && Boolean(s.suggestedMotif), characterImages: s.characterImages };
 }
 
 /**
@@ -101,7 +101,7 @@ export function SpaceManagerDialog({ spaces, voices, open, onOpenChange, sheetGe
       voiceId: form.voiceId === DEFAULT ? null : form.voiceId,
       brief: form.brief,
       motif: form.motif,
-      characterImage: form.characterImage,
+      characterImages: form.characterImages,
     });
     setSaving(false);
     if (!res.ok) return toast.error(res.error);
@@ -186,9 +186,9 @@ export function SpaceManagerDialog({ spaces, voices, open, onOpenChange, sheetGe
             </div>
 
             <div className="space-y-1.5">
-              <Label>Image de référence <span className="font-normal text-muted-foreground">(facultatif)</span></Label>
-              <CharacterSheetUpload value={form.characterImage} onChange={(url) => set("characterImage", url)} generate={{ ...sheetGeneration, description: form.brief }} />
-              <p className="text-[11px] text-muted-foreground">Tes personnages récurrents, seuls, en pied et de face, sur fond blanc. Elle accompagne chaque image IA de cet espace — vidéos et carrousels — pour qu'ils aient la même apparence dans chaque publication.</p>
+              <Label>Images de référence <span className="font-normal text-muted-foreground">(facultatif, jusqu&apos;à 4)</span></Label>
+              <CharacterSheetUpload value={form.characterImages} onChange={(urls) => set("characterImages", urls)} generate={{ ...sheetGeneration, description: form.brief }} />
+              <p className="text-[11px] text-muted-foreground">Tes personnages récurrents, une image par personnage (ou plusieurs sur la même), seuls, en pied et de face, sur fond blanc. Elles accompagnent chaque image IA de cet espace — vidéos et carrousels — et le script les connaît toutes, pour que chacun garde la même apparence dans chaque publication.</p>
             </div>
 
             <div className="space-y-1.5">

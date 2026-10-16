@@ -45,7 +45,7 @@ export function creatorBibleLine(bible: string | null | undefined): string | nul
 export function characterSheetLine(text: string | null | undefined): string | null {
   const t = text?.trim();
   return t
-    ? `Character sheet of this account — the image every picture of it is drawn from, described:\n${t}\nWhenever the series bible (visualMotif) or an image brief shows one of these characters, describe it exactly like this — same shape, colours, face, limbs and accessories, never a variant of your own. Give them the names the brief or the account concept gives them.`
+    ? `Character sheet of this account — the image every picture of it is drawn from, described:\n${t}\nThese are the account's recurring characters, all of them. When the post needs a character, cast it from this sheet before inventing a new one, and bring in as many of them as the story calls for — a scene shows only the ones it names. Whenever the series bible (visualMotif) or an image brief shows one of these characters, describe it exactly like this — same shape, colours, face, limbs and accessories, never a variant of your own. Give them the names the brief or the account concept gives them.`
     : null;
 }
 

@@ -263,7 +263,10 @@ model Project {
   // just don't show a tag.
   spaceId            String?
   /// This project's own character sheet, replacing its space's for this project only. Null: the space's is used.
+  /// With several images, the sheet built from them side by side (lib/characters composeSheet).
   characterImage     String?       @db.Text
+  /// The images that sheet was built from, one per character or group, in order (4 at most). Empty for a sheet saved before there could be several.
+  characterImages    String[]      @default([])
   /// Its own sheet put into words, alongside characterImage.
   characterSheetText String?       @db.Text
   status             ProjectStatus @default(DRAFT)
@@ -370,7 +373,10 @@ model Space {
   /// The space's Fil conducteur: its recurring cast in words and its usual places. Every new post of the space starts from it (its writer keeps it word for word).
   motif               String?  @db.Text
   /// The account's character sheet ("Image de référence"): its recurring characters on a plain background, sent with every AI image of its videos and carousels so they look the same in every post.
+  /// With several images, the sheet built from them side by side (lib/characters composeSheet).
   characterImage     String? @db.Text
+  /// The images that sheet was built from, one per character or group, in order (4 at most). Empty for a sheet saved before there could be several.
+  characterImages    String[] @default([])
   /// The sheet put into words (lib/ai/cast-reader), for the writers that compose image briefs and never see the image.
   characterSheetText String? @db.Text
   /// The space's look ("Rendu de l'espace", lib/space-kit): captions, background, music, voice tone, art direction and cover of its videos, template/format/accent/signature of its carousels — saved from a post, applied to every new one.

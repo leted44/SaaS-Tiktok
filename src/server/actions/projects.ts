@@ -15,7 +15,7 @@ import { assembleFullText, heuristicScores } from "@/lib/ai/script-generator";
 import { countWords } from "@/lib/utils";
 import { POST_PLATFORMS } from "@/lib/projects/progress";
 import { deleteUnusedKeys, keysIn } from "@/lib/storage-cleanup";
-import { assertCharacterSheet, sheetText } from "@/lib/characters";
+import { characterFields, MAX_CHARACTER_IMAGES } from "@/lib/characters";
 import { coverSettingsSchema, readSpaceKit, videoLookColumns } from "@/lib/space-kit";
 
 export async function createProject(input: unknown): Promise<ActionResult<{ id: string }>> {
@@ -227,12 +227,12 @@ export async function setActiveScript(projectId: string, scriptId: string): Prom
   });
 }
 
-/** Give a project its own character sheet, or (null) go back to its space's. */
-export async function setProjectCharacterImageAction(projectId: string, url: string | null): Promise<ActionResult<undefined>> {
+/** Give a project its own character images (one per character or group, 4 at most), or (empty) go back to its space's. */
+export async function setProjectCharacterImagesAction(projectId: string, urls: string[]): Promise<ActionResult<undefined>> {
   return guard(async () => {
     const user = await requireUser();
-    if (url) await assertCharacterSheet(url, user.id);
-    const { count } = await prisma.project.updateMany({ where: { id: projectId, userId: user.id }, data: { characterImage: url, characterSheetText: await sheetText(url, user.id) } });
+    if (!Array.isArray(urls) || urls.length > MAX_CHARACTER_IMAGES || urls.some((u) => typeof u !== "string" || u.length > 2000)) throw new Error(`${MAX_CHARACTER_IMAGES} images de référence au maximum.`);
+    const { count } = await prisma.project.updateMany({ where: { id: projectId, userId: user.id }, data: await characterFields(urls, user.id) });
     if (!count) throw new Error("Ce projet n'existe plus.");
     revalidatePath(`/studio/${projectId}`);
     revalidatePath(`/studio/${projectId}/carousel`);

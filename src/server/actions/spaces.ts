@@ -5,7 +5,7 @@ import type { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { spaceInputSchema } from "@/lib/spaces";
-import { assertCharacterSheet, sheetText } from "@/lib/characters";
+import { characterFields, characterList } from "@/lib/characters";
 import { guard, type ActionResult } from "@/server/action-result";
 
 /** First validation message, in French, instead of guard()'s generic one for a ZodError. */
@@ -21,11 +21,11 @@ const MAX_SPACES = 20;
 export async function saveSpaceAction(id: string | null, input: unknown): Promise<ActionResult<{ id: string }>> {
   return guard(async () => {
     const user = await requireUser();
-    const data = parseOrThrow(spaceInputSchema, input);
-    if (data.characterImage) await assertCharacterSheet(data.characterImage, user.id);
-    // A new sheet is put into words once, here, for the writers (lib/ai/cast-reader).
-    const previous = id ? await prisma.space.findFirst({ where: { id, userId: user.id }, select: { characterImage: true } }) : null;
-    const sheet = data.characterImage !== undefined && data.characterImage !== (previous?.characterImage ?? null) ? { characterSheetText: await sheetText(data.characterImage, user.id) } : {};
+    const { characterImages, ...data } = parseOrThrow(spaceInputSchema, input);
+    // A changed list of character images is joined into one sheet and put into words once, here, for the writers (lib/characters, lib/ai/cast-reader).
+    const previous = id ? await prisma.space.findFirst({ where: { id, userId: user.id }, select: { characterImage: true, characterImages: true } }) : null;
+    const changed = characterImages !== undefined && characterImages.join("\n") !== (previous ? characterList(previous) : []).join("\n");
+    const sheet = changed ? await characterFields(characterImages, user.id) : {};
     if (id) {
       const { count } = await prisma.space.updateMany({ where: { id, userId: user.id }, data: { ...data, ...sheet } });
       if (!count) throw new Error("Cet espace n'existe plus.");
