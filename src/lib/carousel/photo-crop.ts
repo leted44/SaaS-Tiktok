@@ -15,6 +15,12 @@ import sharp from "sharp";
  * in the centre as before.
  */
 const TALL_FOCUS = 0.31;
+/**
+ * A short window (a wide band on a 4:5 or square slide) centred on that focus
+ * started below the top of a head standing high in the frame; it never starts
+ * lower than this.
+ */
+const HEAD_ROOM = 0.08;
 
 export async function cropToBox(dataUrl: string | null, box: { width: number; height: number }): Promise<string | null> {
   if (!dataUrl) return dataUrl;
@@ -28,7 +34,7 @@ export async function cropToBox(dataUrl: string | null, box: { width: number; he
     // Already as wide as the box, or wider: the renderer's centred cut is the right one.
     if (width / height >= target) return dataUrl;
     const cropHeight = Math.round(width / target);
-    const top = Math.max(0, Math.min(height - cropHeight, Math.round(height * TALL_FOCUS - cropHeight / 2)));
+    const top = Math.max(0, Math.min(height - cropHeight, Math.round(Math.min(height * TALL_FOCUS - cropHeight / 2, height * HEAD_ROOM))));
     const out = await sharp(input).extract({ left: 0, top, width, height: cropHeight }).jpeg({ quality: 90 }).toBuffer();
     return `data:image/jpeg;base64,${out.toString("base64")}`;
   } catch (err) {
