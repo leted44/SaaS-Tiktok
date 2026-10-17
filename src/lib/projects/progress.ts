@@ -2,6 +2,7 @@ import type { Prisma, ProjectStatus } from "@prisma/client";
 import { parseJson, visualLayersSchema, visualPoolSchema, type VisualLayer, type VisualPoolItem } from "@/lib/validations";
 import { formatDuration } from "@/lib/utils";
 import { carouselStateFromRow, tooLongForImage, type CarouselState } from "@/lib/carousel/schema";
+import { readProjectFilm } from "@/lib/video-clips/film";
 
 /**
  * Where a project stands, worked out from what exists for it — a script, a
@@ -61,13 +62,14 @@ export const PROJECT_PROGRESS_SELECT = {
   activeScriptId: true,
   visualLayers: true,
   visualPool: true,
+  film: true,
   episodeNumber: true,
   episodeTotal: true,
   postedAt: true,
   postedPlatforms: true,
   spaceId: true,
   space: { select: { id: true, name: true, color: true } },
-  scripts: { orderBy: { version: "desc" }, take: 3, select: { id: true, wordCount: true, estimatedDurationSec: true, viralityScore: true, hookScore: true, retentionScore: true, clarityScore: true, scoreRationale: true } },
+  scripts: { orderBy: { version: "desc" }, take: 3, select: { id: true, wordCount: true, estimatedDurationSec: true, story: true, storyNarrated: true, viralityScore: true, hookScore: true, retentionScore: true, clarityScore: true, scoreRationale: true } },
   voiceovers: { where: { status: "READY" }, orderBy: { createdAt: "desc" }, take: 3, select: { scriptId: true, durationMs: true } },
   renderJobs: { orderBy: { createdAt: "desc" }, take: 4, select: { status: true, progress: true, outputUrl: true, thumbnailUrl: true } },
   publishJobs: { where: { status: "PUBLISHED" }, orderBy: { publishedAt: "desc" }, take: 5, select: { platform: true, publishedAt: true } },
@@ -106,19 +108,21 @@ export function buildProjectProgress(p: ProjectProgressRow): ProjectCardData {
   }
 
   const hasVisuals = layers.length > 0;
+  // A silent mini-film has no voice-over to make: its words are captions, timed without one (as the studio's Voix step says).
+  const silent = Boolean(script?.story && !script.storyNarrated);
   const raw: Omit<WorkflowStep, "state">[] = [
     { key: "script", label: "Script", detail: script ? `${script.wordCount} mots` : "À écrire" },
-    { key: "voice", label: "Voix", detail: voice?.durationMs ? formatDuration(voice.durationMs) : "À générer" },
+    { key: "voice", label: "Voix", detail: voice?.durationMs ? formatDuration(voice.durationMs) : silent ? "Sans voix" : "À générer" },
     { key: "visuals", label: "Visuels", detail: hasVisuals ? `${layers.length} plan${layers.length > 1 ? "s" : ""}` : finished ? "Fond animé" : "À choisir" },
-    { key: "captions", label: "Sous-titres", detail: voice ? "Synchronisés" : "Après la voix" },
+    { key: "captions", label: "Sous-titres", detail: voice || silent ? "Synchronisés" : "Après la voix" },
     { key: "export", label: "Export", detail: published ? "Publiée" : finished ? "Rendu terminé" : inProgress ? `${inProgress.progress} %` : "À lancer" },
   ];
   const done: Partial<Record<StepKey, boolean>> = {
     script: Boolean(script),
-    voice: Boolean(voice),
+    voice: Boolean(voice) || silent,
     visuals: hasVisuals || Boolean(finished),
     // Captions are timed from the voice-over's words: they exist as soon as it does.
-    captions: Boolean(voice),
+    captions: Boolean(voice) || silent,
     export: Boolean(finished),
   };
   const firstOpen = raw.findIndex((s) => !done[s.key]);
@@ -127,7 +131,7 @@ export function buildProjectProgress(p: ProjectProgressRow): ProjectCardData {
   const studio = `/studio/${p.id}`;
   const next = !script
     ? { label: "Générer le script", href: `/scripts?project=${p.id}` }
-    : !voice
+    : !voice && !silent
       ? { label: "Générer la voix off", href: studio }
       : inProgress
         ? { label: "Suivre le rendu", href: studio }
@@ -151,7 +155,7 @@ export function buildProjectProgress(p: ProjectProgressRow): ProjectCardData {
     status: p.status,
     aspectRatio: p.aspectRatio,
     updatedAt: p.updatedAt,
-    thumbnailUrl: p.thumbnailUrl ?? finished?.thumbnailUrl ?? firstVisualThumbnail(layers, parseJson(visualPoolSchema, p.visualPool, [])),
+    thumbnailUrl: p.thumbnailUrl ?? finished?.thumbnailUrl ?? firstVisualThumbnail(layers, parseJson(visualPoolSchema, p.visualPool, [])) ?? firstVisualThumbnail(readProjectFilm(p.film)?.previousLayers.filter((l) => Boolean(l.src)) ?? [], []),
     videoUrl: finished?.outputUrl ?? null,
     duration,
     scores: scored ? { virality: script.viralityScore, hook: script.hookScore, retention: script.retentionScore, clarity: script.clarityScore, rationale: script.scoreRationale } : null,
@@ -170,7 +174,9 @@ export function buildProjectProgress(p: ProjectProgressRow): ProjectCardData {
 /**
  * A still for a video that has no render thumbnail yet (or was rendered
  * before renders produced one): its opening visual. An image layer is shown
- * as is; a stock video layer by the preview its library entry carries.
+ * as is; a stock video layer by the preview its library entry carries. A
+ * film on (« Film en une fois ») has no preview: the images it replaced,
+ * starting with the hook's, stand in.
  */
 function firstVisualThumbnail(layers: VisualLayer[], pool: VisualPoolItem[]): string | null {
   for (const l of [...layers].sort((a, b) => a.startMs - b.startMs)) {
