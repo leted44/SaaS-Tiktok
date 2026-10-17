@@ -59,7 +59,7 @@ async function applyFilm(job: VideoClipJob, videoUrl: string): Promise<string> {
   const videoRes = await fetch(videoUrl);
   if (!videoRes.ok) throw new Error(`Le téléchargement du clip généré a échoué (${videoRes.status}).`);
   const stored = await putObject(storageKey(job.userId, "asset", `film-${job.id}.mp4`), Buffer.from(await videoRes.arrayBuffer()), "video/mp4");
-  const shotsMs = request.shots.map((s) => s.duration * 1000);
+  const shotsMs = request.partsMs ?? request.shots.map((s) => s.duration * 1000);
   const previousLayers = readProjectFilm(project.film)?.previousLayers ?? parseJson(visualLayersSchema, project.visualLayers, []);
   await prisma.project.update({ where: { id: job.projectId }, data: { visualLayers: [filmLayer(stored.url, shotsMs)], film: { src: stored.url, shotsMs, previousLayers } } });
   return stored.url;
@@ -74,7 +74,7 @@ async function runVideoClipJob(job: VideoClipJob): Promise<VideoClipOutcome> {
       if (!(await reserveSubmission(job.id))) return { jobId: job.id, status: "in_progress" };
       let requestId: string;
       try {
-        ({ requestId } = kind === "film" ? await submitFilm(job.imageUrl, filmRequestSchema.parse(JSON.parse(job.prompt))) : await submitImageToVideo(job.imageUrl, job.prompt, tier, job.duration as "5" | "10"));
+        ({ requestId } = kind === "film" || kind === "film-standard" ? await submitFilm(kind, job.imageUrl, filmRequestSchema.parse(JSON.parse(job.prompt))) : await submitImageToVideo(job.imageUrl, job.prompt, tier, job.duration as "5" | "10"));
       } catch (err) {
         await releaseSubmission(job.id);
         throw err;
@@ -96,7 +96,7 @@ async function runVideoClipJob(job: VideoClipJob): Promise<VideoClipOutcome> {
     // The layer's own src is the durable, re-hosted copy; a raw provider URL is
     // kept only as a fallback record when the layer was deleted mid-generation
     // and there was nothing left to apply it to.
-    const storedUrl = kind === "film" ? await applyFilm(job, status.videoUrl) : await applyResultToLayer(job.projectId, job.layerId, status.videoUrl, job.userId);
+    const storedUrl = kind === "film" || kind === "film-standard" ? await applyFilm(job, status.videoUrl) : await applyResultToLayer(job.projectId, job.layerId, status.videoUrl, job.userId);
     await completeVideoClipJob(job.id, storedUrl ?? status.videoUrl);
     return { jobId: job.id, status: "completed" };
   } catch (err) {

@@ -64,7 +64,7 @@ export async function getProjectForStudio(projectId: string) {
       voiceovers: { orderBy: { createdAt: "desc" }, take: 5 },
       renderJobs: { orderBy: { createdAt: "desc" }, take: 5 },
       // Admin test « Film en une fois »: one still generating is followed again when the page reopens.
-      videoClipJobs: { where: { tier: "film", status: { in: ["QUEUED", "PROCESSING"] } }, orderBy: { createdAt: "desc" }, take: 1, select: { id: true } },
+      videoClipJobs: { where: { tier: { startsWith: "film" }, status: { in: ["QUEUED", "PROCESSING"] } }, orderBy: { createdAt: "desc" }, take: 1, select: { id: true } },
     },
   });
   if (!project) return null;

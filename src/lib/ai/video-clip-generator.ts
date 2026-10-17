@@ -1,7 +1,7 @@
 import { env } from "@/lib/env";
 import type { KlingDuration } from "@/lib/plans";
 import { MOTION_NEGATIVE } from "@/lib/ai/motion-prompt";
-import { FILM_ENDPOINT, type FilmRequest } from "@/lib/video-clips/film";
+import { FILM_ENDPOINTS, type FilmRequest } from "@/lib/video-clips/film";
 
 /**
  * Animates one scene's still into a short clip with Kling (image-to-video),
@@ -26,12 +26,13 @@ import { FILM_ENDPOINT, type FilmRequest } from "@/lib/video-clips/film";
 export type VideoClipTier = "standard" | "pro";
 
 /** A scene clip's tier, or « film »: the admin test that draws a whole mini-film at once (lib/video-clips/film). */
-export type ClipJobKind = VideoClipTier | "film";
+export type ClipJobKind = VideoClipTier | "film" | "film-standard";
 
 const ENDPOINT: Record<ClipJobKind, string> = {
   standard: "fal-ai/kling-video/v2.5-turbo/standard/image-to-video",
   pro: "fal-ai/kling-video/v2.5-turbo/pro/image-to-video",
-  film: FILM_ENDPOINT,
+  film: FILM_ENDPOINTS.pro,
+  "film-standard": FILM_ENDPOINTS.standard,
 };
 
 const QUEUE_BASE = env.falQueueUrl;
@@ -92,10 +93,10 @@ export async function submitImageToVideo(imageUrl: string, prompt: string, tier:
  * element (its reference image, drawn wherever a prompt names @ElementN).
  * No sound: the music is added on the platform or imported.
  */
-export async function submitFilm(startImageUrl: string, request: FilmRequest): Promise<{ requestId: string }> {
+export async function submitFilm(kind: "film" | "film-standard", startImageUrl: string, request: FilmRequest): Promise<{ requestId: string }> {
   if (!env.falApiKey) throw new VideoClipError("La génération vidéo n'est pas configurée (clé FAL_API_KEY manquante).", "NOT_CONFIGURED");
   const total = request.shots.reduce((sum, s) => sum + s.duration, 0);
-  const res = await fetch(`${QUEUE_BASE}/${ENDPOINT.film}`, {
+  const res = await fetch(`${QUEUE_BASE}/${ENDPOINT[kind]}`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({

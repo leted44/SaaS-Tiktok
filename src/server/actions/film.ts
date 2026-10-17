@@ -13,7 +13,7 @@ import { absoluteUrl } from "@/lib/storage";
 import { readOwnImage } from "@/lib/ai/images";
 import { characterList } from "@/lib/characters";
 import { writeFilmShots } from "@/lib/ai/film-prompt";
-import { FILM_MAX_ELEMENTS, planFilmShots, readProjectFilm, type FilmRequest } from "@/lib/video-clips/film";
+import { FILM_LENGTHS, FILM_MAX_ELEMENTS, planFilm, readProjectFilm, type FilmLength, type FilmQuality, type FilmRequest } from "@/lib/video-clips/film";
 import { guard, type ActionResult } from "@/server/action-result";
 
 /**
@@ -24,8 +24,10 @@ import { guard, type ActionResult } from "@/server/action-result";
  * polling of /api/video-clips/[id] drives it and the worker puts the film on
  * the video once it lands, keeping the images for « Revenir aux images ».
  */
-export async function startFilmAction(projectId: string): Promise<ActionResult<{ jobId: string; seconds: number; shots: number }>> {
+export async function startFilmAction(projectId: string, options: { seconds: FilmLength; quality: FilmQuality }): Promise<ActionResult<{ jobId: string; seconds: number; shots: number }>> {
   return guard(async () => {
+    const target = FILM_LENGTHS.includes(options?.seconds) ? options.seconds : 15;
+    const quality: FilmQuality = options?.quality === "standard" ? "standard" : "pro";
     const user = await requireDbUser();
     if (!isAdmin(user.role)) throw new Error("Réservé à l'admin (test).");
     if (!integrations.videoClips()) throw new Error("La génération vidéo n'est pas configurée (clé FAL_API_KEY manquante).");
@@ -33,12 +35,13 @@ export async function startFilmAction(projectId: string): Promise<ActionResult<{
     const project = await prisma.project.findFirstOrThrow({ where: { id: projectId, userId: user.id }, include: { workspace: true, space: { select: { characterImage: true, characterImages: true } } } });
     const script = project.activeScriptId ? await prisma.script.findFirst({ where: { id: project.activeScriptId, projectId } }) : null;
     if (!script?.story || script.storyNarrated) throw new Error("Le film en une fois se fait sur un mini-film sans voix.");
-    const running = await prisma.videoClipJob.findFirst({ where: { projectId, tier: "film", status: { in: ["QUEUED", "PROCESSING"] } }, select: { id: true } });
+    const running = await prisma.videoClipJob.findFirst({ where: { projectId, tier: { startsWith: "film" }, status: { in: ["QUEUED", "PROCESSING"] } }, select: { id: true } });
     if (running) throw new Error("Un film est déjà en cours pour cette vidéo.");
 
     // The script's own timing, not a film already on: the new film is cut from the script.
     const props = buildShortVideoProps({ project: { ...project, film: null }, script, voiceover: null, workspace: project.workspace, resolution: "1080p", watermark: false, snapCuts: false });
-    const seconds = planFilmShots(props.scenes.map((s) => s.endMs - s.startMs));
+    const plan = planFilm(props.scenes.map((s) => s.endMs - s.startMs), target);
+    const seconds = plan.shots.map((s) => s.seconds);
 
     // The first frame: the hook's image — from before the film when one is on.
     const layers: VisualLayer[] = readProjectFilm(project.film)?.previousLayers ?? parseJson(visualLayersSchema, project.visualLayers, []);
@@ -51,20 +54,22 @@ export async function startFilmAction(projectId: string): Promise<ActionResult<{
     const elementImages = (await Promise.all(elementUrls.map((u) => readOwnImage(u, user.id)))).filter((i): i is NonNullable<typeof i> => Boolean(i));
 
     const briefs = sceneVisualDescriptions(props.scenes.length, script);
-    const shotInputs = seconds.map((durationSec, i) => ({
-      durationSec,
-      // The last shot also carries the closing line.
-      caption: i === seconds.length - 1 ? `${props.scenes[i]?.text ?? ""} ${props.scenes[i + 1]?.text ?? ""}` : (props.scenes[i]?.text ?? ""),
-      brief: briefs[i] ?? "",
+    const last = props.scenes.length - 2;
+    const shotInputs = plan.shots.map((shot) => ({
+      durationSec: shot.seconds,
+      // Parts sharing a shot are told one after the other; the last part also carries the closing line.
+      caption: shot.parts.map((p) => (p === last ? `${props.scenes[p]?.text ?? ""} ${props.scenes[p + 1]?.text ?? ""}` : (props.scenes[p]?.text ?? ""))).join(" / "),
+      brief: shot.parts.map((p) => briefs[p] ?? "").filter(Boolean).join(" Then: "),
     }));
     const written = await writeFilmShots(start, elementImages, shotInputs, project.visualMotif ?? "", project.topic ?? script.title);
     const request: FilmRequest = {
       shots: seconds.map((duration, i) => ({ duration, prompt: (written?.[i] ?? (shotInputs[i].brief || shotInputs[i].caption || "The characters act out the scene.")).slice(0, 2500) })),
       elements: elementUrls.slice(0, elementImages.length).map((u) => absoluteUrl(u)),
+      partsMs: plan.partsMs,
     };
 
     const job = await prisma.videoClipJob.create({
-      data: { projectId, userId: user.id, layerId: "film", imageUrl: absoluteUrl(hook.src), prompt: JSON.stringify(request), tier: "film", duration: String(seconds.reduce((a, b) => a + b, 0)), creditsCharged: 0 },
+      data: { projectId, userId: user.id, layerId: "film", imageUrl: absoluteUrl(hook.src), prompt: JSON.stringify(request), tier: quality === "standard" ? "film-standard" : "film", duration: String(seconds.reduce((a, b) => a + b, 0)), creditsCharged: 0 },
     });
     revalidatePath(`/studio/${projectId}`);
     return { jobId: job.id, seconds: seconds.reduce((a, b) => a + b, 0), shots: seconds.length };
