@@ -31,7 +31,14 @@ Never add people, objects, text, logos or captions that are not in the image. Ne
 export const MOTION_GUARD = "Smooth, natural motion; the subject keeps the same face, body and clothing throughout; no text appears.";
 
 /** Sent as Kling's negative prompt — the usual failures of a still brought to life. */
-export const MOTION_NEGATIVE = "blur, distortion, morphing face, extra limbs, extra fingers, melting, flicker, camera shake, sudden cut, text, watermark, low quality";
+export const MOTION_NEGATIVE = "blur, distortion, morphing face, extra limbs, extra fingers, duplicate person, melting, flicker, camera shake, sudden cut, text, watermark, low quality";
+
+/**
+ * A film's negative prompt (lib/ai/film-prompt): a film cuts from shot to
+ * shot, so a cut is no failure; a character drawn twice is — the first
+ * Standard film ended on two dads and no mum.
+ */
+export const FILM_NEGATIVE = "blur, distortion, morphing face, extra limbs, extra fingers, duplicate person, the same person twice, cloned character, twins, melting, flicker, text, watermark, low quality";
 
 export interface MotionContext {
   /** What the voice says over the clip. */

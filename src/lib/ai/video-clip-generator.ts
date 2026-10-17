@@ -1,6 +1,6 @@
 import { env } from "@/lib/env";
 import type { KlingDuration } from "@/lib/plans";
-import { MOTION_NEGATIVE } from "@/lib/ai/motion-prompt";
+import { FILM_NEGATIVE, MOTION_NEGATIVE } from "@/lib/ai/motion-prompt";
 import { FILM_ENDPOINTS, type FilmRequest } from "@/lib/video-clips/film";
 
 /**
@@ -106,7 +106,7 @@ export async function submitFilm(kind: "film" | "film-standard", startImageUrl: 
       duration: String(total),
       ...(request.elements.length ? { elements: request.elements.map((url) => ({ frontal_image_url: url, reference_image_urls: [url] })) } : {}),
       generate_audio: false,
-      negative_prompt: MOTION_NEGATIVE,
+      negative_prompt: FILM_NEGATIVE,
     }),
   });
   if (!res.ok) throw new VideoClipError(`La demande du film a échoué (${await describeFailure(res)}).`, "UPSTREAM");
